@@ -43,6 +43,7 @@ for name in required:
 if missing:
     for name, exc in missing:
         print(f"[qk-lut-e0] missing dependency: {name}: {exc}")
+    print("[qk-lut-e0] run: bash scripts/server/install_qkformer_lut_deps.sh")
     sys.exit(1)
 
 import torch

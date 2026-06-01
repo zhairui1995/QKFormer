@@ -96,6 +96,8 @@ Implementation:
   - `tools/qkformer_lut_e0_diag.py`
 - Server entry:
   - `scripts/server/run_qkformer_lut_e0_diag.sh`
+- Dependency installer:
+  - `scripts/server/install_qkformer_lut_deps.sh`
 - Config:
   - `configs/qkformer_lut_e0_diag.yaml`
 
