@@ -32,8 +32,11 @@ from torch.nn.parallel import DistributedDataParallel as NativeDDP
 
 from timm.data import create_dataset, resolve_data_config, Mixup, FastCollateMixup, AugMixDataset, create_loader
 # from loader import create_loader
-from timm.models import create_model, safe_model_name, resume_checkpoint, load_checkpoint, \
-    convert_splitbn_model, model_parameters
+from timm.models import create_model, safe_model_name, resume_checkpoint, load_checkpoint, model_parameters
+try:
+    from timm.models import convert_splitbn_model
+except ImportError:
+    convert_splitbn_model = None
 from timm.utils import *
 from timm.loss import LabelSmoothingCrossEntropy, SoftTargetCrossEntropy, JsdCrossEntropy
 from timm.optim import create_optimizer_v2, optimizer_kwargs
@@ -408,6 +411,8 @@ def main():
 
     # enable split bn (separate bn stats per batch-portion)
     if args.split_bn:
+        if convert_splitbn_model is None:
+            raise RuntimeError("split-bn requested, but this timm version does not expose convert_splitbn_model")
         assert num_aug_splits > 1 or args.resplit
         model = convert_splitbn_model(model, max(num_aug_splits, 2))
 
