@@ -45,12 +45,24 @@ def _as_binary(x: torch.Tensor) -> torch.Tensor:
     return (x.detach() > 0).to(torch.long)
 
 
-def _flatten_proj(output: torch.Tensor) -> torch.Tensor:
+def _flatten_proj(
+    output: torch.Tensor,
+    time_steps: Optional[int] = None,
+    batch_size: Optional[int] = None,
+) -> torch.Tensor:
     if output.ndim == 5:
         t, b, c, h, w = output.shape
         return output.reshape(t, b, c, h * w)
     if output.ndim == 4:
         return output
+    if output.ndim == 3 and time_steps is not None and batch_size is not None:
+        tb, c, n = output.shape
+        if tb != time_steps * batch_size:
+            raise ValueError(
+                "Projected output batch mismatch: "
+                f"shape={tuple(output.shape)}, T={time_steps}, B={batch_size}"
+            )
+        return output.reshape(time_steps, batch_size, c, n)
     raise ValueError(f"Unsupported projected output shape: {tuple(output.shape)}")
 
 
@@ -175,8 +187,8 @@ class QKAddressDiagnostic:
         q_raw = _as_binary(buf["q"])
         k_raw = _as_binary(buf["k"])
         gate_raw = _as_binary(buf["attn"])
-        proj = _flatten_proj(buf["proj"]).float()
         t, b, c, n = q_raw.shape
+        proj = _flatten_proj(buf["proj"], t, b).float()
         heads = gate_raw.shape[2]
         depth = c // heads
         q_heads = q_raw.reshape(t, b, heads, depth, n)
@@ -216,8 +228,8 @@ class QKAddressDiagnostic:
     def _consume_spiking_self(self, prefix: str, buf: Dict[str, torch.Tensor]) -> None:
         q_raw = _as_binary(buf["q"])
         k_raw = _as_binary(buf["k"])
-        proj = _flatten_proj(buf["proj"]).float()
         t, b, c, n = q_raw.shape
+        proj = _flatten_proj(buf["proj"], t, b).float()
         kind_heads = getattr(self.model.get_submodule(prefix), "num_heads", None)
         heads = int(kind_heads) if kind_heads else 1
         depth = c // heads
