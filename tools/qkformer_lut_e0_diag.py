@@ -32,15 +32,10 @@ def build_cifar10_model(root: Path, cfg: Dict[str, object]) -> torch.nn.Module:
     model_dir = root / "cifar10"
     sys.path.insert(0, str(model_dir))
     try:
-        importlib.import_module("model")
-        from timm.models import create_model
-
-        model = create_model(
-            "QKFormer",
-            pretrained=False,
+        model_module = importlib.import_module("model")
+        model = model_module.spiking_transformer(
             drop_rate=0.0,
             drop_path_rate=0.0,
-            drop_block_rate=None,
             img_size_h=int(cfg["img_size"]),
             img_size_w=int(cfg["img_size"]),
             patch_size=int(cfg["patch_size"]),
