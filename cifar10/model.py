@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import inspect
 from spikingjelly.clock_driven.neuron import MultiStepParametricLIFNode, MultiStepLIFNode
 from timm.models.layers import to_2tuple, trunc_normal_, DropPath
 from timm.models.registry import register_model
@@ -375,16 +376,9 @@ class spiking_transformer(nn.Module):
 
 @register_model
 def QKFormer(pretrained=False, **kwargs):
-    for key in (
-        "pretrained_cfg_overlay",
-        "drop_block_rate",
-        "scriptable",
-        "exportable",
-        "no_jit",
-        "features_only",
-        "out_indices",
-    ):
-        kwargs.pop(key, None)
+    accepted = set(inspect.signature(spiking_transformer.__init__).parameters)
+    accepted.discard("self")
+    kwargs = {key: value for key, value in kwargs.items() if key in accepted}
     model = spiking_transformer(
         **kwargs
     )
