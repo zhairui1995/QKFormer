@@ -177,6 +177,9 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     env_checkpoint = os.environ.get("QKFORMER_LUT_CKPT")
     if env_checkpoint:
         model_cfg["checkpoint"] = env_checkpoint
+    env_data_dir = os.environ.get("QKFORMER_LUT_DATA_DIR")
+    if env_data_dir:
+        data_cfg["data_dir"] = env_data_dir
 
     model = build_cifar10_model(root, model_cfg)
     checkpoint_info = load_checkpoint_if_available(model, model_cfg.get("checkpoint"))

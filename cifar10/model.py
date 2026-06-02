@@ -375,6 +375,16 @@ class spiking_transformer(nn.Module):
 
 @register_model
 def QKFormer(pretrained=False, **kwargs):
+    for key in (
+        "pretrained_cfg_overlay",
+        "drop_block_rate",
+        "scriptable",
+        "exportable",
+        "no_jit",
+        "features_only",
+        "out_indices",
+    ):
+        kwargs.pop(key, None)
     model = spiking_transformer(
         **kwargs
     )

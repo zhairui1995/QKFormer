@@ -98,6 +98,10 @@ Implementation:
   - `scripts/server/run_qkformer_lut_e0_diag.sh`
 - Dependency installer:
   - `scripts/server/install_qkformer_lut_deps.sh`
+- CIFAR-10 data linker:
+  - `scripts/server/link_cifar10_data.sh`
+- CIFAR-10 checkpoint training entry:
+  - `scripts/server/run_qkformer_cifar10_train.sh`
 - Config:
   - `configs/qkformer_lut_e0_diag.yaml`
 

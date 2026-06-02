@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT"
+
+PYTHON_BIN="${PYTHON:-}"
+if [[ -z "$PYTHON_BIN" ]]; then
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN="python3"
+  elif command -v python >/dev/null 2>&1; then
+    PYTHON_BIN="python"
+  else
+    echo "[qk-train] missing python3/python"
+    exit 1
+  fi
+fi
+
+TS="$(date +%Y%m%d_%H%M%S)"
+RESULT_DIR="$ROOT/results/qkformer_cifar10_train_${TS}"
+LOG_FILE="$RESULT_DIR/train_log.txt"
+mkdir -p "$RESULT_DIR"
+
+export QKFORMER_LUT_DATA_DIR="${QKFORMER_LUT_DATA_DIR:-$ROOT/data/cifar10}"
+EPOCHS="${QKFORMER_TRAIN_EPOCHS:-400}"
+BATCH_SIZE="${QKFORMER_TRAIN_BATCH_SIZE:-64}"
+VAL_BATCH_SIZE="${QKFORMER_VAL_BATCH_SIZE:-64}"
+WORKERS="${QKFORMER_TRAIN_WORKERS:-8}"
+
+{
+  echo "[qk-train] root=$ROOT"
+  echo "[qk-train] result_dir=$RESULT_DIR"
+  echo "[qk-train] start=$(date -Is)"
+  echo "[qk-train] commit=$(git rev-parse --short HEAD)"
+  echo "[qk-train] python=$PYTHON_BIN"
+  echo "[qk-train] data_dir=$QKFORMER_LUT_DATA_DIR"
+  echo "[qk-train] epochs=$EPOCHS batch_size=$BATCH_SIZE val_batch_size=$VAL_BATCH_SIZE workers=$WORKERS"
+
+  bash scripts/server/install_qkformer_lut_deps.sh
+  bash scripts/server/link_cifar10_data.sh
+
+  cd "$ROOT/cifar10"
+  "$PYTHON_BIN" train.py \
+    -c cifar10.yml \
+    --model QKFormer \
+    -data-dir "$QKFORMER_LUT_DATA_DIR" \
+    --output "$RESULT_DIR/output" \
+    --experiment qkformer_cifar10 \
+    --epochs "$EPOCHS" \
+    --batch-size "$BATCH_SIZE" \
+    --val-batch-size "$VAL_BATCH_SIZE" \
+    --workers "$WORKERS"
+
+  cd "$ROOT"
+  find "$RESULT_DIR" \( -name "*.pth" -o -name "*.pth.tar" \) -print | sort > "$RESULT_DIR/checkpoint_manifest.txt"
+  echo "[qk-train] checkpoints:"
+  cat "$RESULT_DIR/checkpoint_manifest.txt"
+  echo "[qk-train] done=$(date -Is)"
+} 2>&1 | tee "$LOG_FILE"

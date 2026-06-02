@@ -21,12 +21,17 @@ RESULT_DIR="$ROOT/results/qkformer_lut_e0_diag_${TS}"
 LOG_FILE="$RESULT_DIR/train_log.txt"
 mkdir -p "$RESULT_DIR"
 
+if [[ -z "${QKFORMER_LUT_DATA_DIR:-}" && -d "$ROOT/data/cifar10/cifar-10-batches-py" ]]; then
+  export QKFORMER_LUT_DATA_DIR="$ROOT/data/cifar10"
+fi
+
 {
   echo "[qk-lut-e0] root=$ROOT"
   echo "[qk-lut-e0] result_dir=$RESULT_DIR"
   echo "[qk-lut-e0] start=$(date -Is)"
   echo "[qk-lut-e0] commit=$(git rev-parse --short HEAD)"
   echo "[qk-lut-e0] python=$PYTHON_BIN"
+  echo "[qk-lut-e0] data_dir=${QKFORMER_LUT_DATA_DIR:-configs/qkformer_lut_e0_diag.yaml default}"
 
   "$PYTHON_BIN" - <<'PY'
 import importlib
