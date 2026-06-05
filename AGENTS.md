@@ -131,6 +131,8 @@ E2 stage-wise replacement diagnostic is implemented:
 - Reports baseline vs replacement loss/Acc@1/Acc@5, logit MSE/KL, and local
   replacement MSE.
 - This is still diagnostic replacement, not an optimized LUT wrapper.
+- Replacement modes include `address_lut`, `global_mean`, and
+  `shuffled_address_lut`.
 
 Latest E2 stage1+stage2 replacement:
 
@@ -202,6 +204,19 @@ Interpretation: blend 0.25 is more stable than full replacement under random
 calibration subsets, especially at 128 batches. Next step is an E2 control
 sweep comparing `address_lut` against `global_mean` smoothing at the same
 stage1-only, 128-batch, blend-0.25, random-seed setting.
+
+Latest E2 stage1-only address-vs-global control sweep:
+
+- Address LUT, 128 calibration batches, blend 0.25, seeds 42/43/44:
+  mean Acc@1 95.9333%, mean delta +0.2033%, mean loss 0.355467,
+  mean logit MSE 0.040937.
+- Global mean, same setting: mean Acc@1 95.9233%, mean delta +0.1933%,
+  mean loss 0.354103, mean logit MSE 0.041799.
+
+Interpretation: global-mean smoothing nearly matches address LUT and has
+better loss. Current accuracy signal is not address-specific enough to justify
+wrapper design. Next step is a shuffled-address LUT control that preserves the
+prototype distribution while breaking address/prototype alignment.
 
 ## Server Commands
 

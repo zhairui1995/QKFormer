@@ -200,7 +200,7 @@ Default behavior:
 - This is diagnostic module-output replacement, not a full optimized wrapper.
 - `QKFORMER_LUT_E2_TARGETS` can override comma-separated target modules.
 - `QKFORMER_LUT_E2_MODE` can override the replacement mode. Supported modes
-  are `address_lut` and `global_mean`.
+  are `address_lut`, `global_mean`, and `shuffled_address_lut`.
 - `QKFORMER_LUT_E2_CALIB_BATCHES` and `QKFORMER_LUT_E2_EVAL_BATCHES` can
   override batch counts; `QKFORMER_LUT_E2_EVAL_BATCHES=0` evaluates the full
   split.
@@ -218,7 +218,8 @@ Default behavior:
   stage1-only calibration subset sweeps across calibration sizes, blend ratios,
   and seeds.
 - `scripts/server/run_qkformer_lut_e2_control_sweep.sh` runs stage1-only
-  `address_lut` vs `global_mean` replacement controls.
+  `address_lut` vs `global_mean` vs `shuffled_address_lut` replacement
+  controls.
 
 Metrics written to `metrics.json`:
 
@@ -300,6 +301,22 @@ calibration subsets. The next control should compare `address_lut` against
 and the same random seeds. If global smoothing matches the address LUT, the
 current accuracy signal is not address-specific enough to justify wrapper
 design.
+
+Stage1-only address-vs-global control sweep:
+
+- Address LUT, 128 calibration batches, blend 0.25, seeds 42/43/44: mean Acc@1
+  95.9333%, mean delta +0.2033%, min/max delta +0.13/+0.24, mean loss
+  0.355467, mean logit MSE 0.040937.
+- Global mean, same setting: mean Acc@1 95.9233%, mean delta +0.1933%,
+  min/max delta +0.07/+0.30, mean loss 0.354103, mean logit MSE 0.041799.
+
+Interpretation: global-mean smoothing nearly matches address LUT in Acc@1 and
+is better in loss. This weakens the address-specific LUT hypothesis; do not
+start wrapper design. Next step is a shuffled-address LUT control that keeps
+the prototype distribution but breaks address/prototype alignment. If shuffled
+address LUT also matches address LUT, treat the current forward-only E2
+replacement route as `NO-GO` for an address-specific wrapper and pivot to either
+trained hybrid regularization or stop at diagnostic reporting.
 
 ## Phase Gate
 

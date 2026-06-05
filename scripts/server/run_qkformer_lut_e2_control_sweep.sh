@@ -9,7 +9,7 @@ qk_lut_parse_gpu_args "$@"
 qk_lut_configure_gpu
 
 TARGETS="${QKFORMER_LUT_E2_CONTROL_TARGETS:-stage1.0.tssa}"
-MODE_SWEEP="${QKFORMER_LUT_E2_CONTROL_MODE_SWEEP:-address_lut,global_mean}"
+MODE_SWEEP="${QKFORMER_LUT_E2_CONTROL_MODE_SWEEP:-address_lut,global_mean,shuffled_address_lut}"
 CALIB_SWEEP="${QKFORMER_LUT_E2_CONTROL_CALIB_SWEEP:-128}"
 BLEND_SWEEP="${QKFORMER_LUT_E2_CONTROL_BLEND_SWEEP:-0.25}"
 SEED_SWEEP="${QKFORMER_LUT_E2_CONTROL_SEED_SWEEP:-42,43,44}"
@@ -56,6 +56,7 @@ for mode in "${MODE_GROUPS[@]}"; do
         QKFORMER_LUT_E2_CALIB_BATCHES="$calib_batches" \
         QKFORMER_LUT_E2_BLEND="$blend" \
         QKFORMER_LUT_E2_CALIB_SEED="$seed" \
+        QKFORMER_LUT_E2_MODE_SEED="$seed" \
           bash scripts/server/run_qkformer_lut_e2_replace.sh
       done
     done

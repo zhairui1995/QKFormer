@@ -9,8 +9,8 @@ CONDITIONAL GO: Q/K/gate addresses are active and reconstruct slightly better
 than baselines, but response variance is still high. E2 stage1-only replacement
 is the only target that stays slightly positive on full validation. Randomized
 calibration subsets show blend 0.25 is more stable than full replacement. Next
-action is an E2 control sweep comparing `address_lut` against `global_mean`
-smoothing before any wrapper design.
+action is an E2 shuffled-address control after `global_mean` smoothing nearly
+matched `address_lut`, weakening the address-specific wrapper hypothesis.
 
 ## Project Identity
 
@@ -53,6 +53,7 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - `06239e0` Add E2 blend sweep
 - Add E2 random calibration sweep
 - Add E2 address-vs-global control sweep
+- Add E2 shuffled-address control mode
 
 ## Implemented Files
 
@@ -86,7 +87,7 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - `scripts/server/run_qkformer_lut_e2_random_calib_sweep.sh`: runs stage1-only
   randomized calibration subset stability sweep.
 - `scripts/server/run_qkformer_lut_e2_control_sweep.sh`: runs stage1-only
-  `address_lut` vs `global_mean` control sweep.
+  `address_lut` vs `global_mean` vs `shuffled_address_lut` control sweep.
 
 ## Server Results So Far
 
@@ -314,6 +315,28 @@ Interpretation:
   smoothing at stage1-only, 128 calibration batches, blend 0.25, seeds
   42/43/44.
 
+E2 stage1-only address-vs-global control sweep:
+
+- Address LUT, 128 calibration batches, blend 0.25, seeds 42/43/44:
+  - mean Acc@1: 95.9333%; mean delta: +0.2033%.
+  - min/max delta: +0.13/+0.24.
+  - mean loss: 0.355467; mean logit MSE: 0.040937.
+- Global mean, same setting:
+  - mean Acc@1: 95.9233%; mean delta: +0.1933%.
+  - min/max delta: +0.07/+0.30.
+  - mean loss: 0.354103; mean logit MSE: 0.041799.
+
+Interpretation:
+
+- Global-mean smoothing nearly matches address LUT in Acc@1 and is better in
+  loss.
+- This weakens the address-specific LUT hypothesis. Do not start wrapper
+  design.
+- Next action is shuffled-address LUT control. It keeps the prototype
+  distribution but breaks address/prototype alignment. If it also matches
+  address LUT, mark the current forward-only E2 replacement route `NO-GO` for
+  an address-specific wrapper.
+
 ## Known Compatibility Fixes
 
 The server uses newer `timm` than upstream QKFormer expected.
@@ -327,7 +350,7 @@ The server uses newer `timm` than upstream QKFormer expected.
 
 ## Next Action
 
-Run E2 address-vs-global control sweep on server:
+Run E2 shuffled-address control sweep on server:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e2_control_sweep.sh --gpu 2
@@ -345,15 +368,15 @@ current torch device, device name, and visible device count in the log.
 
 Then upload or inspect:
 
-- latest six `results/qkformer_lut_e2_replace_*/metrics.json`
-- latest six `results/qkformer_lut_e2_replace_*/train_log.txt`
+- latest nine `results/qkformer_lut_e2_replace_*/metrics.json`
+- latest nine `results/qkformer_lut_e2_replace_*/train_log.txt`
 
 Suggested artifact package:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut
-E2_DIRS=$(ls -td results/qkformer_lut_e2_replace_* | head -6)
-tar -czf qk_lutformer_e2_control_sweep_artifacts.tar.gz \
+E2_DIRS=$(ls -td results/qkformer_lut_e2_replace_* | head -9)
+tar -czf qk_lutformer_e2_shuffled_control_sweep_artifacts.tar.gz \
   $(for d in $E2_DIRS; do echo "$d/metrics.json" "$d/train_log.txt"; done)
 ```
 

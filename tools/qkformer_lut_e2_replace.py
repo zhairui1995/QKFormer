@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib
 import json
 import os
@@ -418,6 +419,7 @@ class QKProjectionReplacer:
         population_bins: int,
         blend: float = 1.0,
         mode: str = "address_lut",
+        mode_seed: int = 0,
     ) -> None:
         self.model = model
         self.prototypes = prototypes
@@ -427,13 +429,15 @@ class QKProjectionReplacer:
         self.population_bins = int(population_bins)
         self.blend = float(blend)
         self.mode = str(mode)
-        if self.mode not in {"address_lut", "global_mean"}:
+        if self.mode not in {"address_lut", "global_mean", "shuffled_address_lut"}:
             raise ValueError(f"unsupported replacement mode: {self.mode}")
+        self.mode_seed = int(mode_seed)
         self.enabled = False
         self.buffers: Dict[str, Dict[str, torch.Tensor]] = defaultdict(dict)
         self.modules = dict(model.named_modules())
         self.handles: List[torch.utils.hooks.RemovableHandle] = []
         self.stats: Dict[str, ReplacementStats] = {}
+        self._address_permutations: Dict[str, torch.Tensor] = {}
         self._register()
 
     def close(self) -> None:
@@ -517,7 +521,22 @@ class QKProjectionReplacer:
             pred = torch.full_like(response_device, fill_value=float(proto.global_mean))
             seen = torch.ones_like(address, dtype=torch.bool, device=response_device.device)
             return pred, seen
+        if self.mode == "shuffled_address_lut":
+            perm = self._address_permutation(proto)
+            shuffled = perm[address.detach().to("cpu", dtype=torch.long)]
+            return proto.predict(shuffled, response_device.device, response_device.dtype)
         return proto.predict(address, response_device.device, response_device.dtype)
+
+    def _address_permutation(self, proto: ModulePrototype) -> torch.Tensor:
+        perm = self._address_permutations.get(proto.name)
+        if perm is None:
+            digest = hashlib.sha256(f"{self.mode_seed}:{proto.name}".encode("utf-8")).hexdigest()
+            seed = int(digest[:16], 16) % (2**63)
+            generator = torch.Generator()
+            generator.manual_seed(seed)
+            perm = torch.randperm(proto.address_space, generator=generator, dtype=torch.long)
+            self._address_permutations[proto.name] = perm
+        return perm
 
     def summary(self) -> Dict[str, Dict[str, object]]:
         return {name: stat.summary() for name, stat in self.stats.items()}
@@ -665,6 +684,9 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     env_mode = os.environ.get("QKFORMER_LUT_E2_MODE")
     if env_mode:
         replacement_cfg["mode"] = env_mode
+    env_mode_seed = os.environ.get("QKFORMER_LUT_E2_MODE_SEED")
+    if env_mode_seed:
+        replacement_cfg["mode_seed"] = int(env_mode_seed)
 
     device_name = str(diag_cfg.get("device", "cuda"))
     if device_name == "cuda" and not torch.cuda.is_available():
@@ -696,6 +718,7 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         population_bins=int(diag_cfg.get("population_bins", 4)),
         blend=float(replacement_cfg.get("blend", 1.0)),
         mode=str(replacement_cfg.get("mode", "address_lut")),
+        mode_seed=int(replacement_cfg.get("mode_seed", 0)),
     )
     print(f"[qk-lut-e2] target_modules={target_modules}")
     print("[qk-lut-e2] replacement_eval_start")
@@ -744,6 +767,7 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
             "QKFORMER_LUT_E2_TARGETS": env_targets,
             "QKFORMER_LUT_E2_BLEND": env_blend,
             "QKFORMER_LUT_E2_MODE": env_mode,
+            "QKFORMER_LUT_E2_MODE_SEED": env_mode_seed,
         },
         "target_modules": target_modules,
         "verdict": verdict,
