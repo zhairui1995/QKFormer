@@ -9,7 +9,10 @@ CONDITIONAL GO, but E2 forward-only prototypes are not address-specific enough:
 global-mean smoothing nearly matched address LUT. The paper-oriented route is
 now E3: trainable residual LUT adapters with frozen QKFormer backbone,
 prototype/shrinkage initialization, learnable blend, CE+KL+local-MSE loss, and
-controls against `global_mean` and `token_channel_lut`.
+controls against `global_mean` and `token_channel_lut`. First E3 pilot ran
+end-to-end but all adapters degraded validation accuracy; address LUT was least
+damaging. Next action is a conservative E3 sweep with fixed small alpha and
+stronger drift constraints.
 
 ## Project Identity
 
@@ -94,6 +97,9 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
   LUT adapter experiment.
 - `scripts/server/run_qkformer_lut_e3_adapter_sweep.sh`: runs E3 pilot control
   sweep across `address_lut`, `global_mean`, and `token_channel_lut`.
+- `scripts/server/run_qkformer_lut_e3_conservative_sweep.sh`: runs E3
+  conservative control sweep with fixed alpha 0.1, fewer epochs, lower LR, and
+  stronger KL/local-MSE constraints.
 
 ## Server Results So Far
 
@@ -365,6 +371,33 @@ Interpretation:
 - A paper claim requires `address_lut` to beat both controls under the same
   frozen-backbone budget.
 
+First E3 pilot result:
+
+- Address LUT:
+  - 2049 trainable parameters.
+  - Learned alpha: 0.5625.
+  - Acc@1 95.67 -> 95.51, delta -0.16.
+  - Loss 0.23467 -> 0.23767.
+- Global mean:
+  - 2 trainable parameters.
+  - Learned alpha: 0.3541.
+  - Acc@1 94.97 -> 94.12, delta -0.85.
+  - Loss 0.30126 -> 0.33587.
+- Token-channel LUT:
+  - 513 trainable parameters.
+  - Learned alpha: 0.5374.
+  - Acc@1 95.76 -> 95.43, delta -0.33.
+  - Loss 0.23999 -> 0.24589.
+
+Interpretation:
+
+- E3 code path works and address LUT is least damaging.
+- The learned alpha grows too high, causing drift/overfit.
+- E3 evaluation now explicitly resets SNN state before baseline/teacher and
+  replacement/student passes for cleaner repeatability.
+- Next action is conservative E3: fixed alpha 0.1, 2 epochs, LR 0.003,
+  lambda_kl 2.0, lambda_local_mse 0.2.
+
 ## Known Compatibility Fixes
 
 The server uses newer `timm` than upstream QKFormer expected.
@@ -378,10 +411,10 @@ The server uses newer `timm` than upstream QKFormer expected.
 
 ## Next Action
 
-Run E3 trainable LUT adapter pilot sweep on server:
+Run E3 conservative trainable LUT adapter sweep on server:
 
 ```bash
-cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e3_adapter_sweep.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e3_conservative_sweep.sh --gpu 2
 ```
 
 To specify a GPU, pass `--gpu N`:

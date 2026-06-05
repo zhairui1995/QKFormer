@@ -261,6 +261,12 @@ class TrainableLUTAdapter(nn.Module):
 
 
 def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
+    def env_bool(name: str) -> Optional[bool]:
+        value = os.environ.get(name)
+        if value is None:
+            return None
+        return value.strip().lower() in {"1", "true", "yes", "on"}
+
     env_checkpoint = os.environ.get("QKFORMER_LUT_CKPT")
     if env_checkpoint:
         model_cfg["checkpoint"] = env_checkpoint
@@ -282,6 +288,27 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
     env_epochs = os.environ.get("QKFORMER_LUT_E3_EPOCHS")
     if env_epochs:
         train_cfg["epochs"] = int(env_epochs)
+    env_lr = os.environ.get("QKFORMER_LUT_E3_LR")
+    if env_lr:
+        train_cfg["lr"] = float(env_lr)
+    env_lambda_ce = os.environ.get("QKFORMER_LUT_E3_LAMBDA_CE")
+    if env_lambda_ce:
+        train_cfg["lambda_ce"] = float(env_lambda_ce)
+    env_lambda_kl = os.environ.get("QKFORMER_LUT_E3_LAMBDA_KL")
+    if env_lambda_kl:
+        train_cfg["lambda_kl"] = float(env_lambda_kl)
+    env_lambda_local = os.environ.get("QKFORMER_LUT_E3_LAMBDA_LOCAL_MSE")
+    if env_lambda_local:
+        train_cfg["lambda_local_mse"] = float(env_lambda_local)
+    env_alpha_init = os.environ.get("QKFORMER_LUT_E3_ALPHA_INIT")
+    if env_alpha_init:
+        adapter_cfg["alpha_init"] = float(env_alpha_init)
+    env_learn_alpha = env_bool("QKFORMER_LUT_E3_LEARN_ALPHA")
+    if env_learn_alpha is not None:
+        adapter_cfg["learn_alpha"] = env_learn_alpha
+    env_shrinkage_tau = os.environ.get("QKFORMER_LUT_E3_SHRINKAGE_TAU")
+    if env_shrinkage_tau:
+        adapter_cfg["shrinkage_tau"] = float(env_shrinkage_tau)
     env_calib_batches = os.environ.get("QKFORMER_LUT_E3_CALIB_BATCHES")
     if env_calib_batches:
         data_cfg["calibration"]["num_batches"] = int(env_calib_batches)
@@ -298,6 +325,13 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
         "QKFORMER_LUT_E3_MODE": env_mode,
         "QKFORMER_LUT_E3_TARGETS": env_targets,
         "QKFORMER_LUT_E3_EPOCHS": env_epochs,
+        "QKFORMER_LUT_E3_LR": env_lr,
+        "QKFORMER_LUT_E3_LAMBDA_CE": env_lambda_ce,
+        "QKFORMER_LUT_E3_LAMBDA_KL": env_lambda_kl,
+        "QKFORMER_LUT_E3_LAMBDA_LOCAL_MSE": env_lambda_local,
+        "QKFORMER_LUT_E3_ALPHA_INIT": env_alpha_init,
+        "QKFORMER_LUT_E3_LEARN_ALPHA": os.environ.get("QKFORMER_LUT_E3_LEARN_ALPHA"),
+        "QKFORMER_LUT_E3_SHRINKAGE_TAU": env_shrinkage_tau,
         "QKFORMER_LUT_E3_CALIB_BATCHES": env_calib_batches,
         "QKFORMER_LUT_E3_TRAIN_BATCHES": env_train_batches,
         "QKFORMER_LUT_E3_EVAL_BATCHES": env_eval_batches,
@@ -321,12 +355,14 @@ def train_one_epoch(model, adapter, loader, data_cfg, train_cfg, optimizer, devi
         batch_size = int(targets.numel())
 
         adapter.enabled = False
+        reset_model_state(model)
         with torch.no_grad():
             teacher_logits = model(images)
         reset_model_state(model)
 
         adapter.clear_step()
         adapter.enabled = True
+        reset_model_state(model)
         student_logits = model(images)
         ce = F.cross_entropy(student_logits, targets)
         kl = F.kl_div(F.log_softmax(student_logits, dim=1), F.softmax(teacher_logits, dim=1), reduction="batchmean")
@@ -376,6 +412,7 @@ def evaluate(model, adapter, loader, data_cfg, device) -> Dict[str, object]:
             targets = targets.to(device, non_blocking=True)
             batch_size = int(targets.numel())
             adapter.enabled = False
+            reset_model_state(model)
             baseline_logits = model(images)
             b_loss = loss_fn(baseline_logits, targets)
             b_top1, b_top5 = accuracy(baseline_logits, targets)
@@ -383,6 +420,7 @@ def evaluate(model, adapter, loader, data_cfg, device) -> Dict[str, object]:
 
             adapter.clear_step()
             adapter.enabled = True
+            reset_model_state(model)
             replacement_logits = model(images)
             r_loss = loss_fn(replacement_logits, targets)
             r_top1, r_top5 = accuracy(replacement_logits, targets)

@@ -377,6 +377,24 @@ Interpretation:
 - If `address_lut` does not beat `global_mean` and `token_channel_lut`, the
   paper story should not claim address-specific LUT advantage.
 
+First E3 pilot sweep:
+
+- Address LUT: 2049 trainable parameters, alpha learned to 0.5625, Acc@1
+  95.67 -> 95.51, delta -0.16, loss 0.23467 -> 0.23767.
+- Global mean: 2 trainable parameters, alpha learned to 0.3541, Acc@1
+  94.97 -> 94.12, delta -0.85, loss 0.30126 -> 0.33587.
+- Token-channel LUT: 513 trainable parameters, alpha learned to 0.5374, Acc@1
+  95.76 -> 95.43, delta -0.33, loss 0.23999 -> 0.24589.
+
+Interpretation:
+
+- The E3 path runs end-to-end and address LUT is the least damaging adapter,
+  but all modes degrade validation accuracy in the first pilot.
+- Alpha grows too high under 5 epochs, suggesting overfitting/drift rather than
+  stable residual correction.
+- Next step is a conservative E3 sweep: fixed alpha 0.1, 2 epochs, lower LR,
+  stronger KL and local-MSE constraints, same three controls.
+
 ## Phase Gate
 
 - **GO**: QKFormer binary Q/K addresses have materially better bucket occupancy
@@ -474,6 +492,12 @@ E3 trainable LUT adapter pilot sweep:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e3_adapter_sweep.sh --gpu 2
+```
+
+E3 conservative trainable LUT adapter sweep:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e3_conservative_sweep.sh --gpu 2
 ```
 
 Specify GPU for train/E0/E1/E2:

@@ -81,6 +81,7 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
   - `scripts/server/run_qkformer_lut_e2_control_sweep.sh`
   - `scripts/server/run_qkformer_lut_e3_trainable_lut.sh`
   - `scripts/server/run_qkformer_lut_e3_adapter_sweep.sh`
+  - `scripts/server/run_qkformer_lut_e3_conservative_sweep.sh`
 
 Latest uploaded E0 smoke result:
 
@@ -237,6 +238,20 @@ E3 tests the stronger paper claim: whether a trainable residual address LUT
 adapter exploits Q/K address semantics better than non-address or weaker-address
 controls under the same frozen-backbone training budget.
 
+Latest E3 trainable residual LUT adapter pilot:
+
+- Address LUT: 2049 trainable parameters, alpha 0.5625, Acc@1 95.67 -> 95.51,
+  delta -0.16.
+- Global mean: 2 trainable parameters, alpha 0.3541, Acc@1 94.97 -> 94.12,
+  delta -0.85.
+- Token-channel LUT: 513 trainable parameters, alpha 0.5374, Acc@1
+  95.76 -> 95.43, delta -0.33.
+
+Interpretation: E3 runs end-to-end and address LUT is least damaging, but the
+first pilot overfits/drifts because learnable alpha grows too high. Next step
+is conservative E3: fixed alpha 0.1, 2 epochs, lower LR, stronger KL and local
+MSE constraints.
+
 ## Server Commands
 
 Set up data link and run E0 diagnostic:
@@ -329,6 +344,12 @@ Run E3 trainable LUT adapter pilot sweep:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e3_adapter_sweep.sh --gpu 2
+```
+
+Run E3 conservative trainable LUT adapter sweep:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e3_conservative_sweep.sh --gpu 2
 ```
 
 ## Phase Gate
