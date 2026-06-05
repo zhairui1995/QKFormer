@@ -41,6 +41,7 @@ diagnostic:
 
 replacement:
   mode: address_lut
+  blend: 1.0
   target_modules:
     - stage1.0.tssa
     - stage2.0.tssa

@@ -406,6 +406,7 @@ class QKProjectionReplacer:
         token_bins: int,
         channel_bins: int,
         population_bins: int,
+        blend: float = 1.0,
     ) -> None:
         self.model = model
         self.prototypes = prototypes
@@ -413,6 +414,7 @@ class QKProjectionReplacer:
         self.token_bins = int(token_bins)
         self.channel_bins = int(channel_bins)
         self.population_bins = int(population_bins)
+        self.blend = float(blend)
         self.enabled = False
         self.buffers: Dict[str, Dict[str, torch.Tensor]] = defaultdict(dict)
         self.modules = dict(model.named_modules())
@@ -465,7 +467,9 @@ class QKProjectionReplacer:
                 buf["q"], buf["k"], buf["attn"], output, self.token_bins, self.channel_bins
             )
             pred, seen = proto.predict(address, output.device, output.dtype)
-            replacement = restore_token_prediction(pred, layout, output)
+            response_device = response.to(device=output.device, dtype=output.dtype)
+            blended = response_device * (1.0 - self.blend) + pred * self.blend
+            replacement = restore_token_prediction(blended, layout, output)
         elif cls_name == "Spiking_Self_Attention":
             address, response, layout, kind = spiking_self_full_address(
                 module,
@@ -477,14 +481,16 @@ class QKProjectionReplacer:
                 self.population_bins,
             )
             pred, seen = proto.predict(address, output.device, output.dtype)
-            replacement = restore_spiking_prediction(pred, layout, output, int(getattr(module, "num_heads", 1)))
+            response_device = response.to(device=output.device, dtype=output.dtype)
+            blended = response_device * (1.0 - self.blend) + pred * self.blend
+            replacement = restore_spiking_prediction(blended, layout, output, int(getattr(module, "num_heads", 1)))
         else:
             return None
         stat = self.stats.get(prefix)
         if stat is None:
             stat = ReplacementStats(prefix, kind, proto.stage)
             self.stats[prefix] = stat
-        stat.update(response, pred, seen)
+        stat.update(response, blended, seen)
         return replacement
 
     def summary(self) -> Dict[str, Dict[str, object]]:
@@ -621,6 +627,9 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         replacement_cfg["target_modules"] = [
             item.strip() for item in env_targets.split(",") if item.strip()
         ]
+    env_blend = os.environ.get("QKFORMER_LUT_E2_BLEND")
+    if env_blend:
+        replacement_cfg["blend"] = float(env_blend)
 
     device_name = str(diag_cfg.get("device", "cuda"))
     if device_name == "cuda" and not torch.cuda.is_available():
@@ -650,6 +659,7 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         token_bins=int(diag_cfg.get("token_bins", 8)),
         channel_bins=int(diag_cfg.get("channel_bins", 8)),
         population_bins=int(diag_cfg.get("population_bins", 4)),
+        blend=float(replacement_cfg.get("blend", 1.0)),
     )
     print(f"[qk-lut-e2] target_modules={target_modules}")
     print("[qk-lut-e2] replacement_eval_start")
@@ -692,6 +702,7 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
             "QKFORMER_LUT_E2_CALIB_BATCHES": env_calib_batches,
             "QKFORMER_LUT_E2_EVAL_BATCHES": env_eval_batches,
             "QKFORMER_LUT_E2_TARGETS": env_targets,
+            "QKFORMER_LUT_E2_BLEND": env_blend,
         },
         "target_modules": target_modules,
         "verdict": verdict,

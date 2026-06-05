@@ -207,6 +207,8 @@ Default behavior:
 - `scripts/server/run_qkformer_lut_e2_calib_sweep.sh` runs stage1-only across
   calibration sizes 32, 128, 512, and full train by default, with full
   validation evaluation.
+- `scripts/server/run_qkformer_lut_e2_blend_sweep.sh` runs stage1-only
+  full-calibration/full-validation blend ratios 0, 0.25, 0.5, 0.75, and 1.0.
 
 Metrics written to `metrics.json`:
 
@@ -239,6 +241,17 @@ Full-validation E2 target sweep:
 Interpretation: only stage1-only is slightly positive on full validation.
 Stage2 and combined replacement are negative. Run calibration-size sweep for
 stage1-only before making a forward-only replacement decision.
+
+Stage1-only calibration-size sweep:
+
+- 32 calibration batches: Acc@1 95.73 -> 95.88, delta +0.15.
+- 128 calibration batches: Acc@1 95.73 -> 95.76, delta +0.03.
+- 512 calibration batches: Acc@1 95.73 -> 95.81, delta +0.08.
+- Full train calibration: Acc@1 95.73 -> 96.02, delta +0.29.
+
+Interpretation: stage1-only stays positive, and full calibration is best so
+far. The effect is small; run a blend sweep before deciding whether this is a
+usable hybrid replacement signal.
 
 ## Phase Gate
 
@@ -313,6 +326,12 @@ Stage1-only calibration-size sweep:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_calib_sweep.sh --gpu 2
+```
+
+Stage1-only blend sweep:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_blend_sweep.sh --gpu 2
 ```
 
 Specify GPU for train/E0/E1/E2:

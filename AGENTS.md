@@ -74,6 +74,7 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
   - `scripts/server/run_qkformer_lut_e2_replace.sh`
   - `scripts/server/run_qkformer_lut_e2_sweep.sh`
   - `scripts/server/run_qkformer_lut_e2_calib_sweep.sh`
+  - `scripts/server/run_qkformer_lut_e2_blend_sweep.sh`
 
 Latest uploaded E0 smoke result:
 
@@ -155,6 +156,18 @@ Interpretation: only stage1-only is slightly positive on full validation.
 Stage2 and combined replacement are negative. Next step is calibration-size
 sweep for stage1-only before any wrapper/prototype design.
 
+Latest E2 stage1-only calibration-size sweep:
+
+- 32 calibration batches: Acc@1 95.73 -> 95.88, delta +0.15.
+- 128 calibration batches: Acc@1 95.73 -> 95.76, delta +0.03.
+- 512 calibration batches: Acc@1 95.73 -> 95.81, delta +0.08.
+- Full train calibration: Acc@1 95.73 -> 96.02, delta +0.29.
+
+Interpretation: stage1-only remains positive, and full calibration gives the
+largest small gain. Next step is a stage1-only blend sweep with full
+calibration/full validation to test whether partial replacement reduces logit
+drift while preserving or improving Acc@1.
+
 ## Server Commands
 
 Set up data link and run E0 diagnostic:
@@ -223,6 +236,12 @@ Run E2 calibration-size sweep for stage1-only:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_calib_sweep.sh --gpu 2
+```
+
+Run E2 stage1-only blend sweep:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_blend_sweep.sh --gpu 2
 ```
 
 ## Phase Gate

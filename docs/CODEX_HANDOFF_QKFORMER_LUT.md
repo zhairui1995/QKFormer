@@ -12,6 +12,9 @@ CONDITIONAL GO to E2 stage-wise replacement diagnostics. E2 stage1+stage2
 replacement ran successfully on 16 validation batches; next action is a
 calibration-size sweep for stage1-only after the full-validation target sweep
 showed stage1-only is the only positive target.
+Calibration-size sweep confirmed stage1-only stays positive, with the largest
+small gain under full train calibration. Next action is a full-calibration
+stage1-only blend sweep.
 
 ## Project Identity
 
@@ -50,7 +53,8 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - `f1722a9` Record E1 GPU repeat result
 - `592b96e` Add QKFormer LUT E2 replacement diagnostic
 - `ba3f483` Add E2 full validation target sweep
-- pending local changes: add E2 calibration-size sweep support.
+- `69f7c3c` Add E2 calibration sweep
+- pending local changes: add E2 stage1 blend sweep support.
 
 ## Implemented Files
 
@@ -79,6 +83,8 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
   sweep for stage1-only, stage2-only, and stage1+stage2.
 - `scripts/server/run_qkformer_lut_e2_calib_sweep.sh`: runs stage1-only E2
   across calibration sizes, with full validation by default.
+- `scripts/server/run_qkformer_lut_e2_blend_sweep.sh`: runs stage1-only E2
+  full-calibration/full-validation blend sweep.
 
 ## Server Results So Far
 
@@ -228,6 +234,28 @@ Interpretation:
 - Next action is a calibration-size sweep for stage1-only to test whether the
   small positive effect is robust or just calibration noise.
 
+E2 stage1-only calibration-size sweep:
+
+- 32 calibration batches:
+  - Result: `results/qkformer_lut_e2_replace_20260605_152749`
+  - Acc@1 95.73 -> 95.88, delta +0.15; loss 0.35815 -> 0.35401.
+- 128 calibration batches:
+  - Result: `results/qkformer_lut_e2_replace_20260605_152910`
+  - Acc@1 95.73 -> 95.76, delta +0.03; loss 0.35815 -> 0.35620.
+- 512 calibration batches:
+  - Result: `results/qkformer_lut_e2_replace_20260605_153131`
+  - Acc@1 95.73 -> 95.81, delta +0.08; loss 0.35815 -> 0.35428.
+- Full train calibration:
+  - Result: `results/qkformer_lut_e2_replace_20260605_153751`
+  - Acc@1 95.73 -> 96.02, delta +0.29; loss 0.35815 -> 0.35419.
+
+Interpretation:
+
+- Stage1-only remains positive across calibration sizes.
+- Full train calibration gives the largest small gain.
+- The effect is still small; next action is a blend sweep to test whether
+  partial replacement controls logit drift while preserving Acc@1.
+
 ## Known Compatibility Fixes
 
 The server uses newer `timm` than upstream QKFormer expected.
@@ -241,10 +269,10 @@ The server uses newer `timm` than upstream QKFormer expected.
 
 ## Next Action
 
-Run E2 calibration-size sweep on server:
+Run E2 stage1-only blend sweep on server:
 
 ```bash
-cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e2_calib_sweep.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e2_blend_sweep.sh --gpu 2
 ```
 
 To specify a GPU, pass `--gpu N`:
@@ -259,15 +287,15 @@ current torch device, device name, and visible device count in the log.
 
 Then upload or inspect:
 
-- latest four `results/qkformer_lut_e2_replace_*/metrics.json`
-- latest four `results/qkformer_lut_e2_replace_*/train_log.txt`
+- latest five `results/qkformer_lut_e2_replace_*/metrics.json`
+- latest five `results/qkformer_lut_e2_replace_*/train_log.txt`
 
 Suggested artifact package:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut
-E2_DIRS=$(ls -td results/qkformer_lut_e2_replace_* | head -4)
-tar -czf qk_lutformer_e2_calib_sweep_artifacts.tar.gz \
+E2_DIRS=$(ls -td results/qkformer_lut_e2_replace_* | head -5)
+tar -czf qk_lutformer_e2_blend_sweep_artifacts.tar.gz \
   $(for d in $E2_DIRS; do echo "$d/metrics.json" "$d/train_log.txt"; done)
 ```
 
