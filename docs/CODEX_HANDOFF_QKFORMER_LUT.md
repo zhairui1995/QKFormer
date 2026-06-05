@@ -10,7 +10,8 @@ occupancy is useful, but conditional response variance remains high. E1
 split-aware reconstruction shows modest held-out MSE improvement and is a
 CONDITIONAL GO to E2 stage-wise replacement diagnostics. E2 stage1+stage2
 replacement ran successfully on 16 validation batches; next action is a
-full-validation target sweep.
+calibration-size sweep for stage1-only after the full-validation target sweep
+showed stage1-only is the only positive target.
 
 ## Project Identity
 
@@ -48,7 +49,8 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - `202835c` Add server GPU selection logging
 - `f1722a9` Record E1 GPU repeat result
 - `592b96e` Add QKFormer LUT E2 replacement diagnostic
-- pending local changes: add E2 target sweep support.
+- `ba3f483` Add E2 full validation target sweep
+- pending local changes: add E2 calibration-size sweep support.
 
 ## Implemented Files
 
@@ -75,6 +77,8 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
   replacement using the latest training result checkpoint.
 - `scripts/server/run_qkformer_lut_e2_sweep.sh`: runs full-validation E2 target
   sweep for stage1-only, stage2-only, and stage1+stage2.
+- `scripts/server/run_qkformer_lut_e2_calib_sweep.sh`: runs stage1-only E2
+  across calibration sizes, with full validation by default.
 
 ## Server Results So Far
 
@@ -200,6 +204,30 @@ Interpretation:
 - Next action is a full-validation target sweep: stage1-only, stage2-only,
   stage1+stage2.
 
+E2 full-validation target sweep:
+
+- Stage1-only:
+  - Result: `results/qkformer_lut_e2_replace_20260605_151339`
+  - Baseline Acc@1 / loss: 95.73% / 0.3581527572154999
+  - Replacement Acc@1 / loss: 95.88% / 0.3540114137172699
+  - Delta Acc@1: +0.15%
+- Stage2-only:
+  - Result: `results/qkformer_lut_e2_replace_20260605_151502`
+  - Replacement Acc@1 / loss: 95.59% / 0.3633519110202789
+  - Delta Acc@1: -0.14%
+- Stage1+stage2:
+  - Result: `results/qkformer_lut_e2_replace_20260605_151608`
+  - Replacement Acc@1 / loss: 95.54% / 0.3601838129043579
+  - Delta Acc@1: -0.19%
+
+Interpretation:
+
+- Full-validation sweep weakens the 512-image smoke result.
+- Stage1-only is the only slightly positive replacement.
+- Stage2 and combined replacement are negative.
+- Next action is a calibration-size sweep for stage1-only to test whether the
+  small positive effect is robust or just calibration noise.
+
 ## Known Compatibility Fixes
 
 The server uses newer `timm` than upstream QKFormer expected.
@@ -213,10 +241,10 @@ The server uses newer `timm` than upstream QKFormer expected.
 
 ## Next Action
 
-Run E2 full-validation target sweep on server:
+Run E2 calibration-size sweep on server:
 
 ```bash
-cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e2_sweep.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e2_calib_sweep.sh --gpu 2
 ```
 
 To specify a GPU, pass `--gpu N`:
@@ -231,15 +259,15 @@ current torch device, device name, and visible device count in the log.
 
 Then upload or inspect:
 
-- latest three `results/qkformer_lut_e2_replace_*/metrics.json`
-- latest three `results/qkformer_lut_e2_replace_*/train_log.txt`
+- latest four `results/qkformer_lut_e2_replace_*/metrics.json`
+- latest four `results/qkformer_lut_e2_replace_*/train_log.txt`
 
 Suggested artifact package:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut
-E2_DIRS=$(ls -td results/qkformer_lut_e2_replace_* | head -3)
-tar -czf qk_lutformer_e2_sweep_artifacts.tar.gz \
+E2_DIRS=$(ls -td results/qkformer_lut_e2_replace_* | head -4)
+tar -czf qk_lutformer_e2_calib_sweep_artifacts.tar.gz \
   $(for d in $E2_DIRS; do echo "$d/metrics.json" "$d/train_log.txt"; done)
 ```
 

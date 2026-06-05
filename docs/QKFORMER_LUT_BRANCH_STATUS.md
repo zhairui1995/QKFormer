@@ -204,6 +204,9 @@ Default behavior:
   split.
 - `scripts/server/run_qkformer_lut_e2_sweep.sh` runs stage1-only, stage2-only,
   and stage1+stage2 with full validation by default.
+- `scripts/server/run_qkformer_lut_e2_calib_sweep.sh` runs stage1-only across
+  calibration sizes 32, 128, 512, and full train by default, with full
+  validation evaluation.
 
 Metrics written to `metrics.json`:
 
@@ -226,6 +229,16 @@ First E2 result:
 Interpretation: diagnostic replacement ran successfully and did not collapse
 accuracy, but the evaluation set was only 512 images. Treat this as a smoke
 result; run the full-validation E2 target sweep before making a stage decision.
+
+Full-validation E2 target sweep:
+
+- Stage1-only: Acc@1 95.73 -> 95.88, delta +0.15; loss 0.35815 -> 0.35401.
+- Stage2-only: Acc@1 95.73 -> 95.59, delta -0.14; loss 0.35815 -> 0.36335.
+- Stage1+stage2: Acc@1 95.73 -> 95.54, delta -0.19; loss 0.35815 -> 0.36018.
+
+Interpretation: only stage1-only is slightly positive on full validation.
+Stage2 and combined replacement are negative. Run calibration-size sweep for
+stage1-only before making a forward-only replacement decision.
 
 ## Phase Gate
 
@@ -294,6 +307,12 @@ Full-validation E2 target sweep:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_sweep.sh --gpu 2
+```
+
+Stage1-only calibration-size sweep:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_calib_sweep.sh --gpu 2
 ```
 
 Specify GPU for train/E0/E1/E2:

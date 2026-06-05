@@ -73,6 +73,7 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
   - `scripts/server/run_qkformer_lut_e1_recon.sh`
   - `scripts/server/run_qkformer_lut_e2_replace.sh`
   - `scripts/server/run_qkformer_lut_e2_sweep.sh`
+  - `scripts/server/run_qkformer_lut_e2_calib_sweep.sh`
 
 Latest uploaded E0 smoke result:
 
@@ -144,6 +145,16 @@ accuracy, but evaluation used only 512 validation images. Next step is E2
 robustness sweep on the full validation split across stage1-only, stage2-only,
 and stage1+stage2 targets.
 
+Latest E2 full-validation target sweep:
+
+- Stage1-only: Acc@1 95.73 -> 95.88, delta +0.15; loss 0.35815 -> 0.35401.
+- Stage2-only: Acc@1 95.73 -> 95.59, delta -0.14; loss 0.35815 -> 0.36335.
+- Stage1+stage2: Acc@1 95.73 -> 95.54, delta -0.19; loss 0.35815 -> 0.36018.
+
+Interpretation: only stage1-only is slightly positive on full validation.
+Stage2 and combined replacement are negative. Next step is calibration-size
+sweep for stage1-only before any wrapper/prototype design.
+
 ## Server Commands
 
 Set up data link and run E0 diagnostic:
@@ -206,6 +217,12 @@ Run E2 full-validation target sweep:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_sweep.sh --gpu 2
+```
+
+Run E2 calibration-size sweep for stage1-only:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_calib_sweep.sh --gpu 2
 ```
 
 ## Phase Gate
