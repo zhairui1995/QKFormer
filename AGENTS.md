@@ -60,9 +60,11 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
 - E0 runner: `tools/qkformer_lut_e0_diag.py`
 - E1 runner: `tools/qkformer_lut_e1_recon.py`
 - E2 runner: `tools/qkformer_lut_e2_replace.py`
+- E3 runner: `tools/qkformer_lut_e3_trainable_lut.py`
 - Config: `configs/qkformer_lut_e0_diag.yaml`
 - E1 config: `configs/qkformer_lut_e1_recon.yaml`
 - E2 config: `configs/qkformer_lut_e2_replace.yaml`
+- E3 config: `configs/qkformer_lut_e3_trainable_lut.yaml`
 - Server scripts:
   - `scripts/server/install_qkformer_lut_deps.sh`
   - `scripts/server/link_cifar10_data.sh`
@@ -77,6 +79,8 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
   - `scripts/server/run_qkformer_lut_e2_blend_sweep.sh`
   - `scripts/server/run_qkformer_lut_e2_random_calib_sweep.sh`
   - `scripts/server/run_qkformer_lut_e2_control_sweep.sh`
+  - `scripts/server/run_qkformer_lut_e3_trainable_lut.sh`
+  - `scripts/server/run_qkformer_lut_e3_adapter_sweep.sh`
 
 Latest uploaded E0 smoke result:
 
@@ -218,6 +222,21 @@ better loss. Current accuracy signal is not address-specific enough to justify
 wrapper design. Next step is a shuffled-address LUT control that preserves the
 prototype distribution while breaking address/prototype alignment.
 
+E3 trainable residual LUT adapter is implemented for the paper-oriented route:
+
+- Freezes the trained QKFormer backbone.
+- Calibrates prototype/shrinkage initialization from Q/K addresses.
+- Trains only tiny LUT adapter tables plus optional learnable blend alpha.
+- Uses CE + KL-to-baseline + local MSE loss.
+- Default target is `stage1.0.tssa`.
+- Default control modes are `address_lut`, `global_mean`, and
+  `token_channel_lut`.
+
+Interpretation: E2 showed that forward-only address prototypes are not enough.
+E3 tests the stronger paper claim: whether a trainable residual address LUT
+adapter exploits Q/K address semantics better than non-address or weaker-address
+controls under the same frozen-backbone training budget.
+
 ## Server Commands
 
 Set up data link and run E0 diagnostic:
@@ -304,6 +323,12 @@ Run E2 address-vs-global control sweep:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_control_sweep.sh --gpu 2
+```
+
+Run E3 trainable LUT adapter pilot sweep:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e3_adapter_sweep.sh --gpu 2
 ```
 
 ## Phase Gate

@@ -318,6 +318,65 @@ address LUT also matches address LUT, treat the current forward-only E2
 replacement route as `NO-GO` for an address-specific wrapper and pivot to either
 trained hybrid regularization or stop at diagnostic reporting.
 
+## QK-LUTFormer E3
+
+Name: **QK-LUTFormer E3 = Trainable Residual LUT Adapter**
+
+Goal:
+
+- Move from forward-only statistical prototypes to a paper-relevant trainable
+  LUT adapter.
+- Freeze the trained QKFormer backbone.
+- Calibrate LUT initialization from Q/K address prototypes with count-aware
+  shrinkage.
+- Train only small LUT tables and optional learnable blend alpha.
+- Compare address-specific LUTs against non-address and weaker-address
+  controls under the same training budget.
+
+Implementation:
+
+- E3 runner:
+  - `tools/qkformer_lut_e3_trainable_lut.py`
+- Config:
+  - `configs/qkformer_lut_e3_trainable_lut.yaml`
+- Server entries:
+  - `scripts/server/run_qkformer_lut_e3_trainable_lut.sh`
+  - `scripts/server/run_qkformer_lut_e3_adapter_sweep.sh`
+
+Default behavior:
+
+- Uses latest trained CIFAR-10 checkpoint when `QKFORMER_LUT_CKPT` is unset.
+- Default target is `stage1.0.tssa`.
+- Default calibration is 128 shuffled train batches.
+- Default training is 5 epochs over 128 shuffled train batches.
+- Default evaluation is full CIFAR-10 validation.
+- Default sweep compares `address_lut`, `global_mean`, and
+  `token_channel_lut`.
+
+Training loss:
+
+- CE to ground-truth labels.
+- KL to frozen baseline logits.
+- Local MSE to constrain adapter output drift.
+
+Metrics written to `metrics.json`:
+
+- `classification`
+- `train_history`
+- `adapter_summary`
+- `calibration_prototypes`
+- `calibration_hook_summary`
+
+Interpretation:
+
+- E2 showed that naive forward-only address prototypes are not address-specific
+  enough, because global-mean smoothing nearly matched address LUT.
+- E3 tests the stronger paper claim: a small trainable residual address LUT
+  can exploit Q/K address semantics better than controls while keeping the
+  backbone frozen.
+- If `address_lut` does not beat `global_mean` and `token_channel_lut`, the
+  paper story should not claim address-specific LUT advantage.
+
 ## Phase Gate
 
 - **GO**: QKFormer binary Q/K addresses have materially better bucket occupancy
@@ -409,6 +468,12 @@ Stage1-only address-vs-global control sweep:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_control_sweep.sh --gpu 2
+```
+
+E3 trainable LUT adapter pilot sweep:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e3_adapter_sweep.sh --gpu 2
 ```
 
 Specify GPU for train/E0/E1/E2:

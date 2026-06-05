@@ -4,13 +4,12 @@ Last updated: 2026-06-05
 
 ## One-Line State
 
-QKFormer CIFAR-10 training reached 96.08% best Acc@1. Formal E0 and E1 remain
-CONDITIONAL GO: Q/K/gate addresses are active and reconstruct slightly better
-than baselines, but response variance is still high. E2 stage1-only replacement
-is the only target that stays slightly positive on full validation. Randomized
-calibration subsets show blend 0.25 is more stable than full replacement. Next
-action is an E2 shuffled-address control after `global_mean` smoothing nearly
-matched `address_lut`, weakening the address-specific wrapper hypothesis.
+QKFormer CIFAR-10 training reached 96.08% best Acc@1. Formal E0/E1 remain
+CONDITIONAL GO, but E2 forward-only prototypes are not address-specific enough:
+global-mean smoothing nearly matched address LUT. The paper-oriented route is
+now E3: trainable residual LUT adapters with frozen QKFormer backbone,
+prototype/shrinkage initialization, learnable blend, CE+KL+local-MSE loss, and
+controls against `global_mean` and `token_channel_lut`.
 
 ## Project Identity
 
@@ -54,6 +53,7 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - Add E2 random calibration sweep
 - Add E2 address-vs-global control sweep
 - Add E2 shuffled-address control mode
+- Add E3 trainable residual LUT adapter
 
 ## Implemented Files
 
@@ -62,11 +62,13 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - `configs/qkformer_lut_e0_diag.yaml`: E0 config.
 - `configs/qkformer_lut_e1_recon.yaml`: E1 split-aware reconstruction config.
 - `configs/qkformer_lut_e2_replace.yaml`: E2 stage-wise replacement config.
+- `configs/qkformer_lut_e3_trainable_lut.yaml`: E3 trainable LUT adapter config.
 - `qkformer_lut/hooks.py`: non-invasive hooks for Q/K/gate/proj capture.
 - `qkformer_lut/stats.py`: bucket occupancy and conditional variance stats.
 - `tools/qkformer_lut_e0_diag.py`: E0 runner.
 - `tools/qkformer_lut_e1_recon.py`: E1 calibration/evaluation reconstruction runner.
 - `tools/qkformer_lut_e2_replace.py`: E2 stage-wise replacement runner.
+- `tools/qkformer_lut_e3_trainable_lut.py`: E3 trainable residual LUT adapter runner.
 - `scripts/server/install_qkformer_lut_deps.sh`: installs/checks server deps.
 - `scripts/server/link_cifar10_data.sh`: symlinks CIFAR-10 into repo-local data path.
 - `scripts/server/qkformer_lut_common.sh`: common Python/GPU selection helpers.
@@ -88,6 +90,10 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
   randomized calibration subset stability sweep.
 - `scripts/server/run_qkformer_lut_e2_control_sweep.sh`: runs stage1-only
   `address_lut` vs `global_mean` vs `shuffled_address_lut` control sweep.
+- `scripts/server/run_qkformer_lut_e3_trainable_lut.sh`: runs one E3 trainable
+  LUT adapter experiment.
+- `scripts/server/run_qkformer_lut_e3_adapter_sweep.sh`: runs E3 pilot control
+  sweep across `address_lut`, `global_mean`, and `token_channel_lut`.
 
 ## Server Results So Far
 
@@ -337,6 +343,28 @@ Interpretation:
   address LUT, mark the current forward-only E2 replacement route `NO-GO` for
   an address-specific wrapper.
 
+E3 trainable residual LUT adapter implementation:
+
+- Freezes the trained QKFormer backbone.
+- Calibrates LUT initialization from Q/K address prototypes with count-aware
+  shrinkage.
+- Trains only tiny LUT adapter tables plus optional learnable blend alpha.
+- Uses CE + KL-to-baseline + local MSE loss.
+- Default target: `stage1.0.tssa`.
+- Default pilot: 128 calibration batches, 5 epochs over 128 train batches,
+  full validation.
+- Default control modes:
+  - `address_lut`: full Q/K-derived address table.
+  - `global_mean`: non-address trainable smoothing control.
+  - `token_channel_lut`: weaker-address control that drops Q/K bit detail.
+
+Interpretation:
+
+- E3 is the paper-oriented method test. It does not claim a full hardware
+  wrapper yet.
+- A paper claim requires `address_lut` to beat both controls under the same
+  frozen-backbone budget.
+
 ## Known Compatibility Fixes
 
 The server uses newer `timm` than upstream QKFormer expected.
@@ -350,10 +378,10 @@ The server uses newer `timm` than upstream QKFormer expected.
 
 ## Next Action
 
-Run E2 shuffled-address control sweep on server:
+Run E3 trainable LUT adapter pilot sweep on server:
 
 ```bash
-cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e2_control_sweep.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e3_adapter_sweep.sh --gpu 2
 ```
 
 To specify a GPU, pass `--gpu N`:
@@ -368,16 +396,16 @@ current torch device, device name, and visible device count in the log.
 
 Then upload or inspect:
 
-- latest nine `results/qkformer_lut_e2_replace_*/metrics.json`
-- latest nine `results/qkformer_lut_e2_replace_*/train_log.txt`
+- latest three `results/qkformer_lut_e3_trainable_lut_*/metrics.json`
+- latest three `results/qkformer_lut_e3_trainable_lut_*/train_log.txt`
 
 Suggested artifact package:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut
-E2_DIRS=$(ls -td results/qkformer_lut_e2_replace_* | head -9)
-tar -czf qk_lutformer_e2_shuffled_control_sweep_artifacts.tar.gz \
-  $(for d in $E2_DIRS; do echo "$d/metrics.json" "$d/train_log.txt"; done)
+E3_DIRS=$(ls -td results/qkformer_lut_e3_trainable_lut_* | head -3)
+tar -czf qk_lutformer_e3_adapter_sweep_artifacts.tar.gz \
+  $(for d in $E3_DIRS; do echo "$d/metrics.json" "$d/train_log.txt"; done)
 ```
 
 ## What To Avoid
