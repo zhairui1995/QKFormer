@@ -79,6 +79,7 @@ fi
   echo "[qk-lut-e2] e2_calib_seed=${QKFORMER_LUT_E2_CALIB_SEED:-configs/qkformer_lut_e2_replace.yaml default}"
   echo "[qk-lut-e2] e2_eval_batches=${QKFORMER_LUT_E2_EVAL_BATCHES:-configs/qkformer_lut_e2_replace.yaml default}"
   echo "[qk-lut-e2] e2_blend=${QKFORMER_LUT_E2_BLEND:-configs/qkformer_lut_e2_replace.yaml default}"
+  echo "[qk-lut-e2] e2_mode=${QKFORMER_LUT_E2_MODE:-configs/qkformer_lut_e2_replace.yaml default}"
 
   "$PYTHON_BIN" - <<'PY'
 import importlib

@@ -417,6 +417,7 @@ class QKProjectionReplacer:
         channel_bins: int,
         population_bins: int,
         blend: float = 1.0,
+        mode: str = "address_lut",
     ) -> None:
         self.model = model
         self.prototypes = prototypes
@@ -425,6 +426,9 @@ class QKProjectionReplacer:
         self.channel_bins = int(channel_bins)
         self.population_bins = int(population_bins)
         self.blend = float(blend)
+        self.mode = str(mode)
+        if self.mode not in {"address_lut", "global_mean"}:
+            raise ValueError(f"unsupported replacement mode: {self.mode}")
         self.enabled = False
         self.buffers: Dict[str, Dict[str, torch.Tensor]] = defaultdict(dict)
         self.modules = dict(model.named_modules())
@@ -476,8 +480,8 @@ class QKProjectionReplacer:
             address, response, layout, kind = token_qk_full_address(
                 buf["q"], buf["k"], buf["attn"], output, self.token_bins, self.channel_bins
             )
-            pred, seen = proto.predict(address, output.device, output.dtype)
             response_device = response.to(device=output.device, dtype=output.dtype)
+            pred, seen = self._predict(proto, address, response_device)
             blended = response_device * (1.0 - self.blend) + pred * self.blend
             replacement = restore_token_prediction(blended, layout, output)
         elif cls_name == "Spiking_Self_Attention":
@@ -490,8 +494,8 @@ class QKProjectionReplacer:
                 self.channel_bins,
                 self.population_bins,
             )
-            pred, seen = proto.predict(address, output.device, output.dtype)
             response_device = response.to(device=output.device, dtype=output.dtype)
+            pred, seen = self._predict(proto, address, response_device)
             blended = response_device * (1.0 - self.blend) + pred * self.blend
             replacement = restore_spiking_prediction(blended, layout, output, int(getattr(module, "num_heads", 1)))
         else:
@@ -502,6 +506,18 @@ class QKProjectionReplacer:
             self.stats[prefix] = stat
         stat.update(response, blended, seen)
         return replacement
+
+    def _predict(
+        self,
+        proto: ModulePrototype,
+        address: torch.Tensor,
+        response_device: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        if self.mode == "global_mean":
+            pred = torch.full_like(response_device, fill_value=float(proto.global_mean))
+            seen = torch.ones_like(address, dtype=torch.bool, device=response_device.device)
+            return pred, seen
+        return proto.predict(address, response_device.device, response_device.dtype)
 
     def summary(self) -> Dict[str, Dict[str, object]]:
         return {name: stat.summary() for name, stat in self.stats.items()}
@@ -646,6 +662,9 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     env_blend = os.environ.get("QKFORMER_LUT_E2_BLEND")
     if env_blend:
         replacement_cfg["blend"] = float(env_blend)
+    env_mode = os.environ.get("QKFORMER_LUT_E2_MODE")
+    if env_mode:
+        replacement_cfg["mode"] = env_mode
 
     device_name = str(diag_cfg.get("device", "cuda"))
     if device_name == "cuda" and not torch.cuda.is_available():
@@ -676,6 +695,7 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         channel_bins=int(diag_cfg.get("channel_bins", 8)),
         population_bins=int(diag_cfg.get("population_bins", 4)),
         blend=float(replacement_cfg.get("blend", 1.0)),
+        mode=str(replacement_cfg.get("mode", "address_lut")),
     )
     print(f"[qk-lut-e2] target_modules={target_modules}")
     print("[qk-lut-e2] replacement_eval_start")
@@ -723,6 +743,7 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
             "QKFORMER_LUT_E2_EVAL_BATCHES": env_eval_batches,
             "QKFORMER_LUT_E2_TARGETS": env_targets,
             "QKFORMER_LUT_E2_BLEND": env_blend,
+            "QKFORMER_LUT_E2_MODE": env_mode,
         },
         "target_modules": target_modules,
         "verdict": verdict,

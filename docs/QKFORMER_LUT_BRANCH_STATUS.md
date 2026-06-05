@@ -199,6 +199,8 @@ Default behavior:
 - Default replacement targets are `stage1.0.tssa` and `stage2.0.tssa`.
 - This is diagnostic module-output replacement, not a full optimized wrapper.
 - `QKFORMER_LUT_E2_TARGETS` can override comma-separated target modules.
+- `QKFORMER_LUT_E2_MODE` can override the replacement mode. Supported modes
+  are `address_lut` and `global_mean`.
 - `QKFORMER_LUT_E2_CALIB_BATCHES` and `QKFORMER_LUT_E2_EVAL_BATCHES` can
   override batch counts; `QKFORMER_LUT_E2_EVAL_BATCHES=0` evaluates the full
   split.
@@ -215,6 +217,8 @@ Default behavior:
 - `scripts/server/run_qkformer_lut_e2_random_calib_sweep.sh` runs randomized
   stage1-only calibration subset sweeps across calibration sizes, blend ratios,
   and seeds.
+- `scripts/server/run_qkformer_lut_e2_control_sweep.sh` runs stage1-only
+  `address_lut` vs `global_mean` replacement controls.
 
 Metrics written to `metrics.json`:
 
@@ -274,6 +278,28 @@ gives the best loss, preserves Acc@5, and has lower logit drift. Treat this as
 a small diagnostic signal, not a production claim. Next step is a randomized
 calibration-subset stability sweep for stage1-only, comparing blend 0.25 and
 1.0 before any wrapper/prototype design.
+
+Stage1-only randomized calibration stability sweep:
+
+- 128 calibration batches, blend 0.25, seeds 42/43/44: mean Acc@1 95.9333%,
+  mean delta +0.2033%, min/max delta +0.13/+0.24, mean loss 0.355467,
+  mean logit MSE 0.040937.
+- 128 calibration batches, blend 1.0, seeds 42/43/44: mean Acc@1 95.7400%,
+  mean delta +0.0100%, min/max delta -0.09/+0.09, mean loss 0.355344,
+  mean logit MSE 0.054565.
+- 512 calibration batches, blend 0.25, seeds 42/43/44: mean Acc@1 95.8600%,
+  mean delta +0.1300%, min/max delta +0.06/+0.19, mean loss 0.356766,
+  mean logit MSE 0.041317.
+- 512 calibration batches, blend 1.0, seeds 42/43/44: mean Acc@1 95.8367%,
+  mean delta +0.1067%, min/max delta +0.02/+0.19, mean loss 0.355430,
+  mean logit MSE 0.054583.
+
+Interpretation: blend 0.25 is more stable than full replacement under random
+calibration subsets. The next control should compare `address_lut` against
+`global_mean` smoothing at stage1-only, 128 calibration batches, blend 0.25,
+and the same random seeds. If global smoothing matches the address LUT, the
+current accuracy signal is not address-specific enough to justify wrapper
+design.
 
 ## Phase Gate
 
@@ -360,6 +386,12 @@ Stage1-only randomized calibration stability sweep:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_random_calib_sweep.sh --gpu 2
+```
+
+Stage1-only address-vs-global control sweep:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_control_sweep.sh --gpu 2
 ```
 
 Specify GPU for train/E0/E1/E2:

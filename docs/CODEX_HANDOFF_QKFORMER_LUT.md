@@ -7,10 +7,10 @@ Last updated: 2026-06-05
 QKFormer CIFAR-10 training reached 96.08% best Acc@1. Formal E0 and E1 remain
 CONDITIONAL GO: Q/K/gate addresses are active and reconstruct slightly better
 than baselines, but response variance is still high. E2 stage1-only replacement
-is the only target that stays slightly positive on full validation. The
-full-calibration blend sweep found blend 1.0 has the highest Acc@1, while blend
-0.25 has the best loss and lower logit drift. Next action is a randomized
-calibration-subset stability sweep for stage1-only before any wrapper design.
+is the only target that stays slightly positive on full validation. Randomized
+calibration subsets show blend 0.25 is more stable than full replacement. Next
+action is an E2 control sweep comparing `address_lut` against `global_mean`
+smoothing before any wrapper design.
 
 ## Project Identity
 
@@ -52,6 +52,7 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - `69f7c3c` Add E2 calibration sweep
 - `06239e0` Add E2 blend sweep
 - Add E2 random calibration sweep
+- Add E2 address-vs-global control sweep
 
 ## Implemented Files
 
@@ -84,6 +85,8 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
   full-calibration/full-validation blend sweep.
 - `scripts/server/run_qkformer_lut_e2_random_calib_sweep.sh`: runs stage1-only
   randomized calibration subset stability sweep.
+- `scripts/server/run_qkformer_lut_e2_control_sweep.sh`: runs stage1-only
+  `address_lut` vs `global_mean` control sweep.
 
 ## Server Results So Far
 
@@ -283,6 +286,34 @@ Interpretation:
   calibration-subset stability testing for stage1-only, comparing blend 0.25
   and 1.0.
 
+E2 stage1-only randomized calibration stability sweep:
+
+- 128 calibration batches, blend 0.25, seeds 42/43/44:
+  - mean Acc@1: 95.9333%; mean delta: +0.2033%.
+  - min/max delta: +0.13/+0.24.
+  - mean loss: 0.355467; mean logit MSE: 0.040937.
+- 128 calibration batches, blend 1.0, seeds 42/43/44:
+  - mean Acc@1: 95.7400%; mean delta: +0.0100%.
+  - min/max delta: -0.09/+0.09.
+  - mean loss: 0.355344; mean logit MSE: 0.054565.
+- 512 calibration batches, blend 0.25, seeds 42/43/44:
+  - mean Acc@1: 95.8600%; mean delta: +0.1300%.
+  - min/max delta: +0.06/+0.19.
+  - mean loss: 0.356766; mean logit MSE: 0.041317.
+- 512 calibration batches, blend 1.0, seeds 42/43/44:
+  - mean Acc@1: 95.8367%; mean delta: +0.1067%.
+  - min/max delta: +0.02/+0.19.
+  - mean loss: 0.355430; mean logit MSE: 0.054583.
+
+Interpretation:
+
+- Blend 0.25 is more stable under random calibration subsets, especially at
+  128 batches.
+- Full replacement has higher drift and one negative 128-batch seed.
+- Next action is a control sweep: compare `address_lut` with `global_mean`
+  smoothing at stage1-only, 128 calibration batches, blend 0.25, seeds
+  42/43/44.
+
 ## Known Compatibility Fixes
 
 The server uses newer `timm` than upstream QKFormer expected.
@@ -296,10 +327,10 @@ The server uses newer `timm` than upstream QKFormer expected.
 
 ## Next Action
 
-Run E2 stage1-only randomized calibration stability sweep on server:
+Run E2 address-vs-global control sweep on server:
 
 ```bash
-cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e2_random_calib_sweep.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e2_control_sweep.sh --gpu 2
 ```
 
 To specify a GPU, pass `--gpu N`:
@@ -314,15 +345,15 @@ current torch device, device name, and visible device count in the log.
 
 Then upload or inspect:
 
-- latest twelve `results/qkformer_lut_e2_replace_*/metrics.json`
-- latest twelve `results/qkformer_lut_e2_replace_*/train_log.txt`
+- latest six `results/qkformer_lut_e2_replace_*/metrics.json`
+- latest six `results/qkformer_lut_e2_replace_*/train_log.txt`
 
 Suggested artifact package:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut
-E2_DIRS=$(ls -td results/qkformer_lut_e2_replace_* | head -12)
-tar -czf qk_lutformer_e2_random_calib_sweep_artifacts.tar.gz \
+E2_DIRS=$(ls -td results/qkformer_lut_e2_replace_* | head -6)
+tar -czf qk_lutformer_e2_control_sweep_artifacts.tar.gz \
   $(for d in $E2_DIRS; do echo "$d/metrics.json" "$d/train_log.txt"; done)
 ```
 
