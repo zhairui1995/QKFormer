@@ -23,6 +23,8 @@ data:
     batch_size: 32
     num_batches: 32
     workers: 4
+    shuffle: false
+    seed: 42
   evaluation:
     mode: cifar10
     data_dir: /media/data/spike-transformer-network/torch/cifar10/

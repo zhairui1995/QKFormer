@@ -75,6 +75,8 @@ fi
   echo "[qk-lut-e2] checkpoint=${QKFORMER_LUT_CKPT:-configs/qkformer_lut_e2_replace.yaml default}"
   echo "[qk-lut-e2] e2_targets=${QKFORMER_LUT_E2_TARGETS:-configs/qkformer_lut_e2_replace.yaml default}"
   echo "[qk-lut-e2] e2_calib_batches=${QKFORMER_LUT_E2_CALIB_BATCHES:-configs/qkformer_lut_e2_replace.yaml default}"
+  echo "[qk-lut-e2] e2_calib_shuffle=${QKFORMER_LUT_E2_CALIB_SHUFFLE:-configs/qkformer_lut_e2_replace.yaml default}"
+  echo "[qk-lut-e2] e2_calib_seed=${QKFORMER_LUT_E2_CALIB_SEED:-configs/qkformer_lut_e2_replace.yaml default}"
   echo "[qk-lut-e2] e2_eval_batches=${QKFORMER_LUT_E2_EVAL_BATCHES:-configs/qkformer_lut_e2_replace.yaml default}"
   echo "[qk-lut-e2] e2_blend=${QKFORMER_LUT_E2_BLEND:-configs/qkformer_lut_e2_replace.yaml default}"
 

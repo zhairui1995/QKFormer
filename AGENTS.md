@@ -75,6 +75,7 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
   - `scripts/server/run_qkformer_lut_e2_sweep.sh`
   - `scripts/server/run_qkformer_lut_e2_calib_sweep.sh`
   - `scripts/server/run_qkformer_lut_e2_blend_sweep.sh`
+  - `scripts/server/run_qkformer_lut_e2_random_calib_sweep.sh`
 
 Latest uploaded E0 smoke result:
 
@@ -164,9 +165,22 @@ Latest E2 stage1-only calibration-size sweep:
 - Full train calibration: Acc@1 95.73 -> 96.02, delta +0.29.
 
 Interpretation: stage1-only remains positive, and full calibration gives the
-largest small gain. Next step is a stage1-only blend sweep with full
-calibration/full validation to test whether partial replacement reduces logit
-drift while preserving or improving Acc@1.
+largest small gain.
+
+Latest E2 stage1-only blend sweep with full train calibration/full validation:
+
+- Blend 0.0: Acc@1 95.73 -> 95.73, delta +0.00; loss unchanged.
+- Blend 0.25: Acc@1 95.73 -> 96.00, delta +0.27; loss 0.35815 -> 0.35323;
+  logit MSE 0.04099666884899139, KL 0.01876032644510269.
+- Blend 0.5: Acc@1 95.73 -> 95.90, delta +0.17; loss 0.35815 -> 0.35499.
+- Blend 0.75: Acc@1 95.73 -> 95.85, delta +0.12; loss 0.35815 -> 0.35629.
+- Blend 1.0: Acc@1 95.73 -> 96.02, delta +0.29; loss 0.35815 -> 0.35419;
+  logit MSE 0.053548186321258545, KL 0.023518988977372646.
+
+Interpretation: full replacement has the highest Acc@1, while blend 0.25 has
+the best loss, preserves Acc@5, and has lower logit drift. The effect is still
+small. Next step is a randomized calibration-subset stability sweep for
+stage1-only, comparing blend 0.25 and 1.0 before any wrapper/prototype design.
 
 ## Server Commands
 
@@ -242,6 +256,12 @@ Run E2 stage1-only blend sweep:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_blend_sweep.sh --gpu 2
+```
+
+Run E2 randomized calibration stability sweep:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_random_calib_sweep.sh --gpu 2
 ```
 
 ## Phase Gate

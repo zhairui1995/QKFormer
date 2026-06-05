@@ -209,6 +209,12 @@ Default behavior:
   validation evaluation.
 - `scripts/server/run_qkformer_lut_e2_blend_sweep.sh` runs stage1-only
   full-calibration/full-validation blend ratios 0, 0.25, 0.5, 0.75, and 1.0.
+- `QKFORMER_LUT_E2_CALIB_SHUFFLE=1` and
+  `QKFORMER_LUT_E2_CALIB_SEED=N` can randomize calibration subset order for
+  stability checks.
+- `scripts/server/run_qkformer_lut_e2_random_calib_sweep.sh` runs randomized
+  stage1-only calibration subset sweeps across calibration sizes, blend ratios,
+  and seeds.
 
 Metrics written to `metrics.json`:
 
@@ -252,6 +258,22 @@ Stage1-only calibration-size sweep:
 Interpretation: stage1-only stays positive, and full calibration is best so
 far. The effect is small; run a blend sweep before deciding whether this is a
 usable hybrid replacement signal.
+
+Stage1-only blend sweep with full train calibration/full validation:
+
+- Blend 0.0: Acc@1 95.73 -> 95.73, delta +0.00; loss unchanged.
+- Blend 0.25: Acc@1 95.73 -> 96.00, delta +0.27; loss 0.35815 -> 0.35323;
+  logit MSE 0.04099666884899139, KL 0.01876032644510269.
+- Blend 0.5: Acc@1 95.73 -> 95.90, delta +0.17; loss 0.35815 -> 0.35499.
+- Blend 0.75: Acc@1 95.73 -> 95.85, delta +0.12; loss 0.35815 -> 0.35629.
+- Blend 1.0: Acc@1 95.73 -> 96.02, delta +0.29; loss 0.35815 -> 0.35419;
+  logit MSE 0.053548186321258545, KL 0.023518988977372646.
+
+Interpretation: full replacement gives the highest Acc@1, while blend 0.25
+gives the best loss, preserves Acc@5, and has lower logit drift. Treat this as
+a small diagnostic signal, not a production claim. Next step is a randomized
+calibration-subset stability sweep for stage1-only, comparing blend 0.25 and
+1.0 before any wrapper/prototype design.
 
 ## Phase Gate
 
@@ -332,6 +354,12 @@ Stage1-only blend sweep:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_blend_sweep.sh --gpu 2
+```
+
+Stage1-only randomized calibration stability sweep:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_random_calib_sweep.sh --gpu 2
 ```
 
 Specify GPU for train/E0/E1/E2:

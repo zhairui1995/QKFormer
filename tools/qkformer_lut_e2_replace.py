@@ -92,6 +92,8 @@ def make_cifar10_loader(
     batch_size: int,
     workers: int,
     device: torch.device,
+    shuffle: bool = False,
+    seed: Optional[int] = None,
 ):
     from torch.utils.data import DataLoader
     from torchvision import datasets, transforms
@@ -111,12 +113,18 @@ def make_cifar10_loader(
             ]
         ),
     )
+    generator = None
+    if shuffle:
+        generator = torch.Generator()
+        if seed is not None:
+            generator.manual_seed(int(seed))
     return DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=False,
+        shuffle=bool(shuffle),
         num_workers=workers,
         pin_memory=device.type == "cuda",
+        generator=generator,
     )
 
 
@@ -130,6 +138,8 @@ def build_loader(cfg: Dict[str, object], device: torch.device):
         batch_size=int(cfg["batch_size"]),
         workers=int(cfg.get("workers", 4)),
         device=device,
+        shuffle=bool(cfg.get("shuffle", False)),
+        seed=int(cfg["seed"]) if cfg.get("seed") is not None else None,
     )
 
 
@@ -619,6 +629,12 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     env_calib_batches = os.environ.get("QKFORMER_LUT_E2_CALIB_BATCHES")
     if env_calib_batches:
         calibration_cfg["num_batches"] = int(env_calib_batches)
+    env_calib_shuffle = os.environ.get("QKFORMER_LUT_E2_CALIB_SHUFFLE")
+    if env_calib_shuffle:
+        calibration_cfg["shuffle"] = env_calib_shuffle.strip().lower() in {"1", "true", "yes", "on"}
+    env_calib_seed = os.environ.get("QKFORMER_LUT_E2_CALIB_SEED")
+    if env_calib_seed:
+        calibration_cfg["seed"] = int(env_calib_seed)
     env_eval_batches = os.environ.get("QKFORMER_LUT_E2_EVAL_BATCHES")
     if env_eval_batches:
         evaluation_cfg["num_batches"] = int(env_eval_batches)
@@ -688,6 +704,8 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
                 "split": calibration_cfg.get("split"),
                 "num_batches": calibration_batches,
                 "batch_size": calibration_cfg["batch_size"],
+                "shuffle": bool(calibration_cfg.get("shuffle", False)),
+                "seed": calibration_cfg.get("seed"),
             },
             "evaluation": {
                 "source": "cifar10",
@@ -700,6 +718,8 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         "replacement_config": replacement_cfg,
         "env_overrides": {
             "QKFORMER_LUT_E2_CALIB_BATCHES": env_calib_batches,
+            "QKFORMER_LUT_E2_CALIB_SHUFFLE": env_calib_shuffle,
+            "QKFORMER_LUT_E2_CALIB_SEED": env_calib_seed,
             "QKFORMER_LUT_E2_EVAL_BATCHES": env_eval_batches,
             "QKFORMER_LUT_E2_TARGETS": env_targets,
             "QKFORMER_LUT_E2_BLEND": env_blend,

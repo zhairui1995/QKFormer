@@ -4,17 +4,13 @@ Last updated: 2026-06-05
 
 ## One-Line State
 
-QKFormer CIFAR-10 training reached 96.08% best Acc@1, and formal E0 with the
-trained checkpoint is a CONDITIONAL GO: Q/K/gate spikes are active and address
-occupancy is useful, but conditional response variance remains high. E1
-split-aware reconstruction shows modest held-out MSE improvement and is a
-CONDITIONAL GO to E2 stage-wise replacement diagnostics. E2 stage1+stage2
-replacement ran successfully on 16 validation batches; next action is a
-calibration-size sweep for stage1-only after the full-validation target sweep
-showed stage1-only is the only positive target.
-Calibration-size sweep confirmed stage1-only stays positive, with the largest
-small gain under full train calibration. Next action is a full-calibration
-stage1-only blend sweep.
+QKFormer CIFAR-10 training reached 96.08% best Acc@1. Formal E0 and E1 remain
+CONDITIONAL GO: Q/K/gate addresses are active and reconstruct slightly better
+than baselines, but response variance is still high. E2 stage1-only replacement
+is the only target that stays slightly positive on full validation. The
+full-calibration blend sweep found blend 1.0 has the highest Acc@1, while blend
+0.25 has the best loss and lower logit drift. Next action is a randomized
+calibration-subset stability sweep for stage1-only before any wrapper design.
 
 ## Project Identity
 
@@ -54,7 +50,8 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - `592b96e` Add QKFormer LUT E2 replacement diagnostic
 - `ba3f483` Add E2 full validation target sweep
 - `69f7c3c` Add E2 calibration sweep
-- pending local changes: add E2 stage1 blend sweep support.
+- `06239e0` Add E2 blend sweep
+- Add E2 random calibration sweep
 
 ## Implemented Files
 
@@ -85,6 +82,8 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
   across calibration sizes, with full validation by default.
 - `scripts/server/run_qkformer_lut_e2_blend_sweep.sh`: runs stage1-only E2
   full-calibration/full-validation blend sweep.
+- `scripts/server/run_qkformer_lut_e2_random_calib_sweep.sh`: runs stage1-only
+  randomized calibration subset stability sweep.
 
 ## Server Results So Far
 
@@ -256,6 +255,34 @@ Interpretation:
 - The effect is still small; next action is a blend sweep to test whether
   partial replacement controls logit drift while preserving Acc@1.
 
+E2 stage1-only blend sweep with full train calibration/full validation:
+
+- Blend 0.0:
+  - Result: `results/qkformer_lut_e2_replace_20260605_161043`
+  - Acc@1 95.73 -> 95.73, delta +0.00; loss unchanged.
+- Blend 0.25:
+  - Result: `results/qkformer_lut_e2_replace_20260605_162745`
+  - Acc@1 95.73 -> 96.00, delta +0.27; loss 0.35815 -> 0.35323.
+  - Logit MSE / KL: 0.04099666884899139 / 0.01876032644510269.
+- Blend 0.5:
+  - Result: `results/qkformer_lut_e2_replace_20260605_164452`
+  - Acc@1 95.73 -> 95.90, delta +0.17; loss 0.35815 -> 0.35499.
+- Blend 0.75:
+  - Result: `results/qkformer_lut_e2_replace_20260605_170218`
+  - Acc@1 95.73 -> 95.85, delta +0.12; loss 0.35815 -> 0.35629.
+- Blend 1.0:
+  - Result: `results/qkformer_lut_e2_replace_20260605_171921`
+  - Acc@1 95.73 -> 96.02, delta +0.29; loss 0.35815 -> 0.35419.
+  - Logit MSE / KL: 0.053548186321258545 / 0.023518988977372646.
+
+Interpretation:
+
+- Full replacement has the highest Acc@1.
+- Blend 0.25 has the best loss, preserves Acc@5, and has lower logit drift.
+- The signal is still small and diagnostic. Next action is randomized
+  calibration-subset stability testing for stage1-only, comparing blend 0.25
+  and 1.0.
+
 ## Known Compatibility Fixes
 
 The server uses newer `timm` than upstream QKFormer expected.
@@ -269,10 +296,10 @@ The server uses newer `timm` than upstream QKFormer expected.
 
 ## Next Action
 
-Run E2 stage1-only blend sweep on server:
+Run E2 stage1-only randomized calibration stability sweep on server:
 
 ```bash
-cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e2_blend_sweep.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e2_random_calib_sweep.sh --gpu 2
 ```
 
 To specify a GPU, pass `--gpu N`:
@@ -287,15 +314,15 @@ current torch device, device name, and visible device count in the log.
 
 Then upload or inspect:
 
-- latest five `results/qkformer_lut_e2_replace_*/metrics.json`
-- latest five `results/qkformer_lut_e2_replace_*/train_log.txt`
+- latest twelve `results/qkformer_lut_e2_replace_*/metrics.json`
+- latest twelve `results/qkformer_lut_e2_replace_*/train_log.txt`
 
 Suggested artifact package:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut
-E2_DIRS=$(ls -td results/qkformer_lut_e2_replace_* | head -5)
-tar -czf qk_lutformer_e2_blend_sweep_artifacts.tar.gz \
+E2_DIRS=$(ls -td results/qkformer_lut_e2_replace_* | head -12)
+tar -czf qk_lutformer_e2_random_calib_sweep_artifacts.tar.gz \
   $(for d in $E2_DIRS; do echo "$d/metrics.json" "$d/train_log.txt"; done)
 ```
 
