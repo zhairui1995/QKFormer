@@ -198,6 +198,11 @@ Current verdict: **CONDITIONAL GO to E2 stage-wise replacement diagnostics**.
 The E1 gain is real but modest; prioritize stage1/stage2 and do not build a
 full wrapper yet.
 
+GPU-selection repeat result `results/qkformer_lut_e1_recon_20260605_134638`
+matches the original E1 metrics exactly and confirms `--gpu 2` logging works:
+the server log records `CUDA_VISIBLE_DEVICES=2`, one visible torch device, and
+RTX 4090 as the active CUDA device.
+
 ## Server Workflow Update
 
 The CIFAR-10 training script writes both `checkpoint_manifest.txt` and

@@ -156,6 +156,16 @@ Interpretation:
 - Candidate/background mean is effectively not useful here.
 - Gains are modest; do not implement a full wrapper yet.
 
+GPU-selection E1 repeat:
+
+- Result: `results/qkformer_lut_e1_recon_20260605_134638`
+- Commit used on server: `202835c`
+- Command used `--gpu 2`; log confirms `CUDA_VISIBLE_DEVICES=2`,
+  torch visible device count 1, current device 0, device name RTX 4090.
+- Reconstruction metrics are identical to
+  `results/qkformer_lut_e1_recon_20260605_133910`, confirming the GPU-selection
+  wrapper did not change E1 behavior.
+
 ## Known Compatibility Fixes
 
 The server uses newer `timm` than upstream QKFormer expected.
