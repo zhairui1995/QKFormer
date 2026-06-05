@@ -1,0 +1,129 @@
+# QK-LUTFormer Codex Project Rules
+
+This repository is the independent **QK-LUTFormer / QKFormer-LUT hybrid**
+branch for SDR-LUTAttn.
+
+## Required Context
+
+Before important work, read:
+
+1. the user's global Codex rules file, when available
+2. `docs/QKFORMER_LUT_BRANCH_STATUS.md`
+3. `docs/CODEX_HANDOFF_QKFORMER_LUT.md`
+
+Use the original CCS project only as historical context. If the sibling CCS
+checkout is available, relevant docs there are:
+  - `AGENTS.md`
+  - `docs/CCS_SERIES_STATUS.md`
+  - `docs/decision_log.md`
+
+Do not modify the CCS repository unless the user explicitly asks.
+
+## Scope
+
+- Branch: `codex/qkformer-lut-hybrid`
+- Upstream base: `https://github.com/zhouchenlin2096/QKFormer`
+- Working remote fork: `git@github.com:zhairui1995/QKFormer.git`
+- Main local path: this repository checkout
+- Server path used so far: `~/mac_agent/sdr-lutattn-qkformer-lut`
+
+This branch tests whether QKFormer binary Q/K spike vectors and token/channel
+gating form a better LUT address space than the stopped DeiT/CCS response
+prototype route.
+
+## Strict Boundaries
+
+- Do not continue CCS-LUTAttn wrapper implementation.
+- Do not touch the manifesto-lut series.
+- Do not revive scalar softmax-score bucket LUTs.
+- Do not implement `exp(center)` plus row normalization.
+- Do not claim a full pure-spike Transformer block beyond what QKFormer itself
+  implements.
+- Do not claim accuracy, energy, latency, or downstream gains without real
+  metrics.
+- Distillation, surrogate gradients, or direct training are allowed later only
+  as trained hybrid methods, not forward-only ANN-to-SNN conversion.
+
+## Current Evidence
+
+CCS-LUTAttn E0-E2 ended as NO-GO for the current converted wrapper:
+
+- Coarse context variance reduction: about 20.99%.
+- Candidate-specific prototype tables degraded split-aware reconstruction.
+- Background tables helped, but aggregate head-output improvement was only
+  about 1.75%.
+
+QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
+
+- Diagnostic hooks: `qkformer_lut/hooks.py`
+- Stats helpers: `qkformer_lut/stats.py`
+- E0 runner: `tools/qkformer_lut_e0_diag.py`
+- Config: `configs/qkformer_lut_e0_diag.yaml`
+- Server scripts:
+  - `scripts/server/install_qkformer_lut_deps.sh`
+  - `scripts/server/link_cifar10_data.sh`
+  - `scripts/server/run_qkformer_lut_e0_diag.sh`
+  - `scripts/server/run_qkformer_cifar10_train.sh`
+
+Latest uploaded E0 smoke result:
+
+- Result: `results/qkformer_lut_e0_diag_20260602_092338`
+- Data source: real CIFAR-10
+- Checkpoint loaded: false
+- Q/K/gate spike rates: all 0.0
+- Conditional variance: 0.0
+- Verdict: `PENDING_REAL_DATA_CHECKPOINT`
+
+Interpretation: the diagnostic pipeline and real-data link work, but the result
+is not scientifically meaningful because the model is random-init and silent.
+
+## Server Commands
+
+Set up data link and run E0 diagnostic:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/link_cifar10_data.sh && bash scripts/server/run_qkformer_lut_e0_diag.sh
+```
+
+Train CIFAR-10 checkpoint:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_cifar10_train.sh
+```
+
+After training, inspect latest outputs:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut
+tail -f $(ls -td results/qkformer_cifar10_train_* | head -1)/train_log.txt
+find $(ls -td results/qkformer_cifar10_train_* | head -1) -name "*.pth" -o -name "*.pth.tar"
+```
+
+Run E0 with a trained checkpoint:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && QKFORMER_LUT_CKPT=/path/to/checkpoint.pth.tar bash scripts/server/run_qkformer_lut_e0_diag.sh
+```
+
+## Phase Gate
+
+Use `GO`, `CONDITIONAL GO`, or `NO-GO` only after real-data E0 with a trained
+checkpoint.
+
+- `GO`: bucket occupancy is materially better than CCS and conditional variance
+  is below the CCS coarse context baseline.
+- `CONDITIONAL GO`: addresses are stable and better occupied, but response
+  variance remains high; next test should be background correction or stage-wise
+  LUT.
+- `NO-GO`: binary Q/K addresses remain sparse or do not explain response; stop
+  LUT-ization and switch to standard QKFormer training or a hybrid ANN-SNN
+  baseline.
+
+## Hygiene
+
+- Keep generated outputs under `results/` on server.
+- Do not commit checkpoints, datasets, logs, tarballs, or private paths.
+- Keep user/server credentials, tokens, private keys, cookies, and raw private
+  conversation out of docs and commits.
+- Prefer zero-argument server scripts with dependency checks, tee logs, and
+  timestamped result directories.
