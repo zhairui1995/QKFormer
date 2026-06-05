@@ -1,0 +1,21 @@
+# Local experiment artifacts
+/results/
+/data/
+/output/
+
+# Model/data artifacts
+*.pth
+*.pth.tar
+*.pt
+*.ckpt
+*.tar
+*.tar.gz
+*.zip
+
+# Python/cache noise
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local OS/editor noise
+.DS_Store

@@ -159,6 +159,14 @@ def build_loader(root: Path, cfg: Dict[str, object], model_cfg: Dict[str, object
     )
 
 
+def reset_model_state(model: torch.nn.Module) -> None:
+    try:
+        from spikingjelly.clock_driven import functional
+    except Exception:
+        return
+    functional.reset_net(model)
+
+
 def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     root = Path(__file__).resolve().parents[1]
     cfg = load_config(config_path)
@@ -205,6 +213,7 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
                 images = images[0]
             images = images.to(device, non_blocking=True)
             _ = model(images)
+            reset_model_state(model)
             processed += 1
 
     summary = diagnostic.summary()

@@ -11,18 +11,22 @@ if [[ -z "$PYTHON_BIN" ]]; then
   elif command -v python >/dev/null 2>&1; then
     PYTHON_BIN="python"
   else
-    echo "[qk-lut-e0] missing python3/python"
+    echo "[qk-lut-e1] missing python3/python"
     exit 1
   fi
 fi
 
 TS="$(date +%Y%m%d_%H%M%S)"
-RESULT_DIR="$ROOT/results/qkformer_lut_e0_diag_${TS}"
+RESULT_DIR="$ROOT/results/qkformer_lut_e1_recon_${TS}"
 LOG_FILE="$RESULT_DIR/train_log.txt"
 mkdir -p "$RESULT_DIR"
 
 if [[ -z "${QKFORMER_LUT_DATA_DIR:-}" && -d "$ROOT/data/cifar10/cifar-10-batches-py" ]]; then
   export QKFORMER_LUT_DATA_DIR="$ROOT/data/cifar10"
+fi
+
+if [[ -z "${QKFORMER_LUT_CKPT:-}" && -d "$ROOT/results" ]]; then
+  export QKFORMER_LUT_CKPT="auto"
 fi
 
 if [[ "${QKFORMER_LUT_CKPT:-}" == "auto" || "${QKFORMER_LUT_CKPT:-}" == "latest" ]]; then
@@ -66,13 +70,13 @@ PY
 fi
 
 {
-  echo "[qk-lut-e0] root=$ROOT"
-  echo "[qk-lut-e0] result_dir=$RESULT_DIR"
-  echo "[qk-lut-e0] start=$(date -Is)"
-  echo "[qk-lut-e0] commit=$(git rev-parse --short HEAD)"
-  echo "[qk-lut-e0] python=$PYTHON_BIN"
-  echo "[qk-lut-e0] data_dir=${QKFORMER_LUT_DATA_DIR:-configs/qkformer_lut_e0_diag.yaml default}"
-  echo "[qk-lut-e0] checkpoint=${QKFORMER_LUT_CKPT:-configs/qkformer_lut_e0_diag.yaml default}"
+  echo "[qk-lut-e1] root=$ROOT"
+  echo "[qk-lut-e1] result_dir=$RESULT_DIR"
+  echo "[qk-lut-e1] start=$(date -Is)"
+  echo "[qk-lut-e1] commit=$(git rev-parse --short HEAD)"
+  echo "[qk-lut-e1] python=$PYTHON_BIN"
+  echo "[qk-lut-e1] data_dir=${QKFORMER_LUT_DATA_DIR:-configs/qkformer_lut_e1_recon.yaml default}"
+  echo "[qk-lut-e1] checkpoint=${QKFORMER_LUT_CKPT:-configs/qkformer_lut_e1_recon.yaml default}"
 
   "$PYTHON_BIN" - <<'PY'
 import importlib
@@ -88,20 +92,20 @@ for name in required:
 
 if missing:
     for name, exc in missing:
-        print(f"[qk-lut-e0] missing dependency: {name}: {exc}")
-    print("[qk-lut-e0] run: bash scripts/server/install_qkformer_lut_deps.sh")
+        print(f"[qk-lut-e1] missing dependency: {name}: {exc}")
+    print("[qk-lut-e1] run: bash scripts/server/install_qkformer_lut_deps.sh")
     sys.exit(1)
 
 import torch
-print(f"[qk-lut-e0] torch={torch.__version__}")
-print(f"[qk-lut-e0] cuda_available={torch.cuda.is_available()}")
+print(f"[qk-lut-e1] torch={torch.__version__}")
+print(f"[qk-lut-e1] cuda_available={torch.cuda.is_available()}")
 if not torch.cuda.is_available():
-    print("[qk-lut-e0] CUDA is required because upstream QKFormer uses cupy-backed LIF nodes")
+    print("[qk-lut-e1] CUDA is required because upstream QKFormer uses cupy-backed LIF nodes")
     sys.exit(1)
 PY
 
-  "$PYTHON_BIN" tools/qkformer_lut_e0_diag.py \
-    --config configs/qkformer_lut_e0_diag.yaml \
+  "$PYTHON_BIN" tools/qkformer_lut_e1_recon.py \
+    --config configs/qkformer_lut_e1_recon.yaml \
     --output-dir "$RESULT_DIR"
 
   "$PYTHON_BIN" - "$RESULT_DIR/metrics.json" <<'PY'
@@ -112,21 +116,20 @@ from pathlib import Path
 path = Path(sys.argv[1])
 metrics = json.loads(path.read_text())
 required = [
-    "address_coverage",
-    "bucket_occupancy",
-    "singleton_fraction",
-    "conditional_variance",
-    "candidate_background_variance",
-    "per_stage_summary",
-    "per_block_summary",
-    "module_summary",
+    "overall_reconstruction",
+    "module_reconstruction",
+    "per_stage_reconstruction",
+    "calibration_prototypes",
 ]
 missing = [key for key in required if key not in metrics]
 if missing:
     raise SystemExit(f"metrics.json missing keys: {missing}")
-print(f"[qk-lut-e0] metrics_ok={path}")
-print(f"[qk-lut-e0] verdict={metrics.get('verdict')}")
+overall = metrics["overall_reconstruction"]
+print(f"[qk-lut-e1] metrics_ok={path}")
+print(f"[qk-lut-e1] verdict={metrics.get('verdict')}")
+print(f"[qk-lut-e1] address_lut_mse={overall.get('address_lut_mse')}")
+print(f"[qk-lut-e1] address_relative_mse_reduction={overall.get('address_relative_mse_reduction')}")
 PY
 
-  echo "[qk-lut-e0] done=$(date -Is)"
+  echo "[qk-lut-e1] done=$(date -Is)"
 } 2>&1 | tee "$LOG_FILE"

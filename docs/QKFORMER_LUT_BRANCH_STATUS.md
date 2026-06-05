@@ -76,6 +76,9 @@ Current claims are limited to diagnostics and feasibility:
 - E0 only measures address coverage, occupancy, sparsity, and conditional
   response variance. It does not claim accuracy, energy, latency, or downstream
   model improvement.
+- E1 measures split-aware reconstruction only: calibration split prototypes
+  are evaluated on held-out batches against global and candidate/background
+  baselines. E1 still does not claim downstream accuracy, energy, or latency.
 
 ## QK-LUTFormer E0
 
@@ -102,6 +105,8 @@ Implementation:
   - `scripts/server/link_cifar10_data.sh`
 - CIFAR-10 checkpoint training entry:
   - `scripts/server/run_qkformer_cifar10_train.sh`
+- Latest-checkpoint E0 entry:
+  - `scripts/server/run_qkformer_lut_e0_after_latest_train.sh`
 - Config:
   - `configs/qkformer_lut_e0_diag.yaml`
 
@@ -127,6 +132,44 @@ Metrics written to `metrics.json`:
 - `per_block_summary`
 - `module_summary`
 
+## QK-LUTFormer E1
+
+Name: **QK-LUTFormer E1 = Split-Aware Address Reconstruction Diagnostic**
+
+Goal:
+
+- Calibrate address-wise response prototypes on CIFAR-10 train batches.
+- Evaluate held-out validation reconstruction MSE.
+- Compare `address_lut` against `global_mean` and
+  `candidate_background_mean` baselines.
+- Decide whether stage-wise LUT replacement is worth implementing.
+
+Implementation:
+
+- E1 runner:
+  - `tools/qkformer_lut_e1_recon.py`
+- Config:
+  - `configs/qkformer_lut_e1_recon.yaml`
+- Server entry:
+  - `scripts/server/run_qkformer_lut_e1_recon.sh`
+
+Default behavior:
+
+- Uses the latest trained CIFAR-10 checkpoint when
+  `QKFORMER_LUT_CKPT` is unset and training results exist.
+- Calibrates on 32 train batches and evaluates on 16 validation batches.
+- Resets SNN state after every batch to match the training/evaluation loop.
+
+Metrics written to `metrics.json`:
+
+- `overall_reconstruction`
+- `module_reconstruction`
+- `per_stage_reconstruction`
+- `per_block_reconstruction`
+- `calibration_prototypes`
+- `calibration_hook_summary`
+- `evaluation_hook_summary`
+
 ## Phase Gate
 
 - **GO**: QKFormer binary Q/K addresses have materially better bucket occupancy
@@ -139,5 +182,31 @@ Metrics written to `metrics.json`:
   the response; stop LUT-ization and switch to ordinary QKFormer direct
   training or hybrid ANN-SNN baseline.
 
-Current verdict: **PENDING REMOTE E0 METRICS**. Local setup and syntax checks are
-not sufficient for a scientific verdict.
+Current verdict: **CONDITIONAL GO after trained-checkpoint E0**. The next gate
+is E1 split-aware reconstruction. Proceed to wrapper implementation only if E1
+shows held-out `address_lut_mse` improvement over global and
+candidate/background baselines, especially in stage1/stage2.
+
+## Server Workflow Update
+
+The CIFAR-10 training script writes both `checkpoint_manifest.txt` and
+`checkpoint_manifest.json`. The JSON manifest records `best_checkpoint` and
+`latest_checkpoint` so formal E0 can run without manually copying paths.
+
+Formal E0 after a completed training run:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e0_after_latest_train.sh
+```
+
+This is equivalent to:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && QKFORMER_LUT_CKPT=auto bash scripts/server/run_qkformer_lut_e0_diag.sh
+```
+
+Formal E1 after a completed training run:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e1_recon.sh
+```

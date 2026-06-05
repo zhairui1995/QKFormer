@@ -53,6 +53,50 @@ WORKERS="${QKFORMER_TRAIN_WORKERS:-8}"
 
   cd "$ROOT"
   find "$RESULT_DIR" \( -name "*.pth" -o -name "*.pth.tar" \) -print | sort > "$RESULT_DIR/checkpoint_manifest.txt"
+  "$PYTHON_BIN" - "$RESULT_DIR" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+result_dir = Path(sys.argv[1]).resolve()
+checkpoints = sorted(
+    [
+        path.resolve()
+        for pattern in ("*.pth", "*.pth.tar")
+        for path in result_dir.rglob(pattern)
+    ],
+    key=lambda path: str(path),
+)
+
+def newest(paths):
+    if not paths:
+        return None
+    return max(paths, key=lambda path: (path.stat().st_mtime, str(path)))
+
+best_candidates = [
+    path for path in checkpoints
+    if "best" in path.name.lower() or "best" in str(path.parent).lower()
+]
+latest_candidates = [
+    path for path in checkpoints
+    if "last" in path.name.lower() or "latest" in path.name.lower()
+]
+
+manifest = {
+    "result_dir": str(result_dir),
+    "summary_csv": str(next(result_dir.rglob("summary.csv"), "")),
+    "checkpoints": [str(path) for path in checkpoints],
+    "best_checkpoint": str(newest(best_candidates) or newest(checkpoints) or ""),
+    "latest_checkpoint": str(newest(latest_candidates) or newest(checkpoints) or ""),
+}
+(result_dir / "checkpoint_manifest.json").write_text(
+    json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+    encoding="utf-8",
+)
+print(f"[qk-train] checkpoint_manifest_json={result_dir / 'checkpoint_manifest.json'}")
+print(f"[qk-train] best_checkpoint={manifest['best_checkpoint']}")
+print(f"[qk-train] latest_checkpoint={manifest['latest_checkpoint']}")
+PY
   echo "[qk-train] checkpoints:"
   cat "$RESULT_DIR/checkpoint_manifest.txt"
   echo "[qk-train] done=$(date -Is)"

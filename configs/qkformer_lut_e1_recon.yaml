@@ -1,0 +1,51 @@
+experiment:
+  name: qkformer_lut_e1_recon
+  seed: 42
+
+model:
+  family: cifar10
+  checkpoint:
+  time_step: 4
+  layer: 4
+  dim: 384
+  num_heads: 8
+  patch_size: 4
+  mlp_ratio: 4
+  img_size: 32
+  in_channels: 3
+  num_classes: 10
+
+data:
+  calibration:
+    mode: auto
+    data_dir: /media/data/spike-transformer-network/torch/cifar10/
+    split: train
+    batch_size: 32
+    num_batches: 32
+    workers: 4
+    synthetic_batches: 4
+  evaluation:
+    mode: auto
+    data_dir: /media/data/spike-transformer-network/torch/cifar10/
+    split: validation
+    batch_size: 32
+    num_batches: 16
+    workers: 4
+    synthetic_batches: 4
+
+diagnostic:
+  device: cuda
+  token_bins: 8
+  channel_bins: 8
+  population_bins: 4
+  max_records_per_module_per_batch: 65536
+  prototype_min_count: 2
+  response_source: proj_lif
+  baselines:
+    - global_mean
+    - candidate_background_mean
+    - address_lut
+  ccs_reference:
+    coarse_context_conditional_variance: 0.0047152074
+    coarse_context_relative_variance_reduction: 0.2099
+    aggregate_head_output_mse_gain: 0.0175

@@ -58,12 +58,16 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
 - Diagnostic hooks: `qkformer_lut/hooks.py`
 - Stats helpers: `qkformer_lut/stats.py`
 - E0 runner: `tools/qkformer_lut_e0_diag.py`
+- E1 runner: `tools/qkformer_lut_e1_recon.py`
 - Config: `configs/qkformer_lut_e0_diag.yaml`
+- E1 config: `configs/qkformer_lut_e1_recon.yaml`
 - Server scripts:
   - `scripts/server/install_qkformer_lut_deps.sh`
   - `scripts/server/link_cifar10_data.sh`
   - `scripts/server/run_qkformer_lut_e0_diag.sh`
   - `scripts/server/run_qkformer_cifar10_train.sh`
+  - `scripts/server/run_qkformer_lut_e0_after_latest_train.sh`
+  - `scripts/server/run_qkformer_lut_e1_recon.sh`
 
 Latest uploaded E0 smoke result:
 
@@ -76,6 +80,22 @@ Latest uploaded E0 smoke result:
 
 Interpretation: the diagnostic pipeline and real-data link work, but the result
 is not scientifically meaningful because the model is random-init and silent.
+
+Latest trained CIFAR-10 checkpoint evidence:
+
+- Train result: `results/qkformer_cifar10_train_20260604_171317`
+- Best validation accuracy: 96.08% Acc@1 at epoch 384.
+- Formal E0 result: `results/qkformer_lut_e0_diag_20260605_110814`
+- Checkpoint loaded: true
+- Data source: real CIFAR-10
+- Overall address coverage: 0.5992965698242188
+- Singleton fraction: 0.08653305969439885
+- Conditional variance: 0.07126443506367477
+
+Interpretation: trained Q/K/gate spikes are active and address occupancy is
+useful, but conditional response variance is still high. Current phase judgment
+is `CONDITIONAL GO`; next step is E1 split-aware reconstruction, not a full
+LUT wrapper.
 
 ## Server Commands
 
@@ -103,6 +123,18 @@ Run E0 with a trained checkpoint:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && QKFORMER_LUT_CKPT=/path/to/checkpoint.pth.tar bash scripts/server/run_qkformer_lut_e0_diag.sh
+```
+
+Run E0 against the best checkpoint from the latest training result:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e0_after_latest_train.sh
+```
+
+Run E1 split-aware reconstruction against the latest trained checkpoint:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e1_recon.sh
 ```
 
 ## Phase Gate

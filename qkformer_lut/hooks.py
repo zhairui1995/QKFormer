@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 import torch
 
@@ -114,6 +114,9 @@ class QKAddressDiagnostic:
         channel_bins: int = 8,
         population_bins: int = 4,
         max_records_per_module_per_batch: int = 65536,
+        record_callback: Optional[
+            Callable[[ModuleDiagnostic, torch.Tensor, torch.Tensor, torch.Tensor], None]
+        ] = None,
     ) -> None:
         self.model = model
         self.token_bins = int(token_bins)
@@ -124,6 +127,7 @@ class QKAddressDiagnostic:
         self.buffers: Dict[str, Dict[str, torch.Tensor]] = defaultdict(dict)
         self.module_kinds: Dict[str, str] = {}
         self.module_stats: Dict[str, ModuleDiagnostic] = {}
+        self.record_callback = record_callback
         self._register_hooks()
 
     def close(self) -> None:
@@ -283,6 +287,8 @@ class QKAddressDiagnostic:
         response: torch.Tensor,
         candidate_mask: torch.Tensor,
     ) -> None:
+        if self.record_callback is not None:
+            self.record_callback(stats, address, response, candidate_mask)
         address_cpu = address.detach().to("cpu").tolist()
         response_cpu = response.detach().to("cpu").float().tolist()
         candidate_cpu = candidate_mask.detach().to("cpu").bool().tolist()
