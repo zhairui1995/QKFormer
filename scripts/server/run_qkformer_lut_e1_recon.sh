@@ -4,16 +4,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-PYTHON_BIN="${PYTHON:-}"
-if [[ -z "$PYTHON_BIN" ]]; then
-  if command -v python3 >/dev/null 2>&1; then
-    PYTHON_BIN="python3"
-  elif command -v python >/dev/null 2>&1; then
-    PYTHON_BIN="python"
-  else
-    echo "[qk-lut-e1] missing python3/python"
-    exit 1
-  fi
+source "$ROOT/scripts/server/qkformer_lut_common.sh"
+qk_lut_parse_gpu_args "$@"
+qk_lut_configure_gpu
+if ! PYTHON_BIN="$(qk_lut_select_python)"; then
+  echo "[qk-lut-e1] missing python3/python"
+  exit 1
 fi
 
 TS="$(date +%Y%m%d_%H%M%S)"
@@ -103,6 +99,7 @@ if not torch.cuda.is_available():
     print("[qk-lut-e1] CUDA is required because upstream QKFormer uses cupy-backed LIF nodes")
     sys.exit(1)
 PY
+  qk_lut_log_gpu "$PYTHON_BIN" "qk-lut-e1"
 
   "$PYTHON_BIN" tools/qkformer_lut_e1_recon.py \
     --config configs/qkformer_lut_e1_recon.yaml \

@@ -4,16 +4,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-PYTHON_BIN="${PYTHON:-}"
-if [[ -z "$PYTHON_BIN" ]]; then
-  if command -v python3 >/dev/null 2>&1; then
-    PYTHON_BIN="python3"
-  elif command -v python >/dev/null 2>&1; then
-    PYTHON_BIN="python"
-  else
-    echo "[qk-train] missing python3/python"
-    exit 1
-  fi
+source "$ROOT/scripts/server/qkformer_lut_common.sh"
+qk_lut_parse_gpu_args "$@"
+qk_lut_configure_gpu
+if ! PYTHON_BIN="$(qk_lut_select_python)"; then
+  echo "[qk-train] missing python3/python"
+  exit 1
 fi
 
 TS="$(date +%Y%m%d_%H%M%S)"
@@ -38,6 +34,7 @@ WORKERS="${QKFORMER_TRAIN_WORKERS:-8}"
 
   bash scripts/server/install_qkformer_lut_deps.sh
   bash scripts/server/link_cifar10_data.sh
+  qk_lut_log_gpu "$PYTHON_BIN" "qk-train"
 
   cd "$ROOT/cifar10"
   "$PYTHON_BIN" train.py \

@@ -64,6 +64,7 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
 - Server scripts:
   - `scripts/server/install_qkformer_lut_deps.sh`
   - `scripts/server/link_cifar10_data.sh`
+  - `scripts/server/qkformer_lut_common.sh`
   - `scripts/server/run_qkformer_lut_e0_diag.sh`
   - `scripts/server/run_qkformer_cifar10_train.sh`
   - `scripts/server/run_qkformer_lut_e0_after_latest_train.sh`
@@ -97,6 +98,23 @@ useful, but conditional response variance is still high. Current phase judgment
 is `CONDITIONAL GO`; next step is E1 split-aware reconstruction, not a full
 LUT wrapper.
 
+Latest E1 split-aware reconstruction:
+
+- Result: `results/qkformer_lut_e1_recon_20260605_133910`
+- Calibration: real CIFAR-10 train, 32 batches.
+- Evaluation: real CIFAR-10 validation, 16 batches.
+- Checkpoint loaded: true.
+- Overall global mean MSE: 0.0714635615743191.
+- Overall address LUT MSE: 0.06887314827955697.
+- Overall address LUT relative MSE reduction: 3.582838808068491%.
+- Candidate/background mean relative MSE reduction: 0.033154317038117744%.
+- Stage relative reductions: stage1 6.147753618879997%, stage2
+  2.554365246580402%, stage3 2.814618183406784%.
+
+Interpretation: address LUT reconstruction beats global and
+candidate/background baselines, but gains are modest. Current judgment is
+`CONDITIONAL GO` to E2 stage-wise replacement diagnostics, not a full wrapper.
+
 ## Server Commands
 
 Set up data link and run E0 diagnostic:
@@ -109,6 +127,18 @@ Train CIFAR-10 checkpoint:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_cifar10_train.sh
+```
+
+Specify a server GPU when running train/E0/E1:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e1_recon.sh --gpu 2
+```
+
+Equivalent environment form:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && QKFORMER_LUT_GPU=2 bash scripts/server/run_qkformer_lut_e1_recon.sh
 ```
 
 After training, inspect latest outputs:

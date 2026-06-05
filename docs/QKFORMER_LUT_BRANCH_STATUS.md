@@ -183,9 +183,20 @@ Metrics written to `metrics.json`:
   training or hybrid ANN-SNN baseline.
 
 Current verdict: **CONDITIONAL GO after trained-checkpoint E0**. The next gate
-is E1 split-aware reconstruction. Proceed to wrapper implementation only if E1
-shows held-out `address_lut_mse` improvement over global and
-candidate/background baselines, especially in stage1/stage2.
+is E1 split-aware reconstruction. E1 result
+`results/qkformer_lut_e1_recon_20260605_133910` showed held-out address LUT
+MSE improvement over global and candidate/background baselines:
+
+- overall global mean MSE: 0.0714635615743191
+- overall address LUT MSE: 0.06887314827955697
+- overall address relative MSE reduction: 3.582838808068491%
+- candidate/background relative MSE reduction: 0.033154317038117744%
+- stage1 / stage2 / stage3 address reductions: 6.147753618879997% /
+  2.554365246580402% / 2.814618183406784%
+
+Current verdict: **CONDITIONAL GO to E2 stage-wise replacement diagnostics**.
+The E1 gain is real but modest; prioritize stage1/stage2 and do not build a
+full wrapper yet.
 
 ## Server Workflow Update
 
@@ -209,4 +220,16 @@ Formal E1 after a completed training run:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e1_recon.sh
+```
+
+Specify GPU for train/E0/E1:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e1_recon.sh --gpu 2
+```
+
+Equivalent:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && QKFORMER_LUT_GPU=2 bash scripts/server/run_qkformer_lut_e1_recon.sh
 ```

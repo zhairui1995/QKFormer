@@ -7,7 +7,8 @@ Last updated: 2026-06-05
 QKFormer CIFAR-10 training reached 96.08% best Acc@1, and formal E0 with the
 trained checkpoint is a CONDITIONAL GO: Q/K/gate spikes are active and address
 occupancy is useful, but conditional response variance remains high. E1
-split-aware reconstruction code is implemented and awaits a server run.
+split-aware reconstruction shows modest held-out MSE improvement and is a
+CONDITIONAL GO to E2 stage-wise replacement diagnostics.
 
 ## Project Identity
 
@@ -41,8 +42,8 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - `dfab09b` Add CIFAR10 data link and training scripts
 - `03cdcf4` Make CIFAR10 train splitbn import optional
 - `1b2c6ab` Filter timm factory kwargs for CIFAR10 QKFormer
-- pending local changes: add E1 split-aware reconstruction diagnostic and
-  latest-checkpoint server runner.
+- `cc1f18a` Add QKFormer LUT E1 reconstruction diagnostic
+- pending local changes: add server GPU selection/logging helpers.
 
 ## Implemented Files
 
@@ -56,6 +57,7 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - `tools/qkformer_lut_e1_recon.py`: E1 calibration/evaluation reconstruction runner.
 - `scripts/server/install_qkformer_lut_deps.sh`: installs/checks server deps.
 - `scripts/server/link_cifar10_data.sh`: symlinks CIFAR-10 into repo-local data path.
+- `scripts/server/qkformer_lut_common.sh`: common Python/GPU selection helpers.
 - `scripts/server/run_qkformer_lut_e0_diag.sh`: zero-arg E0 run.
 - `scripts/server/run_qkformer_cifar10_train.sh`: zero-arg CIFAR-10 training run.
 - `scripts/server/run_qkformer_lut_e0_after_latest_train.sh`: runs E0 using the latest
@@ -130,6 +132,30 @@ Interpretation:
 - Conditional response variance remains high, so proceed to E1 reconstruction
   before any full LUT replacement.
 
+E1 split-aware reconstruction result:
+
+- Result: `results/qkformer_lut_e1_recon_20260605_133910`
+- Commit used on server: `cc1f18a`
+- Calibration: real CIFAR-10 train, 32 batches.
+- Evaluation: real CIFAR-10 validation, 16 batches.
+- Checkpoint loaded: true
+- Overall global mean MSE: 0.0714635615743191
+- Overall address LUT MSE: 0.06887314827955697
+- Overall address relative MSE reduction: 3.582838808068491%
+- Candidate/background relative MSE reduction: 0.033154317038117744%
+- Stage1 / stage2 / stage3 address reductions: 6.147753618879997% /
+  2.554365246580402% / 2.814618183406784%
+- Eval address hit rate: 0.9994738101959229
+- Current phase judgment: `CONDITIONAL GO` to E2 stage-wise replacement
+  diagnostics.
+
+Interpretation:
+
+- Address-based prototypes beat global and candidate/background baselines on
+  held-out batches.
+- Candidate/background mean is effectively not useful here.
+- Gains are modest; do not implement a full wrapper yet.
+
 ## Known Compatibility Fixes
 
 The server uses newer `timm` than upstream QKFormer expected.
@@ -148,6 +174,16 @@ Run E1 split-aware reconstruction on server:
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e1_recon.sh
 ```
+
+To specify a GPU, pass `--gpu N`:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e1_recon.sh --gpu 2
+```
+
+The scripts also accept `QKFORMER_LUT_GPU=2`. They set
+`CUDA_VISIBLE_DEVICES` and print the requested GPU, visible CUDA devices,
+current torch device, device name, and visible device count in the log.
 
 Then upload or inspect:
 
@@ -174,4 +210,6 @@ tar -czf qk_lutformer_e1_artifacts.tar.gz \
   checkpoint E0 plus downstream experiments.
 - Do not implement a full LUT wrapper until E1 shows split-aware reconstruction
   MSE improvement over global and candidate/background baselines.
+- After E1, the next implementation target is E2 stage-wise replacement
+  diagnostics, prioritizing stage1/stage2.
 - Do not commit datasets, checkpoints, tarballs, or server logs.
