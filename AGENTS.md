@@ -59,8 +59,10 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
 - Stats helpers: `qkformer_lut/stats.py`
 - E0 runner: `tools/qkformer_lut_e0_diag.py`
 - E1 runner: `tools/qkformer_lut_e1_recon.py`
+- E2 runner: `tools/qkformer_lut_e2_replace.py`
 - Config: `configs/qkformer_lut_e0_diag.yaml`
 - E1 config: `configs/qkformer_lut_e1_recon.yaml`
+- E2 config: `configs/qkformer_lut_e2_replace.yaml`
 - Server scripts:
   - `scripts/server/install_qkformer_lut_deps.sh`
   - `scripts/server/link_cifar10_data.sh`
@@ -69,6 +71,7 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
   - `scripts/server/run_qkformer_cifar10_train.sh`
   - `scripts/server/run_qkformer_lut_e0_after_latest_train.sh`
   - `scripts/server/run_qkformer_lut_e1_recon.sh`
+  - `scripts/server/run_qkformer_lut_e2_replace.sh`
 
 Latest uploaded E0 smoke result:
 
@@ -115,6 +118,15 @@ Interpretation: address LUT reconstruction beats global and
 candidate/background baselines, but gains are modest. Current judgment is
 `CONDITIONAL GO` to E2 stage-wise replacement diagnostics, not a full wrapper.
 
+E2 stage-wise replacement diagnostic is implemented:
+
+- Replaces selected attention modules' `proj_lif` output with address-LUT
+  prototype predictions through hooks.
+- Default targets: `stage1.0.tssa` and `stage2.0.tssa`.
+- Reports baseline vs replacement loss/Acc@1/Acc@5, logit MSE/KL, and local
+  replacement MSE.
+- This is still diagnostic replacement, not an optimized LUT wrapper.
+
 ## Server Commands
 
 Set up data link and run E0 diagnostic:
@@ -129,7 +141,7 @@ Train CIFAR-10 checkpoint:
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_cifar10_train.sh
 ```
 
-Specify a server GPU when running train/E0/E1:
+Specify a server GPU when running train/E0/E1/E2:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e1_recon.sh --gpu 2
@@ -165,6 +177,12 @@ Run E1 split-aware reconstruction against the latest trained checkpoint:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e1_recon.sh
+```
+
+Run E2 stage-wise replacement diagnostic:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_replace.sh --gpu 2
 ```
 
 ## Phase Gate

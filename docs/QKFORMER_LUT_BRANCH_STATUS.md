@@ -170,6 +170,43 @@ Metrics written to `metrics.json`:
 - `calibration_hook_summary`
 - `evaluation_hook_summary`
 
+## QK-LUTFormer E2
+
+Name: **QK-LUTFormer E2 = Stage-Wise Replacement Diagnostic**
+
+Goal:
+
+- Calibrate address-wise response prototypes as in E1.
+- Replace selected attention modules' `proj_lif` output with address-LUT
+  predictions through forward hooks.
+- Compare baseline and replacement validation loss/Acc@1/Acc@5 on the same
+  batches.
+- Measure logit MSE/KL to baseline and local replacement MSE.
+
+Implementation:
+
+- E2 runner:
+  - `tools/qkformer_lut_e2_replace.py`
+- Config:
+  - `configs/qkformer_lut_e2_replace.yaml`
+- Server entry:
+  - `scripts/server/run_qkformer_lut_e2_replace.sh`
+
+Default behavior:
+
+- Uses latest trained CIFAR-10 checkpoint when `QKFORMER_LUT_CKPT` is unset.
+- Calibrates on 32 train batches and evaluates on 16 validation batches.
+- Default replacement targets are `stage1.0.tssa` and `stage2.0.tssa`.
+- This is diagnostic module-output replacement, not a full optimized wrapper.
+
+Metrics written to `metrics.json`:
+
+- `classification`
+- `local_replacement`
+- `calibration_prototypes`
+- `calibration_hook_summary`
+- `target_modules`
+
 ## Phase Gate
 
 - **GO**: QKFormer binary Q/K addresses have materially better bucket occupancy
@@ -227,7 +264,13 @@ Formal E1 after a completed training run:
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e1_recon.sh
 ```
 
-Specify GPU for train/E0/E1:
+Formal E2 after a completed training run:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_replace.sh --gpu 2
+```
+
+Specify GPU for train/E0/E1/E2:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e1_recon.sh --gpu 2

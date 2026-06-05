@@ -8,7 +8,8 @@ QKFormer CIFAR-10 training reached 96.08% best Acc@1, and formal E0 with the
 trained checkpoint is a CONDITIONAL GO: Q/K/gate spikes are active and address
 occupancy is useful, but conditional response variance remains high. E1
 split-aware reconstruction shows modest held-out MSE improvement and is a
-CONDITIONAL GO to E2 stage-wise replacement diagnostics.
+CONDITIONAL GO to E2 stage-wise replacement diagnostics. E2 code is implemented
+and awaits a server run.
 
 ## Project Identity
 
@@ -43,7 +44,9 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - `03cdcf4` Make CIFAR10 train splitbn import optional
 - `1b2c6ab` Filter timm factory kwargs for CIFAR10 QKFormer
 - `cc1f18a` Add QKFormer LUT E1 reconstruction diagnostic
-- pending local changes: add server GPU selection/logging helpers.
+- `202835c` Add server GPU selection logging
+- `f1722a9` Record E1 GPU repeat result
+- pending local changes: add E2 stage-wise replacement diagnostic.
 
 ## Implemented Files
 
@@ -51,10 +54,12 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - `docs/QKFORMER_LUT_BRANCH_STATUS.md`: branch-level method/status note.
 - `configs/qkformer_lut_e0_diag.yaml`: E0 config.
 - `configs/qkformer_lut_e1_recon.yaml`: E1 split-aware reconstruction config.
+- `configs/qkformer_lut_e2_replace.yaml`: E2 stage-wise replacement config.
 - `qkformer_lut/hooks.py`: non-invasive hooks for Q/K/gate/proj capture.
 - `qkformer_lut/stats.py`: bucket occupancy and conditional variance stats.
 - `tools/qkformer_lut_e0_diag.py`: E0 runner.
 - `tools/qkformer_lut_e1_recon.py`: E1 calibration/evaluation reconstruction runner.
+- `tools/qkformer_lut_e2_replace.py`: E2 stage-wise replacement runner.
 - `scripts/server/install_qkformer_lut_deps.sh`: installs/checks server deps.
 - `scripts/server/link_cifar10_data.sh`: symlinks CIFAR-10 into repo-local data path.
 - `scripts/server/qkformer_lut_common.sh`: common Python/GPU selection helpers.
@@ -64,6 +69,8 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
   training result checkpoint.
 - `scripts/server/run_qkformer_lut_e1_recon.sh`: runs E1 using the latest
   training result checkpoint.
+- `scripts/server/run_qkformer_lut_e2_replace.sh`: runs E2 stage-wise
+  replacement using the latest training result checkpoint.
 
 ## Server Results So Far
 
@@ -179,16 +186,16 @@ The server uses newer `timm` than upstream QKFormer expected.
 
 ## Next Action
 
-Run E1 split-aware reconstruction on server:
+Run E2 stage-wise replacement on server:
 
 ```bash
-cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e1_recon.sh
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e2_replace.sh --gpu 2
 ```
 
 To specify a GPU, pass `--gpu N`:
 
 ```bash
-cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e1_recon.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_replace.sh --gpu 2
 ```
 
 The scripts also accept `QKFORMER_LUT_GPU=2`. They set
@@ -197,19 +204,17 @@ current torch device, device name, and visible device count in the log.
 
 Then upload or inspect:
 
-- latest `results/qkformer_lut_e1_recon_*/metrics.json`
-- latest `results/qkformer_lut_e1_recon_*/module_reconstruction.csv`
-- latest `results/qkformer_lut_e1_recon_*/train_log.txt`
+- latest `results/qkformer_lut_e2_replace_*/metrics.json`
+- latest `results/qkformer_lut_e2_replace_*/train_log.txt`
 
 Suggested artifact package:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut
-E1_DIR=$(ls -td results/qkformer_lut_e1_recon_* | head -1)
-tar -czf qk_lutformer_e1_artifacts.tar.gz \
-  "$E1_DIR/metrics.json" \
-  "$E1_DIR/module_reconstruction.csv" \
-  "$E1_DIR/train_log.txt"
+E2_DIR=$(ls -td results/qkformer_lut_e2_replace_* | head -1)
+tar -czf qk_lutformer_e2_artifacts.tar.gz \
+  "$E2_DIR/metrics.json" \
+  "$E2_DIR/train_log.txt"
 ```
 
 ## What To Avoid
@@ -222,4 +227,6 @@ tar -czf qk_lutformer_e1_artifacts.tar.gz \
   MSE improvement over global and candidate/background baselines.
 - After E1, the next implementation target is E2 stage-wise replacement
   diagnostics, prioritizing stage1/stage2.
+- E2 is a diagnostic hook replacement of module outputs. Do not describe it as
+  a production LUTFormer implementation.
 - Do not commit datasets, checkpoints, tarballs, or server logs.
