@@ -72,6 +72,7 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
   - `scripts/server/run_qkformer_lut_e0_after_latest_train.sh`
   - `scripts/server/run_qkformer_lut_e1_recon.sh`
   - `scripts/server/run_qkformer_lut_e2_replace.sh`
+  - `scripts/server/run_qkformer_lut_e2_sweep.sh`
 
 Latest uploaded E0 smoke result:
 
@@ -126,6 +127,22 @@ E2 stage-wise replacement diagnostic is implemented:
 - Reports baseline vs replacement loss/Acc@1/Acc@5, logit MSE/KL, and local
   replacement MSE.
 - This is still diagnostic replacement, not an optimized LUT wrapper.
+
+Latest E2 stage1+stage2 replacement:
+
+- Result: `results/qkformer_lut_e2_replace_20260605_150017`
+- Calibration: real CIFAR-10 train, 32 batches.
+- Evaluation: real CIFAR-10 validation, 16 batches.
+- Targets: `stage1.0.tssa`, `stage2.0.tssa`.
+- Baseline Acc@1/Acc@5: 95.1171875% / 100.0%.
+- Replacement Acc@1/Acc@5: 96.09375% / 99.609375%.
+- Delta Acc@1/Acc@5: +0.9765625% / -0.390625%.
+- Replacement loss improved from 0.37332091107964516 to 0.3554967865347862.
+
+Interpretation: E2 hook replacement ran successfully and did not collapse
+accuracy, but evaluation used only 512 validation images. Next step is E2
+robustness sweep on the full validation split across stage1-only, stage2-only,
+and stage1+stage2 targets.
 
 ## Server Commands
 
@@ -183,6 +200,12 @@ Run E2 stage-wise replacement diagnostic:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_replace.sh --gpu 2
+```
+
+Run E2 full-validation target sweep:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_sweep.sh --gpu 2
 ```
 
 ## Phase Gate

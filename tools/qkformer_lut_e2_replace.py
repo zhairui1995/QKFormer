@@ -500,10 +500,11 @@ def calibrate_prototypes(model, loader, data_cfg, diag_cfg, bank, device) -> Tup
         max_records_per_module_per_batch=int(diag_cfg.get("max_records_per_module_per_batch", 65536)),
         record_callback=bank.calibrate,
     )
+    max_batches = int(data_cfg["num_batches"])
     processed = 0
     with torch.no_grad():
         for images, _targets in loader:
-            if processed >= int(data_cfg["num_batches"]):
+            if max_batches > 0 and processed >= max_batches:
                 break
             images = images.to(device, non_blocking=True)
             _ = model(images)
@@ -534,10 +535,11 @@ def evaluate_replacement(model, loader, data_cfg, replacer, device) -> Tuple[int
     loss_fn = nn.CrossEntropyLoss().to(device)
     baseline = EvalSummary()
     replacement = EvalSummary()
+    max_batches = int(data_cfg["num_batches"])
     processed = 0
     with torch.no_grad():
         for images, targets in loader:
-            if processed >= int(data_cfg["num_batches"]):
+            if max_batches > 0 and processed >= max_batches:
                 break
             images = images.to(device, non_blocking=True)
             targets = targets.to(device, non_blocking=True)
@@ -608,6 +610,17 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     if env_data_dir:
         calibration_cfg["data_dir"] = env_data_dir
         evaluation_cfg["data_dir"] = env_data_dir
+    env_calib_batches = os.environ.get("QKFORMER_LUT_E2_CALIB_BATCHES")
+    if env_calib_batches:
+        calibration_cfg["num_batches"] = int(env_calib_batches)
+    env_eval_batches = os.environ.get("QKFORMER_LUT_E2_EVAL_BATCHES")
+    if env_eval_batches:
+        evaluation_cfg["num_batches"] = int(env_eval_batches)
+    env_targets = os.environ.get("QKFORMER_LUT_E2_TARGETS")
+    if env_targets:
+        replacement_cfg["target_modules"] = [
+            item.strip() for item in env_targets.split(",") if item.strip()
+        ]
 
     device_name = str(diag_cfg.get("device", "cuda"))
     if device_name == "cuda" and not torch.cuda.is_available():
@@ -675,6 +688,11 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         },
         "diagnostic_config": diag_cfg,
         "replacement_config": replacement_cfg,
+        "env_overrides": {
+            "QKFORMER_LUT_E2_CALIB_BATCHES": env_calib_batches,
+            "QKFORMER_LUT_E2_EVAL_BATCHES": env_eval_batches,
+            "QKFORMER_LUT_E2_TARGETS": env_targets,
+        },
         "target_modules": target_modules,
         "verdict": verdict,
         "classification": replacement_summary,

@@ -8,8 +8,9 @@ QKFormer CIFAR-10 training reached 96.08% best Acc@1, and formal E0 with the
 trained checkpoint is a CONDITIONAL GO: Q/K/gate spikes are active and address
 occupancy is useful, but conditional response variance remains high. E1
 split-aware reconstruction shows modest held-out MSE improvement and is a
-CONDITIONAL GO to E2 stage-wise replacement diagnostics. E2 code is implemented
-and awaits a server run.
+CONDITIONAL GO to E2 stage-wise replacement diagnostics. E2 stage1+stage2
+replacement ran successfully on 16 validation batches; next action is a
+full-validation target sweep.
 
 ## Project Identity
 
@@ -46,7 +47,8 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - `cc1f18a` Add QKFormer LUT E1 reconstruction diagnostic
 - `202835c` Add server GPU selection logging
 - `f1722a9` Record E1 GPU repeat result
-- pending local changes: add E2 stage-wise replacement diagnostic.
+- `592b96e` Add QKFormer LUT E2 replacement diagnostic
+- pending local changes: add E2 target sweep support.
 
 ## Implemented Files
 
@@ -71,6 +73,8 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
   training result checkpoint.
 - `scripts/server/run_qkformer_lut_e2_replace.sh`: runs E2 stage-wise
   replacement using the latest training result checkpoint.
+- `scripts/server/run_qkformer_lut_e2_sweep.sh`: runs full-validation E2 target
+  sweep for stage1-only, stage2-only, and stage1+stage2.
 
 ## Server Results So Far
 
@@ -173,6 +177,29 @@ GPU-selection E1 repeat:
   `results/qkformer_lut_e1_recon_20260605_133910`, confirming the GPU-selection
   wrapper did not change E1 behavior.
 
+E2 stage1+stage2 replacement result:
+
+- Result: `results/qkformer_lut_e2_replace_20260605_150017`
+- Commit used on server: `592b96e`
+- Calibration: real CIFAR-10 train, 32 batches.
+- Evaluation: real CIFAR-10 validation, 16 batches.
+- Targets: `stage1.0.tssa`, `stage2.0.tssa`
+- Baseline loss / Acc@1 / Acc@5: 0.37332091107964516 / 95.1171875% / 100.0%
+- Replacement loss / Acc@1 / Acc@5: 0.3554967865347862 / 96.09375% / 99.609375%
+- Delta Acc@1 / Acc@5: +0.9765625% / -0.390625%
+- Logit MSE: 0.06788053233176469
+- KL to baseline: 0.02834802505094558
+- Local replacement MSE: stage1 0.07325678256650765, stage2
+  0.04382377505923311
+
+Interpretation:
+
+- E2 hook replacement works and does not collapse classification.
+- The apparent Acc@1 improvement is based on only 512 validation images, so it
+  is not yet a claim.
+- Next action is a full-validation target sweep: stage1-only, stage2-only,
+  stage1+stage2.
+
 ## Known Compatibility Fixes
 
 The server uses newer `timm` than upstream QKFormer expected.
@@ -186,10 +213,10 @@ The server uses newer `timm` than upstream QKFormer expected.
 
 ## Next Action
 
-Run E2 stage-wise replacement on server:
+Run E2 full-validation target sweep on server:
 
 ```bash
-cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e2_replace.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e2_sweep.sh --gpu 2
 ```
 
 To specify a GPU, pass `--gpu N`:
@@ -204,17 +231,16 @@ current torch device, device name, and visible device count in the log.
 
 Then upload or inspect:
 
-- latest `results/qkformer_lut_e2_replace_*/metrics.json`
-- latest `results/qkformer_lut_e2_replace_*/train_log.txt`
+- latest three `results/qkformer_lut_e2_replace_*/metrics.json`
+- latest three `results/qkformer_lut_e2_replace_*/train_log.txt`
 
 Suggested artifact package:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut
-E2_DIR=$(ls -td results/qkformer_lut_e2_replace_* | head -1)
-tar -czf qk_lutformer_e2_artifacts.tar.gz \
-  "$E2_DIR/metrics.json" \
-  "$E2_DIR/train_log.txt"
+E2_DIRS=$(ls -td results/qkformer_lut_e2_replace_* | head -3)
+tar -czf qk_lutformer_e2_sweep_artifacts.tar.gz \
+  $(for d in $E2_DIRS; do echo "$d/metrics.json" "$d/train_log.txt"; done)
 ```
 
 ## What To Avoid

@@ -198,6 +198,12 @@ Default behavior:
 - Calibrates on 32 train batches and evaluates on 16 validation batches.
 - Default replacement targets are `stage1.0.tssa` and `stage2.0.tssa`.
 - This is diagnostic module-output replacement, not a full optimized wrapper.
+- `QKFORMER_LUT_E2_TARGETS` can override comma-separated target modules.
+- `QKFORMER_LUT_E2_CALIB_BATCHES` and `QKFORMER_LUT_E2_EVAL_BATCHES` can
+  override batch counts; `QKFORMER_LUT_E2_EVAL_BATCHES=0` evaluates the full
+  split.
+- `scripts/server/run_qkformer_lut_e2_sweep.sh` runs stage1-only, stage2-only,
+  and stage1+stage2 with full validation by default.
 
 Metrics written to `metrics.json`:
 
@@ -206,6 +212,20 @@ Metrics written to `metrics.json`:
 - `calibration_prototypes`
 - `calibration_hook_summary`
 - `target_modules`
+
+First E2 result:
+
+- Result: `results/qkformer_lut_e2_replace_20260605_150017`
+- Targets: `stage1.0.tssa`, `stage2.0.tssa`
+- Evaluation: 16 validation batches.
+- Baseline Acc@1: 95.1171875%
+- Replacement Acc@1: 96.09375%
+- Delta Acc@1: +0.9765625%
+- Replacement loss improved from 0.37332091107964516 to 0.3554967865347862.
+
+Interpretation: diagnostic replacement ran successfully and did not collapse
+accuracy, but the evaluation set was only 512 images. Treat this as a smoke
+result; run the full-validation E2 target sweep before making a stage decision.
 
 ## Phase Gate
 
@@ -268,6 +288,12 @@ Formal E2 after a completed training run:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_replace.sh --gpu 2
+```
+
+Full-validation E2 target sweep:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e2_sweep.sh --gpu 2
 ```
 
 Specify GPU for train/E0/E1/E2:
