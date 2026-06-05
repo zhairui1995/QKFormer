@@ -395,6 +395,27 @@ Interpretation:
 - Next step is a conservative E3 sweep: fixed alpha 0.1, 2 epochs, lower LR,
   stronger KL and local-MSE constraints, same three controls.
 
+Conservative E3 sweep:
+
+- Address LUT: 2048 trainable parameters, fixed alpha 0.1, Acc@1
+  95.72 -> 95.82, delta +0.10; loss 0.250749 -> 0.250908; KL 0.022793.
+- Global mean: 1 trainable parameter, fixed alpha 0.1, Acc@1 95.74 -> 95.91,
+  delta +0.17; loss 0.255298 -> 0.256633; KL 0.025575.
+- Token-channel LUT: 512 trainable parameters, fixed alpha 0.1, Acc@1
+  95.80 -> 95.88, delta +0.08; loss 0.253012 -> 0.252757; KL 0.021938.
+
+Interpretation:
+
+- Conservative E3 stabilizes the adapters and all three remain above 95% with
+  small positive Acc@1 deltas.
+- Address LUT does not beat global mean in Acc@1, so address-specific accuracy
+  advantage is not yet established.
+- Address LUT has cleaner loss/drift than global mean, but the paper claim
+  still needs a sharper setting.
+- Next step is a CIFAR-10 T=1 stress test. T=1 removes temporal averaging and
+  should expose whether address LUTs retain useful structure in the single-step
+  boundary case.
+
 ## Phase Gate
 
 - **GO**: QKFormer binary Q/K addresses have materially better bucket occupancy
@@ -433,6 +454,8 @@ RTX 4090 as the active CUDA device.
 The CIFAR-10 training script writes both `checkpoint_manifest.txt` and
 `checkpoint_manifest.json`. The JSON manifest records `best_checkpoint` and
 `latest_checkpoint` so formal E0 can run without manually copying paths.
+Set `QKFORMER_LUT_TIME_STEP=1` or use the T=1 wrapper scripts to train and
+evaluate single-step QKFormer checkpoints.
 
 Formal E0 after a completed training run:
 
@@ -444,6 +467,18 @@ This is equivalent to:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && QKFORMER_LUT_CKPT=auto bash scripts/server/run_qkformer_lut_e0_diag.sh
+```
+
+CIFAR-10 T=1 checkpoint training:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_cifar10_t1_train.sh --gpu 2
+```
+
+T=1 E0 after a completed T=1 training run:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_t1_e0_after_latest_train.sh --gpu 2
 ```
 
 Formal E1 after a completed training run:
@@ -498,6 +533,12 @@ E3 conservative trainable LUT adapter sweep:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e3_conservative_sweep.sh --gpu 2
+```
+
+T=1 E3 conservative trainable LUT adapter sweep:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_t1_e3_conservative_sweep.sh --gpu 2
 ```
 
 Specify GPU for train/E0/E1/E2:

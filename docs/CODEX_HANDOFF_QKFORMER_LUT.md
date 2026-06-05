@@ -11,8 +11,9 @@ now E3: trainable residual LUT adapters with frozen QKFormer backbone,
 prototype/shrinkage initialization, learnable blend, CE+KL+local-MSE loss, and
 controls against `global_mean` and `token_channel_lut`. First E3 pilot ran
 end-to-end but all adapters degraded validation accuracy; address LUT was least
-damaging. Next action is a conservative E3 sweep with fixed small alpha and
-stronger drift constraints.
+damaging. Conservative E3 stabilizes all adapters above 95%, but address LUT
+does not beat global mean in Acc@1. Next action is a CIFAR-10 T=1 stress test:
+train a T=1 checkpoint, then run T=1 E0 and T=1 E3 conservative sweep.
 
 ## Project Identity
 
@@ -57,6 +58,7 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - Add E2 address-vs-global control sweep
 - Add E2 shuffled-address control mode
 - Add E3 trainable residual LUT adapter
+- Add CIFAR-10 T=1 stress-test scripts
 
 ## Implemented Files
 
@@ -77,6 +79,7 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - `scripts/server/qkformer_lut_common.sh`: common Python/GPU selection helpers.
 - `scripts/server/run_qkformer_lut_e0_diag.sh`: zero-arg E0 run.
 - `scripts/server/run_qkformer_cifar10_train.sh`: zero-arg CIFAR-10 training run.
+- `scripts/server/run_qkformer_cifar10_t1_train.sh`: CIFAR-10 T=1 training run.
 - `scripts/server/run_qkformer_lut_e0_after_latest_train.sh`: runs E0 using the latest
   training result checkpoint.
 - `scripts/server/run_qkformer_lut_e1_recon.sh`: runs E1 using the latest
@@ -100,6 +103,10 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
 - `scripts/server/run_qkformer_lut_e3_conservative_sweep.sh`: runs E3
   conservative control sweep with fixed alpha 0.1, fewer epochs, lower LR, and
   stronger KL/local-MSE constraints.
+- `scripts/server/run_qkformer_lut_t1_e0_after_latest_train.sh`: runs E0 with
+  `QKFORMER_LUT_TIME_STEP=1` after latest T=1 training.
+- `scripts/server/run_qkformer_lut_t1_e3_conservative_sweep.sh`: runs E3
+  conservative control sweep with `QKFORMER_LUT_TIME_STEP=1`.
 
 ## Server Results So Far
 
@@ -398,6 +405,36 @@ Interpretation:
 - Next action is conservative E3: fixed alpha 0.1, 2 epochs, LR 0.003,
   lambda_kl 2.0, lambda_local_mse 0.2.
 
+E3 conservative result:
+
+- Address LUT:
+  - 2048 trainable parameters.
+  - Fixed alpha: 0.1.
+  - Acc@1 95.72 -> 95.82, delta +0.10.
+  - Loss 0.250749 -> 0.250908.
+  - KL/logit MSE/local MSE: 0.022793 / 0.048916 / 0.002057.
+- Global mean:
+  - 1 trainable parameter.
+  - Fixed alpha: 0.1.
+  - Acc@1 95.74 -> 95.91, delta +0.17.
+  - Loss 0.255298 -> 0.256633.
+  - KL/logit MSE/local MSE: 0.025575 / 0.055398 / 0.005486.
+- Token-channel LUT:
+  - 512 trainable parameters.
+  - Fixed alpha: 0.1.
+  - Acc@1 95.80 -> 95.88, delta +0.08.
+  - Loss 0.253012 -> 0.252757.
+  - KL/logit MSE/local MSE: 0.021938 / 0.048714 / 0.002228.
+
+Interpretation:
+
+- Conservative E3 is stable and all modes stay above 95%.
+- Address LUT has cleaner loss/drift than global mean, but global mean has the
+  best Acc@1 delta.
+- Address-specific accuracy advantage is not established on T=4.
+- Next action is T=1 CIFAR-10 stress test to remove temporal averaging and
+  evaluate the LUT address boundary.
+
 ## Known Compatibility Fixes
 
 The server uses newer `timm` than upstream QKFormer expected.
@@ -411,10 +448,10 @@ The server uses newer `timm` than upstream QKFormer expected.
 
 ## Next Action
 
-Run E3 conservative trainable LUT adapter sweep on server:
+Run CIFAR-10 T=1 training on server:
 
 ```bash
-cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_e3_conservative_sweep.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_cifar10_t1_train.sh --gpu 2
 ```
 
 To specify a GPU, pass `--gpu N`:
@@ -427,18 +464,33 @@ The scripts also accept `QKFORMER_LUT_GPU=2`. They set
 `CUDA_VISIBLE_DEVICES` and print the requested GPU, visible CUDA devices,
 current torch device, device name, and visible device count in the log.
 
+Then run T=1 E0 and E3:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_t1_e0_after_latest_train.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_t1_e3_conservative_sweep.sh --gpu 2
+```
+
 Then upload or inspect:
 
-- latest three `results/qkformer_lut_e3_trainable_lut_*/metrics.json`
-- latest three `results/qkformer_lut_e3_trainable_lut_*/train_log.txt`
+- latest T=1 train `train_log.txt`, `checkpoint_manifest.json`, and
+  `summary.csv`
+- latest T=1 E0 `metrics.json` and `train_log.txt`
+- latest three T=1 E3 `metrics.json` and `train_log.txt`
 
 Suggested artifact package:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut
-E3_DIRS=$(ls -td results/qkformer_lut_e3_trainable_lut_* | head -3)
-tar -czf qk_lutformer_e3_adapter_sweep_artifacts.tar.gz \
-  $(for d in $E3_DIRS; do echo "$d/metrics.json" "$d/train_log.txt"; done)
+T1_TRAIN_DIR=$(ls -td results/qkformer_cifar10_train_* | head -1)
+T1_E0_DIR=$(ls -td results/qkformer_lut_e0_diag_* | head -1)
+T1_E3_DIRS=$(ls -td results/qkformer_lut_e3_trainable_lut_* | head -3)
+tar -czf qk_lutformer_t1_stress_artifacts.tar.gz \
+  "$T1_TRAIN_DIR/train_log.txt" \
+  "$T1_TRAIN_DIR/checkpoint_manifest.json" \
+  $(find "$T1_TRAIN_DIR" -name summary.csv | head -1) \
+  "$T1_E0_DIR/metrics.json" "$T1_E0_DIR/train_log.txt" \
+  $(for d in $T1_E3_DIRS; do echo "$d/metrics.json" "$d/train_log.txt"; done)
 ```
 
 ## What To Avoid

@@ -69,6 +69,7 @@ fi
   echo "[qk-lut-e0] python=$PYTHON_BIN"
   echo "[qk-lut-e0] data_dir=${QKFORMER_LUT_DATA_DIR:-configs/qkformer_lut_e0_diag.yaml default}"
   echo "[qk-lut-e0] checkpoint=${QKFORMER_LUT_CKPT:-configs/qkformer_lut_e0_diag.yaml default}"
+  echo "[qk-lut-e0] time_step=${QKFORMER_LUT_TIME_STEP:-configs/qkformer_lut_e0_diag.yaml default}"
 
   "$PYTHON_BIN" - <<'PY'
 import importlib

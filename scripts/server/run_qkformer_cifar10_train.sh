@@ -22,6 +22,8 @@ EPOCHS="${QKFORMER_TRAIN_EPOCHS:-400}"
 BATCH_SIZE="${QKFORMER_TRAIN_BATCH_SIZE:-64}"
 VAL_BATCH_SIZE="${QKFORMER_VAL_BATCH_SIZE:-64}"
 WORKERS="${QKFORMER_TRAIN_WORKERS:-8}"
+TIME_STEP="${QKFORMER_LUT_TIME_STEP:-4}"
+EXPERIMENT="${QKFORMER_TRAIN_EXPERIMENT:-qkformer_cifar10_t${TIME_STEP}}"
 
 {
   echo "[qk-train] root=$ROOT"
@@ -30,7 +32,7 @@ WORKERS="${QKFORMER_TRAIN_WORKERS:-8}"
   echo "[qk-train] commit=$(git rev-parse --short HEAD)"
   echo "[qk-train] python=$PYTHON_BIN"
   echo "[qk-train] data_dir=$QKFORMER_LUT_DATA_DIR"
-  echo "[qk-train] epochs=$EPOCHS batch_size=$BATCH_SIZE val_batch_size=$VAL_BATCH_SIZE workers=$WORKERS"
+  echo "[qk-train] epochs=$EPOCHS batch_size=$BATCH_SIZE val_batch_size=$VAL_BATCH_SIZE workers=$WORKERS time_step=$TIME_STEP experiment=$EXPERIMENT"
 
   bash scripts/server/install_qkformer_lut_deps.sh
   bash scripts/server/link_cifar10_data.sh
@@ -42,8 +44,9 @@ WORKERS="${QKFORMER_TRAIN_WORKERS:-8}"
     --model QKFormer \
     -data-dir "$QKFORMER_LUT_DATA_DIR" \
     --output "$RESULT_DIR/output" \
-    --experiment qkformer_cifar10 \
+    --experiment "$EXPERIMENT" \
     --epochs "$EPOCHS" \
+    --time-step "$TIME_STEP" \
     --batch-size "$BATCH_SIZE" \
     --val-batch-size "$VAL_BATCH_SIZE" \
     --workers "$WORKERS"
@@ -82,6 +85,7 @@ latest_candidates = [
 manifest = {
     "result_dir": str(result_dir),
     "summary_csv": str(next(result_dir.rglob("summary.csv"), "")),
+    "time_step": __import__("os").environ.get("QKFORMER_LUT_TIME_STEP", "4"),
     "checkpoints": [str(path) for path in checkpoints],
     "best_checkpoint": str(newest(best_candidates) or newest(checkpoints) or ""),
     "latest_checkpoint": str(newest(latest_candidates) or newest(checkpoints) or ""),

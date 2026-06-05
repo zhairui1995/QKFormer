@@ -459,6 +459,9 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     env_checkpoint = os.environ.get("QKFORMER_LUT_CKPT")
     if env_checkpoint:
         model_cfg["checkpoint"] = env_checkpoint
+    env_time_step = os.environ.get("QKFORMER_LUT_TIME_STEP")
+    if env_time_step:
+        model_cfg["time_step"] = int(env_time_step)
     env_data_dir = os.environ.get("QKFORMER_LUT_DATA_DIR")
     if env_data_dir:
         calibration_cfg["data_dir"] = env_data_dir

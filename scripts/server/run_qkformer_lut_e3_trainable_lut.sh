@@ -66,6 +66,7 @@ fi
   echo "[qk-lut-e3] python=$PYTHON_BIN"
   echo "[qk-lut-e3] data_dir=${QKFORMER_LUT_DATA_DIR:-configs/qkformer_lut_e3_trainable_lut.yaml default}"
   echo "[qk-lut-e3] checkpoint=${QKFORMER_LUT_CKPT:-configs/qkformer_lut_e3_trainable_lut.yaml default}"
+  echo "[qk-lut-e3] time_step=${QKFORMER_LUT_TIME_STEP:-configs/qkformer_lut_e3_trainable_lut.yaml default}"
   echo "[qk-lut-e3] mode=${QKFORMER_LUT_E3_MODE:-configs/qkformer_lut_e3_trainable_lut.yaml default}"
   echo "[qk-lut-e3] targets=${QKFORMER_LUT_E3_TARGETS:-configs/qkformer_lut_e3_trainable_lut.yaml default}"
   echo "[qk-lut-e3] seed=${QKFORMER_LUT_E3_SEED:-configs/qkformer_lut_e3_trainable_lut.yaml default}"

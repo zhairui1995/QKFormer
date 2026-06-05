@@ -270,6 +270,9 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
     env_checkpoint = os.environ.get("QKFORMER_LUT_CKPT")
     if env_checkpoint:
         model_cfg["checkpoint"] = env_checkpoint
+    env_time_step = os.environ.get("QKFORMER_LUT_TIME_STEP")
+    if env_time_step:
+        model_cfg["time_step"] = int(env_time_step)
     env_data_dir = os.environ.get("QKFORMER_LUT_DATA_DIR")
     if env_data_dir:
         for split_cfg in data_cfg.values():
@@ -320,6 +323,7 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
         data_cfg["evaluation"]["num_batches"] = int(env_eval_batches)
     return {
         "QKFORMER_LUT_CKPT": env_checkpoint,
+        "QKFORMER_LUT_TIME_STEP": env_time_step,
         "QKFORMER_LUT_DATA_DIR": env_data_dir,
         "QKFORMER_LUT_E3_SEED": env_seed,
         "QKFORMER_LUT_E3_MODE": env_mode,

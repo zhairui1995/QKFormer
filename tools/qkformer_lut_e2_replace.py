@@ -657,6 +657,9 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     env_checkpoint = os.environ.get("QKFORMER_LUT_CKPT")
     if env_checkpoint:
         model_cfg["checkpoint"] = env_checkpoint
+    env_time_step = os.environ.get("QKFORMER_LUT_TIME_STEP")
+    if env_time_step:
+        model_cfg["time_step"] = int(env_time_step)
     env_data_dir = os.environ.get("QKFORMER_LUT_DATA_DIR")
     if env_data_dir:
         calibration_cfg["data_dir"] = env_data_dir
@@ -761,6 +764,7 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         "replacement_config": replacement_cfg,
         "env_overrides": {
             "QKFORMER_LUT_E2_CALIB_BATCHES": env_calib_batches,
+            "QKFORMER_LUT_TIME_STEP": env_time_step,
             "QKFORMER_LUT_E2_CALIB_SHUFFLE": env_calib_shuffle,
             "QKFORMER_LUT_E2_CALIB_SEED": env_calib_seed,
             "QKFORMER_LUT_E2_EVAL_BATCHES": env_eval_batches,

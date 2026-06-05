@@ -73,6 +73,7 @@ fi
   echo "[qk-lut-e2] python=$PYTHON_BIN"
   echo "[qk-lut-e2] data_dir=${QKFORMER_LUT_DATA_DIR:-configs/qkformer_lut_e2_replace.yaml default}"
   echo "[qk-lut-e2] checkpoint=${QKFORMER_LUT_CKPT:-configs/qkformer_lut_e2_replace.yaml default}"
+  echo "[qk-lut-e2] time_step=${QKFORMER_LUT_TIME_STEP:-configs/qkformer_lut_e2_replace.yaml default}"
   echo "[qk-lut-e2] e2_targets=${QKFORMER_LUT_E2_TARGETS:-configs/qkformer_lut_e2_replace.yaml default}"
   echo "[qk-lut-e2] e2_calib_batches=${QKFORMER_LUT_E2_CALIB_BATCHES:-configs/qkformer_lut_e2_replace.yaml default}"
   echo "[qk-lut-e2] e2_calib_shuffle=${QKFORMER_LUT_E2_CALIB_SHUFFLE:-configs/qkformer_lut_e2_replace.yaml default}"

@@ -71,6 +71,7 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
   - `scripts/server/qkformer_lut_common.sh`
   - `scripts/server/run_qkformer_lut_e0_diag.sh`
   - `scripts/server/run_qkformer_cifar10_train.sh`
+  - `scripts/server/run_qkformer_cifar10_t1_train.sh`
   - `scripts/server/run_qkformer_lut_e0_after_latest_train.sh`
   - `scripts/server/run_qkformer_lut_e1_recon.sh`
   - `scripts/server/run_qkformer_lut_e2_replace.sh`
@@ -82,6 +83,8 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
   - `scripts/server/run_qkformer_lut_e3_trainable_lut.sh`
   - `scripts/server/run_qkformer_lut_e3_adapter_sweep.sh`
   - `scripts/server/run_qkformer_lut_e3_conservative_sweep.sh`
+  - `scripts/server/run_qkformer_lut_t1_e0_after_latest_train.sh`
+  - `scripts/server/run_qkformer_lut_t1_e3_conservative_sweep.sh`
 
 Latest uploaded E0 smoke result:
 
@@ -252,6 +255,21 @@ first pilot overfits/drifts because learnable alpha grows too high. Next step
 is conservative E3: fixed alpha 0.1, 2 epochs, lower LR, stronger KL and local
 MSE constraints.
 
+Latest E3 conservative trainable residual LUT adapter sweep:
+
+- Address LUT: 2048 trainable parameters, fixed alpha 0.1, Acc@1
+  95.72 -> 95.82, delta +0.10; loss 0.250749 -> 0.250908.
+- Global mean: 1 trainable parameter, fixed alpha 0.1, Acc@1 95.74 -> 95.91,
+  delta +0.17; loss 0.255298 -> 0.256633.
+- Token-channel LUT: 512 trainable parameters, fixed alpha 0.1, Acc@1
+  95.80 -> 95.88, delta +0.08; loss 0.253012 -> 0.252757.
+
+Interpretation: conservative E3 is stable and all adapters stay above 95% with
+small positive Acc@1 deltas, but address LUT still does not beat the global
+control in Acc@1. Address LUT has cleaner loss/drift than global mean. Next
+step is a T=1 CIFAR-10 stress test to evaluate LUT address ability under a
+single-step setting instead of relying only on T=4 temporal averaging.
+
 ## Server Commands
 
 Set up data link and run E0 diagnostic:
@@ -264,6 +282,12 @@ Train CIFAR-10 checkpoint:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_cifar10_train.sh
+```
+
+Train CIFAR-10 T=1 checkpoint:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_cifar10_t1_train.sh --gpu 2
 ```
 
 Specify a server GPU when running train/E0/E1/E2:
@@ -350,6 +374,13 @@ Run E3 conservative trainable LUT adapter sweep:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_e3_conservative_sweep.sh --gpu 2
+```
+
+Run T=1 E0 and E3 conservative sweeps after T=1 training:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_t1_e0_after_latest_train.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_t1_e3_conservative_sweep.sh --gpu 2
 ```
 
 ## Phase Gate
