@@ -68,4 +68,6 @@ bash scripts/local/run_remote_qk_lut_loop.sh --no-download
 bash scripts/local/run_remote_qk_lut_loop.sh --skip-run
 bash scripts/local/run_remote_qk_lut_loop.sh --keep-archive
 python3 scripts/local/analyze_qk_lut_results.py --root .
+python3 scripts/local/analyze_qk_lut_results.py --brief
+bash scripts/local/qk_lut_quick_state.sh
 ```

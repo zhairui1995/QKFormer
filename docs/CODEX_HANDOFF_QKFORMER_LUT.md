@@ -114,6 +114,8 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
   loop for unattended remote experiments.
 - `scripts/local/analyze_qk_lut_results.py`: local result summarizer for T=1
   train/E0/E3 metrics.
+- `scripts/local/qk_lut_quick_state.sh`: low-token quick-state command.
+- `docs/QK_LUTFORMER_QUICK_STATE.md`: compact current state and next actions.
 - `docs/REMOTE_EXPERIMENT_LOOP.md`: remote automation workflow and defaults.
 
 ## Server Results So Far

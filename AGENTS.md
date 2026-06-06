@@ -8,8 +8,15 @@ branch for SDR-LUTAttn.
 Before important work, read:
 
 1. the user's global Codex rules file, when available
-2. `docs/QKFORMER_LUT_BRANCH_STATUS.md`
-3. `docs/CODEX_HANDOFF_QKFORMER_LUT.md`
+2. `docs/QK_LUTFORMER_QUICK_STATE.md`
+3. `docs/QKFORMER_LUT_BRANCH_STATUS.md`
+4. `docs/CODEX_HANDOFF_QKFORMER_LUT.md`
+
+For low-token continuation or side conversations, start with
+`docs/QK_LUTFORMER_QUICK_STATE.md` and
+`python3 scripts/local/analyze_qk_lut_results.py --brief`. Open the full
+handoff/status docs only when implementation details, claim boundaries, or
+historical evidence are needed.
 
 Use the original CCS project only as historical context. If the sibling CCS
 checkout is available, relevant docs there are:
@@ -90,6 +97,8 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
 - Local automation:
   - `scripts/local/run_remote_qk_lut_loop.sh`
   - `scripts/local/analyze_qk_lut_results.py`
+  - `scripts/local/qk_lut_quick_state.sh`
+  - `docs/QK_LUTFORMER_QUICK_STATE.md`
   - `docs/REMOTE_EXPERIMENT_LOOP.md`
 
 Latest uploaded E0 smoke result:

@@ -76,6 +76,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Summarize QK-LUTFormer local results.")
     parser.add_argument("--root", default=".", help="Repository root")
     parser.add_argument("--e3-count", type=int, default=9, help="Latest T=1 E3 runs to summarize")
+    parser.add_argument("--brief", action="store_true", help="Print compact summary only")
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
@@ -128,13 +129,14 @@ def main() -> int:
             "local_mse": replacement.get("local_mse"),
         }
         grouped.setdefault(mode, []).append(row)
-        print(
-            "[qk-lut-analyze] e3 "
-            f"dir={row['dir']} mode={mode} seed={row['seed']} "
-            f"top1={fmt(row['baseline_top1'], 2)}->{fmt(row['replacement_top1'], 2)} "
-            f"delta={fmt(row['delta_top1'], 4)} loss_delta={fmt(row['delta_loss'], 6)} "
-            f"kl={fmt(row['kl'], 6)} logit_mse={fmt(row['logit_mse'], 6)} local_mse={fmt(row['local_mse'], 6)}"
-        )
+        if not args.brief:
+            print(
+                "[qk-lut-analyze] e3 "
+                f"dir={row['dir']} mode={mode} seed={row['seed']} "
+                f"top1={fmt(row['baseline_top1'], 2)}->{fmt(row['replacement_top1'], 2)} "
+                f"delta={fmt(row['delta_top1'], 4)} loss_delta={fmt(row['delta_loss'], 6)} "
+                f"kl={fmt(row['kl'], 6)} logit_mse={fmt(row['logit_mse'], 6)} local_mse={fmt(row['local_mse'], 6)}"
+            )
 
     means: dict[str, float] = {}
     for mode, rows in sorted(grouped.items()):
