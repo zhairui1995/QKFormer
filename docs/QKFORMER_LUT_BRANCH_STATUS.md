@@ -416,6 +416,40 @@ Interpretation:
   should expose whether address LUTs retain useful structure in the single-step
   boundary case.
 
+T=1 CIFAR-10 stress test:
+
+- Training:
+  - Result: `results/qkformer_cifar10_train_20260606_001151`.
+  - Best Acc@1: 95.20% at epoch 407.
+  - Final epoch 409 Acc@1: 94.64%.
+- E0:
+  - Result: `results/qkformer_lut_e0_diag_20260606_093127`.
+  - Checkpoint loaded: true; time step: 1.
+  - Overall address coverage: 0.5804824829101562.
+  - Singleton fraction: 0.07936228803294151.
+  - Conditional variance: 0.05487808446146928.
+  - Stage1/stage2/stage3 conditional variance:
+    0.055049262856841516 / 0.02716715404410884 /
+    0.06864796047246338.
+- Conservative E3:
+  - Address LUT: 2048 trainable parameters, fixed alpha 0.1, Acc@1
+    94.88 -> 95.00, delta +0.12; loss 0.294179 -> 0.288609; KL 0.039081.
+  - Global mean: 1 trainable parameter, fixed alpha 0.1, Acc@1
+    94.79 -> 94.72, delta -0.07; loss nearly unchanged.
+  - Token-channel LUT: 512 trainable parameters, fixed alpha 0.1, Acc@1
+    94.91 -> 94.85, delta -0.06; loss 0.289929 -> 0.289379.
+
+Interpretation:
+
+- T=1 lowers conditional variance compared with T=4
+  (0.054878 vs 0.071264) while maintaining similar coverage
+  (0.580482 vs 0.599297).
+- In the first T=1 conservative E3 run, address LUT is the only adapter with a
+  positive Acc@1 delta and reaches 95.00%.
+- This is the strongest address-specific signal so far, but it is still
+  single-seed. The next step is a T=1 E3 multi-seed sweep across
+  `address_lut`, `global_mean`, and `token_channel_lut`.
+
 ## Phase Gate
 
 - **GO**: QKFormer binary Q/K addresses have materially better bucket occupancy
@@ -539,6 +573,13 @@ T=1 E3 conservative trainable LUT adapter sweep:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_t1_e3_conservative_sweep.sh --gpu 2
+```
+
+T=1 E3 multi-seed conservative control sweep:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_t1_e3_seed_sweep.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/package_qkformer_lut_t1_e3_seed_sweep.sh
 ```
 
 Specify GPU for train/E0/E1/E2:

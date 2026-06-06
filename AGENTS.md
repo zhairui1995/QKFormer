@@ -85,6 +85,8 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
   - `scripts/server/run_qkformer_lut_e3_conservative_sweep.sh`
   - `scripts/server/run_qkformer_lut_t1_e0_after_latest_train.sh`
   - `scripts/server/run_qkformer_lut_t1_e3_conservative_sweep.sh`
+  - `scripts/server/run_qkformer_lut_t1_e3_seed_sweep.sh`
+  - `scripts/server/package_qkformer_lut_t1_e3_seed_sweep.sh`
 
 Latest uploaded E0 smoke result:
 
@@ -270,6 +272,30 @@ control in Acc@1. Address LUT has cleaner loss/drift than global mean. Next
 step is a T=1 CIFAR-10 stress test to evaluate LUT address ability under a
 single-step setting instead of relying only on T=4 temporal averaging.
 
+Latest T=1 CIFAR-10 stress test:
+
+- Train result: `results/qkformer_cifar10_train_20260606_001151`
+- Best validation accuracy: 95.20% Acc@1 at epoch 407.
+- Final epoch 409 Acc@1: 94.64%.
+- T=1 E0 result: `results/qkformer_lut_e0_diag_20260606_093127`
+- Checkpoint loaded: true.
+- Overall address coverage: 0.5804824829101562.
+- Singleton fraction: 0.07936228803294151.
+- Conditional variance: 0.05487808446146928.
+- Stage1/stage2/stage3 conditional variance: 0.055049262856841516 /
+  0.02716715404410884 / 0.06864796047246338.
+- T=1 conservative E3 address LUT: Acc@1 94.88 -> 95.00, delta +0.12; loss
+  0.29417879979610445 -> 0.2886085723400116.
+- T=1 conservative E3 global mean: Acc@1 94.79 -> 94.72, delta -0.07.
+- T=1 conservative E3 token-channel LUT: Acc@1 94.91 -> 94.85, delta -0.06.
+
+Interpretation: T=1 lowers conditional variance versus T=4 while keeping useful
+address coverage, and address LUT is the only positive conservative E3 adapter
+in the first T=1 run. This is a promising address-specific signal, but it is
+single-seed evidence. Next step is a T=1 E3 seed sweep across
+`address_lut`, `global_mean`, and `token_channel_lut` before making a paper
+claim.
+
 ## Server Commands
 
 Set up data link and run E0 diagnostic:
@@ -381,6 +407,13 @@ Run T=1 E0 and E3 conservative sweeps after T=1 training:
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_t1_e0_after_latest_train.sh --gpu 2
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_t1_e3_conservative_sweep.sh --gpu 2
+```
+
+Run the T=1 E3 multi-seed control sweep and package artifacts:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_t1_e3_seed_sweep.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/package_qkformer_lut_t1_e3_seed_sweep.sh
 ```
 
 ## Phase Gate

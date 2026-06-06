@@ -1,19 +1,17 @@
 # Codex Handoff: QK-LUTFormer / QKFormer-LUT Hybrid
 
-Last updated: 2026-06-05
+Last updated: 2026-06-06
 
 ## One-Line State
 
-QKFormer CIFAR-10 training reached 96.08% best Acc@1. Formal E0/E1 remain
-CONDITIONAL GO, but E2 forward-only prototypes are not address-specific enough:
-global-mean smoothing nearly matched address LUT. The paper-oriented route is
-now E3: trainable residual LUT adapters with frozen QKFormer backbone,
-prototype/shrinkage initialization, learnable blend, CE+KL+local-MSE loss, and
-controls against `global_mean` and `token_channel_lut`. First E3 pilot ran
-end-to-end but all adapters degraded validation accuracy; address LUT was least
-damaging. Conservative E3 stabilizes all adapters above 95%, but address LUT
-does not beat global mean in Acc@1. Next action is a CIFAR-10 T=1 stress test:
-train a T=1 checkpoint, then run T=1 E0 and T=1 E3 conservative sweep.
+QKFormer CIFAR-10 T=4 reached 96.08% best Acc@1. T=4 E2/E3 showed stable but
+weak LUT signals because global smoothing nearly matched or beat address LUT.
+The T=1 stress test is now the strongest paper-relevant lead: T=1 training
+reached 95.20% best Acc@1, T=1 E0 lowered conditional variance while preserving
+coverage, and T=1 conservative E3 made `address_lut` the only positive adapter
+against `global_mean` and `token_channel_lut` controls. Current judgment:
+`CONDITIONAL GO` to a T=1 E3 multi-seed control sweep before claiming
+address-specific LUT advantage.
 
 ## Project Identity
 
@@ -107,6 +105,10 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
   `QKFORMER_LUT_TIME_STEP=1` after latest T=1 training.
 - `scripts/server/run_qkformer_lut_t1_e3_conservative_sweep.sh`: runs E3
   conservative control sweep with `QKFORMER_LUT_TIME_STEP=1`.
+- `scripts/server/run_qkformer_lut_t1_e3_seed_sweep.sh`: runs T=1 E3
+  conservative controls across seeds 42/43/44 by default.
+- `scripts/server/package_qkformer_lut_t1_e3_seed_sweep.sh`: packages latest
+  T=1 train/E0/E3 artifacts for upload.
 
 ## Server Results So Far
 
@@ -435,6 +437,48 @@ Interpretation:
 - Next action is T=1 CIFAR-10 stress test to remove temporal averaging and
   evaluate the LUT address boundary.
 
+T=1 CIFAR-10 stress result:
+
+- Training:
+  - Result: `results/qkformer_cifar10_train_20260606_001151`.
+  - Best validation Acc@1: 95.20% at epoch 407.
+  - Final epoch 409 Acc@1: 94.64%.
+- E0:
+  - Result: `results/qkformer_lut_e0_diag_20260606_093127`.
+  - Checkpoint loaded: true.
+  - Time step: 1.
+  - Overall address coverage: 0.5804824829101562.
+  - Singleton fraction: 0.07936228803294151.
+  - Conditional variance: 0.05487808446146928.
+  - Candidate/background variance: 0.06090743407254731 /
+    0.05607881493643653.
+  - Stage1/stage2/stage3 conditional variance:
+    0.055049262856841516 / 0.02716715404410884 /
+    0.06864796047246338.
+- Conservative E3:
+  - Address LUT: 2048 trainable parameters, fixed alpha 0.1, Acc@1
+    94.88 -> 95.00, delta +0.12; loss 0.29417879979610445 ->
+    0.2886085723400116; KL 0.03908095574975014.
+  - Global mean: 1 trainable parameter, fixed alpha 0.1, Acc@1
+    94.79 -> 94.72, delta -0.07; loss 0.2944240644454956 ->
+    0.2944105110883713.
+  - Token-channel LUT: 512 trainable parameters, fixed alpha 0.1, Acc@1
+    94.91 -> 94.85, delta -0.06; loss 0.2899289110660553 ->
+    0.2893794428348541.
+
+Interpretation:
+
+- T=1 is useful as a LUT boundary test because it removes temporal averaging
+  while preserving a competitive CIFAR-10 checkpoint.
+- T=1 E0 lowers conditional variance compared with T=4
+  (0.054878 vs 0.071264) at similar address coverage
+  (0.580482 vs 0.599297).
+- T=1 conservative E3 gives the first control-separated address signal:
+  `address_lut` is positive while `global_mean` and `token_channel_lut` are
+  negative in the first run.
+- This is not enough for a final paper claim because it is single-seed. The
+  next action is T=1 E3 multi-seed control repeat.
+
 ## Known Compatibility Fixes
 
 The server uses newer `timm` than upstream QKFormer expected.
@@ -448,10 +492,10 @@ The server uses newer `timm` than upstream QKFormer expected.
 
 ## Next Action
 
-Run CIFAR-10 T=1 training on server:
+Run the T=1 E3 multi-seed conservative control sweep on server:
 
 ```bash
-cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_cifar10_t1_train.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_t1_e3_seed_sweep.sh --gpu 2
 ```
 
 To specify a GPU, pass `--gpu N`:
@@ -464,11 +508,10 @@ The scripts also accept `QKFORMER_LUT_GPU=2`. They set
 `CUDA_VISIBLE_DEVICES` and print the requested GPU, visible CUDA devices,
 current torch device, device name, and visible device count in the log.
 
-Then run T=1 E0 and E3:
+Then package the latest T=1 train/E0/E3 artifacts:
 
 ```bash
-cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_t1_e0_after_latest_train.sh --gpu 2
-cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_t1_e3_conservative_sweep.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/package_qkformer_lut_t1_e3_seed_sweep.sh
 ```
 
 Then upload or inspect:
@@ -476,21 +519,12 @@ Then upload or inspect:
 - latest T=1 train `train_log.txt`, `checkpoint_manifest.json`, and
   `summary.csv`
 - latest T=1 E0 `metrics.json` and `train_log.txt`
-- latest three T=1 E3 `metrics.json` and `train_log.txt`
+- latest nine T=1 E3 `metrics.json` and `train_log.txt`
 
 Suggested artifact package:
 
 ```bash
-cd ~/mac_agent/sdr-lutattn-qkformer-lut
-T1_TRAIN_DIR=$(ls -td results/qkformer_cifar10_train_* | head -1)
-T1_E0_DIR=$(ls -td results/qkformer_lut_e0_diag_* | head -1)
-T1_E3_DIRS=$(ls -td results/qkformer_lut_e3_trainable_lut_* | head -3)
-tar -czf qk_lutformer_t1_stress_artifacts.tar.gz \
-  "$T1_TRAIN_DIR/train_log.txt" \
-  "$T1_TRAIN_DIR/checkpoint_manifest.json" \
-  $(find "$T1_TRAIN_DIR" -name summary.csv | head -1) \
-  "$T1_E0_DIR/metrics.json" "$T1_E0_DIR/train_log.txt" \
-  $(for d in $T1_E3_DIRS; do echo "$d/metrics.json" "$d/train_log.txt"; done)
+qk_lutformer_t1_e3_seed_sweep_artifacts.tar.gz
 ```
 
 ## What To Avoid
