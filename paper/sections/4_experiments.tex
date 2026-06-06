@@ -129,6 +129,7 @@ Mode & $\alpha$ & Seed 42 & Seed 43 & Seed 44 & Mean Acc@1 delta \\
 Address LUT & 0.025 & +0.14 & +0.16 & +0.12 & \textbf{+0.1400} \\
 Global mean & 0.025 & -0.12 & +0.03 & +0.21 & +0.0400 \\
 Token-channel LUT & 0.025 & +0.13 & -0.12 & -0.01 & +0.0000 \\
+Shuffled address LUT & 0.025 & -0.09 & -0.18 & -0.04 & -0.1033 \\
 \midrule
 Address LUT & 0.050 & -0.02 & -0.16 & -0.07 & -0.0833 \\
 Global mean & 0.050 & +0.02 & -0.24 & +0.03 & -0.0633 \\
@@ -141,8 +142,9 @@ Token-channel LUT & 0.100 & -0.17 & -0.17 & +0.08 & -0.0867 \\
 \end{tabular}
 \caption{T=1 E3 alpha sensitivity on the independent seed-43 checkpoint. Values
 are replacement minus baseline top-1 accuracy deltas in percent. The
-Q/K-address LUT has a stable low-disturbance window at $\alpha=0.025$, while
-larger residual weights become negative and seed-dependent.}
+Q/K-address LUT has a stable low-disturbance window at $\alpha=0.025$; the
+same-capacity shuffled-address control is negative, and larger residual weights
+become negative and seed-dependent.}
 \label{tab:e3_t1_multiseed}
 \end{table*}
 
@@ -153,6 +155,6 @@ These experiments support the claim that Q/K binary addresses contain useful
 structure for low-disturbance residual LUT adapters in a $T=1$ boundary
 setting. They do not yet support claims about hardware speed, energy reduction,
 ImageNet accuracy, or a production full-LUT QKFormer wrapper. The current
-accuracy evidence is strongest at $\alpha=0.025$ and should be paired with
-additional shuffled-address controls before making a broader address-specific
-claim.
+accuracy evidence is strongest at $\alpha=0.025$ and includes a negative
+same-capacity shuffled-address control, but broader datasets and additional
+checkpoints are still needed for a general address-specific claim.

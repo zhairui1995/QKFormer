@@ -38,6 +38,7 @@ alpha sweep found a stable low-disturbance window at alpha 0.025.
     `address_lut` +0.14/+0.16/+0.12, mean +0.1400;
     `global_mean` mean +0.0400;
     `token_channel_lut` mean +0.0000.
+    `shuffled_address_lut` -0.09/-0.18/-0.04, mean -0.1033.
   - alpha 0.05:
     address/global/token-channel means -0.0833 / -0.0633 / -0.0400.
   - alpha 0.1:
@@ -79,21 +80,19 @@ before falling back to GPU 2. Small diagnostics default to GPU 2.
 
 ## Next Useful Experiments
 
-1. Add/repeat `shuffled_address_lut` at alpha 0.025 on the latest independent
-   checkpoint to verify address/table alignment at the selected operating
-   point.
-2. Update the paper tables around alpha 0.025 as the main E3 result and keep
+1. Update/keep the paper tables around alpha 0.025 as the main E3 result and
    alpha 0.05/0.1 as drift controls.
-3. Broaden only after the CIFAR-10 low-disturbance adapter story remains stable:
+2. Broaden only after the CIFAR-10 low-disturbance adapter story remains stable:
    larger dataset, harder stage, or ImageNet-lite style stress.
+3. Consider a third independent T=1 checkpoint or a CIFAR-100/ImageNet-lite
+   smoke before making broad generalization claims.
 
 ## Claim Boundary
 
 Allowed now: E0/E1 diagnostics support Q/K binary addresses as structured,
 well-occupied LUT indices; T=1 E3 alpha sweep supports a low-disturbance
-residual-adapter route at alpha 0.025 against global and token/channel
-controls. A shuffled-address control is still needed for the strongest
-address-alignment claim.
+residual-adapter route at alpha 0.025 against global, token/channel, and
+same-capacity shuffled-address controls.
 
 Not allowed yet: energy gain, latency gain, ImageNet gain, production LUT
 wrapper, or full pure-spike Transformer claims.

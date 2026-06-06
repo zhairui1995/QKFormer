@@ -15,8 +15,9 @@ stress setting on an independently trained checkpoint, an alpha sensitivity
 sweep identifies a low-disturbance operating point: at $\alpha=0.025$, the
 Q/K-addressed adapter improves top-1 accuracy across three adapter seeds
 ($+0.14$ mean delta), outperforming global smoothing ($+0.04$) and
-token/channel-only LUTs ($0.00$). Larger residual weights drift and become
-negative. These results support Q/K binary addresses as a meaningful structure
-for small residual LUT adapters, while leaving energy, latency, ImageNet, and
-full-wrapper claims to future experiments.
+token/channel-only LUTs ($0.00$); shuffling the address-to-table alignment
+turns the same-capacity LUT negative ($-0.103$). Larger residual weights drift
+and become negative. These results support Q/K binary addresses as a meaningful
+structure for small residual LUT adapters, while leaving energy, latency,
+ImageNet, and full-wrapper claims to future experiments.
 \end{abstract}
