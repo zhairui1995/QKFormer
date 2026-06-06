@@ -65,6 +65,7 @@ bash scripts/local/run_remote_qk_lut_loop.sh \
 ```bash
 bash scripts/local/run_remote_qk_lut_loop.sh --gpu 1
 bash scripts/local/run_remote_qk_lut_loop.sh --no-download
+bash scripts/local/run_remote_qk_lut_loop.sh --skip-run
 bash scripts/local/run_remote_qk_lut_loop.sh --keep-archive
 python3 scripts/local/analyze_qk_lut_results.py --root .
 ```

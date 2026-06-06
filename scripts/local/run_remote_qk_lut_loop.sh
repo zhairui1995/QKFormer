@@ -19,6 +19,7 @@ DOWNLOAD=1
 EXTRACT=1
 ANALYZE=1
 KEEP_ARCHIVE=0
+SKIP_RUN=0
 
 usage() {
   cat <<'USAGE'
@@ -41,6 +42,7 @@ Options:
   --no-extract                  Download but do not extract
   --no-analyze                  Skip local metrics summary
   --keep-archive                Keep downloaded tar.gz after extraction
+  --skip-run                    Pull remote branch and package/download existing results only
   -h, --help                    Show this help
 
 Examples:
@@ -81,6 +83,8 @@ while [[ $# -gt 0 ]]; do
       ANALYZE=0; shift ;;
     --keep-archive)
       KEEP_ARCHIVE=1; shift ;;
+    --skip-run)
+      SKIP_RUN=1; shift ;;
     -h|--help)
       usage; exit 0 ;;
     *)
@@ -95,7 +99,7 @@ if [[ "$RUN_KIND" != "small" && "$RUN_KIND" != "train" ]]; then
   exit 2
 fi
 
-if [[ -z "$SERVER_SCRIPT" ]]; then
+if [[ -z "$SERVER_SCRIPT" && "$SKIP_RUN" -eq 0 ]]; then
   echo "[remote-loop] --server-script cannot be empty" >&2
   exit 2
 fi
@@ -115,7 +119,11 @@ else
   GPU="$GPU_DEFAULT"
 fi
 echo "[remote-loop] selected_gpu=\$GPU kind=$RUN_KIND"
-bash "$SERVER_SCRIPT" --gpu "\$GPU"
+if [[ "$SKIP_RUN" -eq 0 ]]; then
+  bash "$SERVER_SCRIPT" --gpu "\$GPU"
+else
+  echo "[remote-loop] server run skipped"
+fi
 if [[ -n "$PACKAGE_SCRIPT" ]]; then
   bash "$PACKAGE_SCRIPT" "$ARTIFACT"
 fi
