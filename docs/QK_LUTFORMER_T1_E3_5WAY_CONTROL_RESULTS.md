@@ -43,7 +43,47 @@
 
 - Verdict: `NO-GO for address-specific accuracy claim at this setting`.
 - Address-alignment check: `address_lut` mean Delta Acc@1 is 0.0600, while `shuffled_address_lut` is 0.0967.
-- Claim boundary: this supports or weakens an address-specific adapter ablation only; it does not support energy, latency, ImageNet, or full-wrapper claims.
+- Interpretation: this trainable-adapter control weakens a pure accuracy claim
+  for address specificity, because the shuffled table has the same parameter
+  budget and can partially learn around the broken mapping.
+- Claim boundary: this result alone does not support energy, latency, ImageNet,
+  or full-wrapper claims.
+
+## Follow-Up: Frozen Prototype Alignment Test
+
+The follow-up frozen E2 alignment test is more directly tied to the paper
+methodology. It removes trainable-table adaptation and asks whether Q/K binary
+addresses are useful as a fixed LUT indexing signal.
+
+Setting:
+
+- Result: `results/qkformer_lut_e2_alignment_test_20260606_182021`
+- Backbone: T=1 CIFAR-10 QKFormer best checkpoint from
+  `qkformer_cifar10_train_20260606_001151`.
+- Target: `stage1.0.tssa`.
+- LUT construction: calibration prototypes are frozen; no LUT table training.
+- Calibration: 128 CIFAR-10 train batches.
+- Evaluation: full CIFAR-10 validation split.
+- Replacement strength: `blend=1.0`.
+
+| Mode | Baseline Acc@1 | Replacement Acc@1 | Delta Acc@1 | Delta Loss | KL to Baseline | Logit MSE | Local MSE |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `address_lut` | 94.9000 | 94.9400 | 0.0400 | -0.002451 | 0.038093 | 0.083226 | 0.055959 |
+| `shuffled_address_lut` | 94.9000 | 94.8400 | -0.0600 | 0.000452 | 0.039542 | 0.088816 | 0.063405 |
+| `global_mean` | 94.9000 | 94.7900 | -0.1100 | 0.006395 | 0.039620 | 0.087185 | 0.059798 |
+
+Interpretation:
+
+- In the frozen-prototype setting, `address_lut` beats
+  `shuffled_address_lut` on all key diagnostics: Acc@1 delta, loss drift,
+  KL-to-baseline, logit MSE, and local replacement MSE.
+- This is stronger evidence for the paper's address-space claim than the
+  trainable E3 result: when the LUT cannot retrain around a broken address map,
+  correct Q/K address alignment is better than shuffled alignment.
+- Supported claim: Q/K binary spike addresses provide a meaningful LUT indexing
+  signal for stage1 module-output replacement under this T=1 CIFAR-10 setting.
+- Remaining boundary: this still does not prove energy gain, latency gain,
+  ImageNet-scale gain, or a production LUT wrapper.
 
 ## Local Evidence Check
 
