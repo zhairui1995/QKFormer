@@ -40,12 +40,28 @@ def latest_t1_e0(results: Path) -> Path | None:
     return latest(candidates)
 
 
-def latest_t1_e3(results: Path, limit: int) -> list[Path]:
-    candidates: list[Path] = []
+def latest_t1_e3(results: Path, limit: int, checkpoint_marker: str | None = None) -> list[Path]:
+    candidates_by_key: dict[tuple[str, str, str], Path] = {}
     for metrics in results.glob("qkformer_lut_e3_trainable_lut_*/metrics.json"):
         data = load_json(metrics)
         if str(data.get("model", {}).get("time_step")) == "1":
-            candidates.append(metrics.parent)
+            checkpoint_path = str(data.get("model", {}).get("checkpoint", {}).get("path") or "")
+            if checkpoint_marker and checkpoint_marker not in checkpoint_path:
+                continue
+            mode = data.get("adapter_summary", {}).get("mode") or data.get("adapter_config", {}).get("mode", "unknown")
+            seed = (
+                data.get("env_overrides", {}).get("QKFORMER_LUT_E3_SEED")
+                or data.get("adapter_config", {}).get("mode_seed")
+                or data.get("experiment", {}).get("seed")
+            )
+            alpha = data.get("env_overrides", {}).get("QKFORMER_LUT_E3_ALPHA_INIT")
+            if alpha is None:
+                alpha = data.get("adapter_config", {}).get("alpha_init")
+            key = (checkpoint_path, str(mode), str(seed), str(alpha))
+            old = candidates_by_key.get(key)
+            if old is None or metrics.parent.stat().st_mtime > old.stat().st_mtime:
+                candidates_by_key[key] = metrics.parent
+    candidates = list(candidates_by_key.values())
     return sorted(candidates, key=lambda path: (path.stat().st_mtime, str(path)), reverse=True)[:limit]
 
 
@@ -213,6 +229,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Summarize QK-LUTFormer local results.")
     parser.add_argument("--root", default=".", help="Repository root")
     parser.add_argument("--e3-count", type=int, default=12, help="Latest T=1 E3 runs to summarize")
+    parser.add_argument("--all-checkpoints", action="store_true", help="Summarize T=1 E3 runs across all checkpoints")
+    parser.add_argument("--group-alpha", action="store_true", help="Group E3 rows by mode and alpha")
     parser.add_argument("--brief", action="store_true", help="Print compact summary only")
     parser.add_argument("--write-md", type=Path, help="Write a markdown report to this path")
     args = parser.parse_args()
@@ -245,9 +263,18 @@ def main() -> int:
         print("[qk-lut-analyze] latest_t1_e0=missing")
 
     grouped: dict[str, list[dict[str, Any]]] = {}
-    for run_dir in reversed(latest_t1_e3(results, args.e3_count)):
+    checkpoint_marker = None if args.all_checkpoints or train_dir is None else train_dir.name
+    if checkpoint_marker:
+        print(f"[qk-lut-analyze] e3_checkpoint_filter={checkpoint_marker}")
+    else:
+        print("[qk-lut-analyze] e3_checkpoint_filter=all")
+    for run_dir in reversed(latest_t1_e3(results, args.e3_count, checkpoint_marker)):
         metrics = load_json(run_dir / "metrics.json")
         mode = metrics.get("adapter_summary", {}).get("mode") or metrics.get("adapter_config", {}).get("mode", "unknown")
+        alpha = metrics.get("env_overrides", {}).get("QKFORMER_LUT_E3_ALPHA_INIT")
+        if alpha is None:
+            alpha = metrics.get("adapter_config", {}).get("alpha_init")
+        group_mode = f"{mode}@alpha={fmt(alpha, 3)}" if args.group_alpha else mode
         cls = metrics.get("classification", {})
         replacement = cls.get("replacement", {})
         seed = (
@@ -259,6 +286,7 @@ def main() -> int:
             "dir": run_dir.name,
             "seed": seed,
             "mode": mode,
+            "alpha": alpha,
             "baseline_top1": cls.get("baseline", {}).get("top1"),
             "replacement_top1": replacement.get("top1"),
             "delta_top1": cls.get("delta", {}).get("top1"),
@@ -269,11 +297,12 @@ def main() -> int:
             "logit_mse": replacement.get("logit_mse"),
             "local_mse": replacement.get("local_mse"),
         }
-        grouped.setdefault(mode, []).append(row)
+        grouped.setdefault(group_mode, []).append(row)
         if not args.brief:
             print(
                 "[qk-lut-analyze] e3 "
                 f"dir={row['dir']} mode={mode} seed={row['seed']} "
+                f"alpha={fmt(alpha, 3)} "
                 f"top1={fmt(row['baseline_top1'], 2)}->{fmt(row['replacement_top1'], 2)} "
                 f"delta={fmt(row['delta_top1'], 4)} loss_delta={fmt(row['delta_loss'], 6)} "
                 f"kl={fmt(row['kl'], 6)} logit_mse={fmt(row['logit_mse'], 6)} local_mse={fmt(row['local_mse'], 6)}"
