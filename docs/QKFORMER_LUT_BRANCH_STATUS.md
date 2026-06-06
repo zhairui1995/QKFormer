@@ -450,6 +450,32 @@ Interpretation:
   single-seed. The next step is a T=1 E3 multi-seed sweep across
   `address_lut`, `global_mean`, and `token_channel_lut`.
 
+T=1 E3 multi-seed conservative control sweep:
+
+- Address LUT, seeds 42/43/44:
+  - Acc@1 deltas: +0.12 / +0.07 / -0.01.
+  - Mean Acc@1 delta: +0.06.
+  - Mean loss delta: -0.002594.
+- Global mean, seeds 42/43/44:
+  - Acc@1 deltas: -0.07 / -0.17 / -0.04.
+  - Mean Acc@1 delta: -0.0933.
+  - Mean loss delta: +0.000182.
+- Token-channel LUT, seeds 42/43/44:
+  - Acc@1 deltas: -0.06 / +0.06 / -0.07.
+  - Mean Acc@1 delta: -0.0233.
+  - Mean loss delta: -0.001102.
+
+Interpretation:
+
+- This is the first multi-seed setting where address LUT cleanly beats both
+  non-address and weaker-address controls in mean Acc@1 delta.
+- The signal is still small, so the correct phase judgment is
+  `CONDITIONAL GO`, not a final GO.
+- The paper story can now frame T=1 as a boundary/stress setting where Q/K
+  binary addresses carry useful adapter structure beyond global smoothing.
+  Remaining claim boundary: no energy, latency, ImageNet, or full-wrapper claim
+  without new experiments.
+
 ## Phase Gate
 
 - **GO**: QKFormer binary Q/K addresses have materially better bucket occupancy

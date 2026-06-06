@@ -108,9 +108,14 @@ def main() -> int:
         mode = metrics.get("adapter_summary", {}).get("mode") or metrics.get("adapter_config", {}).get("mode", "unknown")
         cls = metrics.get("classification", {})
         replacement = cls.get("replacement", {})
+        seed = (
+            metrics.get("env_overrides", {}).get("QKFORMER_LUT_E3_SEED")
+            or metrics.get("adapter_config", {}).get("mode_seed")
+            or metrics.get("experiment", {}).get("seed")
+        )
         row = {
             "dir": run_dir.name,
-            "seed": metrics.get("experiment", {}).get("seed"),
+            "seed": seed,
             "mode": mode,
             "baseline_top1": cls.get("baseline", {}).get("top1"),
             "replacement_top1": replacement.get("top1"),

@@ -300,6 +300,24 @@ single-seed evidence. Next step is a T=1 E3 seed sweep across
 `address_lut`, `global_mean`, and `token_channel_lut` before making a paper
 claim.
 
+Latest T=1 E3 multi-seed control sweep:
+
+- Result dirs: `results/qkformer_lut_e3_trainable_lut_20260606_132549` through
+  `results/qkformer_lut_e3_trainable_lut_20260606_134407`.
+- Address LUT, seeds 42/43/44: deltas +0.12 / +0.07 / -0.01; mean +0.06.
+- Global mean, seeds 42/43/44: deltas -0.07 / -0.17 / -0.04; mean -0.0933.
+- Token-channel LUT, seeds 42/43/44: deltas -0.06 / +0.06 / -0.07; mean
+  -0.0233.
+- Mean loss delta: address LUT -0.002594, global mean +0.000182,
+  token-channel LUT -0.001102.
+
+Interpretation: T=1 address LUT now beats both controls on mean Acc@1 delta and
+loss delta under the same conservative adapter budget. Current judgment is
+`CONDITIONAL GO`: enough to support a paper-oriented address-specific LUT
+ablation, but still not enough for energy/latency or broad dataset claims.
+Next step should either repeat on another checkpoint/seed or broaden to a
+larger dataset/stage stress test.
+
 ## Server Commands
 
 Set up data link and run E0 diagnostic:

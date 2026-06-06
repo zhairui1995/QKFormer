@@ -485,6 +485,36 @@ Interpretation:
 - This is not enough for a final paper claim because it is single-seed. The
   next action is T=1 E3 multi-seed control repeat.
 
+T=1 E3 multi-seed conservative control sweep:
+
+- Address LUT:
+  - Seed 42: Acc@1 94.88 -> 95.00, delta +0.12.
+  - Seed 43: Acc@1 94.58 -> 94.65, delta +0.07.
+  - Seed 44: Acc@1 94.54 -> 94.53, delta -0.01.
+  - Mean Acc@1 delta: +0.06; mean loss delta: -0.002594.
+- Global mean:
+  - Seed 42: Acc@1 94.79 -> 94.72, delta -0.07.
+  - Seed 43: Acc@1 94.81 -> 94.64, delta -0.17.
+  - Seed 44: Acc@1 94.52 -> 94.48, delta -0.04.
+  - Mean Acc@1 delta: -0.0933; mean loss delta: +0.000182.
+- Token-channel LUT:
+  - Seed 42: Acc@1 94.91 -> 94.85, delta -0.06.
+  - Seed 43: Acc@1 94.60 -> 94.66, delta +0.06.
+  - Seed 44: Acc@1 94.71 -> 94.64, delta -0.07.
+  - Mean Acc@1 delta: -0.0233; mean loss delta: -0.001102.
+
+Interpretation:
+
+- Address LUT is the only mode with positive mean Acc@1 delta and the best mean
+  loss delta in this T=1 conservative control sweep.
+- Current phase judgment: `CONDITIONAL GO`.
+- This result supports the paper-oriented claim that Q/K binary addresses are
+  more useful than global smoothing or token/channel-only addressing in the T=1
+  boundary setting. It still does not justify energy/latency, ImageNet, or
+  production-wrapper claims.
+- Next action: either repeat with another T=1 checkpoint/training seed, or run a
+  larger-dataset/stage stress test before escalating the claim.
+
 ## Known Compatibility Fixes
 
 The server uses newer `timm` than upstream QKFormer expected.
