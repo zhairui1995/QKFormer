@@ -181,11 +181,11 @@ def write_markdown_report(
     lines.append("")
     lines.append("| Setting | n | Baseline Acc@1 | Adapter Acc@1 | Delta Acc@1 | Delta Loss | KL | Logit MSE | Local MSE |")
     lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
-    for mode in ["address_lut", "global_mean", "token_channel_lut", "shuffled_address_lut"]:
+    fixed_order = ["address_lut", "global_mean", "token_channel_lut", "shuffled_address_lut"]
+    ordered_modes = [mode for mode in fixed_order if mode in summary]
+    ordered_modes.extend(mode for mode in sorted(summary) if mode not in ordered_modes)
+    for mode in ordered_modes:
         item = summary.get(mode)
-        if not item:
-            lines.append(f"| `{mode}` | 0 | n/a | n/a | n/a | n/a | n/a | n/a | n/a |")
-            continue
         lines.append(
             f"| `{mode}` | {item['n']} | {fmt(item.get('mean_baseline_top1'), 4)} | "
             f"{fmt(item.get('mean_replacement_top1'), 4)} | {fmt(item.get('mean_delta_top1'), 4)} | "
@@ -197,7 +197,7 @@ def write_markdown_report(
     lines.append("")
     lines.append("| Mode | Seed | Baseline Acc@1 | Adapter Acc@1 | Delta Acc@1 | Delta Loss | Result Dir |")
     lines.append("|---|---:|---:|---:|---:|---:|---|")
-    for mode in ["address_lut", "global_mean", "token_channel_lut", "shuffled_address_lut"]:
+    for mode in ordered_modes:
         for row in sorted(grouped.get(mode, []), key=lambda item: str(item.get("seed"))):
             lines.append(
                 f"| `{mode}` | {row.get('seed')} | {fmt(row.get('baseline_top1'), 4)} | "

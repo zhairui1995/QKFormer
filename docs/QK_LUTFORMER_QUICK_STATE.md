@@ -9,9 +9,9 @@ history are needed.
 `CONDITIONAL GO`, but the accuracy-gain claim is now weaker.
 
 The CIFAR-10 T=1 conservative E3 adapter sweep on the first checkpoint was
-positive for Q/K address LUT, but an independent T=1 checkpoint repeat did not
-replicate a positive mean Acc@1 delta. Treat the story as a low-disturbance
-residual LUT-adapter investigation, not a stable accuracy-improvement claim.
+positive for Q/K address LUT. An independent T=1 checkpoint repeat showed that
+alpha 0.1 does not replicate as a stable positive setting, but a follow-up
+alpha sweep found a stable low-disturbance window at alpha 0.025.
 
 ## Key Evidence
 
@@ -33,6 +33,15 @@ residual LUT-adapter investigation, not a stable accuracy-improvement claim.
   - `global_mean`: deltas -0.05 / -0.17 / +0.01, mean -0.0700.
   - `token_channel_lut`: deltas -0.17 / -0.17 / +0.08, mean -0.0867.
   - This is a NO-GO for a stable address-specific accuracy claim at alpha 0.1.
+- T=1 E3 alpha sweep on the independent seed-43 checkpoint:
+  - alpha 0.025:
+    `address_lut` +0.14/+0.16/+0.12, mean +0.1400;
+    `global_mean` mean +0.0400;
+    `token_channel_lut` mean +0.0000.
+  - alpha 0.05:
+    address/global/token-channel means -0.0833 / -0.0633 / -0.0400.
+  - alpha 0.1:
+    address/global/token-channel means -0.1067 / -0.0700 / -0.0867.
 
 ## Baseline Meaning
 
@@ -70,20 +79,21 @@ before falling back to GPU 2. Small diagnostics default to GPU 2.
 
 ## Next Useful Experiments
 
-1. Run a T=1 E3 alpha sweep on the latest independent checkpoint:
-   alpha 0.025/0.05/0.1 across `address_lut`, `global_mean`, and
-   `token_channel_lut`, seeds 42/43/44.
-2. Add or repeat `shuffled_address_lut` once the low-alpha operating point is
-   selected.
+1. Add/repeat `shuffled_address_lut` at alpha 0.025 on the latest independent
+   checkpoint to verify address/table alignment at the selected operating
+   point.
+2. Update the paper tables around alpha 0.025 as the main E3 result and keep
+   alpha 0.05/0.1 as drift controls.
 3. Broaden only after the CIFAR-10 low-disturbance adapter story remains stable:
    larger dataset, harder stage, or ImageNet-lite style stress.
 
 ## Claim Boundary
 
 Allowed now: E0/E1 diagnostics support Q/K binary addresses as structured,
-well-occupied LUT indices; T=1 E3 suggests a plausible residual-adapter route
-but needs alpha sensitivity and stronger controls before an address-specific
-accuracy claim.
+well-occupied LUT indices; T=1 E3 alpha sweep supports a low-disturbance
+residual-adapter route at alpha 0.025 against global and token/channel
+controls. A shuffled-address control is still needed for the strongest
+address-alignment claim.
 
 Not allowed yet: energy gain, latency gain, ImageNet gain, production LUT
 wrapper, or full pure-spike Transformer claims.

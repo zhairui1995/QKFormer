@@ -11,10 +11,12 @@ buckets. A split-aware reconstruction diagnostic reduces response MSE by
 $3.58\%$ relative to a global mean baseline, with the strongest gain in stage 1.
 Forward-only prototype replacement is only weakly address-specific, motivating
 a frozen-backbone trainable residual LUT adapter. In a single-step ($T=1$)
-stress setting, the Q/K-addressed adapter is the only control with positive
-mean top-1 delta across three adapter seeds ($+0.06$), outperforming global
-smoothing ($-0.093$) and token/channel-only LUTs ($-0.023$). These results
-support Q/K binary addresses as a meaningful structure for small residual LUT
-adapters, while leaving energy, latency, ImageNet, and full-wrapper claims to
-future experiments.
+stress setting on an independently trained checkpoint, an alpha sensitivity
+sweep identifies a low-disturbance operating point: at $\alpha=0.025$, the
+Q/K-addressed adapter improves top-1 accuracy across three adapter seeds
+($+0.14$ mean delta), outperforming global smoothing ($+0.04$) and
+token/channel-only LUTs ($0.00$). Larger residual weights drift and become
+negative. These results support Q/K binary addresses as a meaningful structure
+for small residual LUT adapters, while leaving energy, latency, ImageNet, and
+full-wrapper claims to future experiments.
 \end{abstract}

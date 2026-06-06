@@ -4,11 +4,12 @@
 We studied whether QKFormer's binary Q/K spike vectors form a useful LUT
 address space. The evidence is conditional but encouraging: Q/K-derived
 addresses are well occupied, improve held-out reconstruction over global
-averages, and produce a positive mean adapter gain against non-address controls
-in a T=1 stress setting. The negative forward-only results are equally
-important: prototype replacement alone is not enough, and several T=4 controls
-nearly match address LUTs. The current best interpretation is therefore a
-trainable residual adapter story, not a full hardware replacement story. Future
-work should validate the result across independent trained checkpoints, larger
-datasets, additional stages, and real LUT-oriented efficiency measurements.
-
+averages, and expose a low-disturbance residual-adapter window in a T=1 stress
+setting. The negative results are equally important: prototype replacement
+alone is not enough, several T=4 controls nearly match address LUTs, and
+larger residual weights can create seed-dependent drift. The current best
+interpretation is therefore a carefully constrained trainable residual adapter
+story, not a full hardware replacement story. Future work should validate the
+result with shuffled-address controls, additional independent checkpoints,
+larger datasets, additional stages, and real LUT-oriented efficiency
+measurements.

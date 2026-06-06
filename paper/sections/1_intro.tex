@@ -27,8 +27,10 @@ Our experiments show a nuanced picture. Forward-only address prototypes can
 slightly improve early-stage replacement, but global smoothing nearly matches
 them in several T=4 settings. The stronger evidence appears in a $T=1$ stress
 setting, where temporal averaging is removed and the address boundary becomes
-sharper. Under this setting, a Q/K-addressed residual LUT adapter beats global
-mean and token/channel-only controls across three adapter seeds.
+sharper. Under this setting, an independent-checkpoint alpha sweep shows that
+Q/K-addressed residual LUT adapters have a stable low-disturbance window:
+$\alpha=0.025$ improves all three adapter seeds, while larger residual weights
+become seed-dependent and negative.
 
 Our contributions are:
 \begin{itemize}
@@ -39,9 +41,9 @@ Our contributions are:
   calibrated Q/K-address prototypes with small trainable correction tables.
   \item We provide a staged ablation study on CIFAR-10, including
   reconstruction diagnostics, forward-only replacement, stage/calibration/blend
-  sweeps, and T=1 multi-seed control experiments.
+  sweeps, independent-checkpoint replication, and T=1 alpha sensitivity
+  controls.
   \item We explicitly identify claim boundaries: current results support a
   paper-oriented address-specific adapter story, not energy, latency,
   ImageNet, or full-wrapper claims.
 \end{itemize}
-
