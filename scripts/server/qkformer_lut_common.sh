@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+if [[ -n "${ROOT:-}" ]]; then
+  case ":${PYTHONPATH:-}:" in
+    *":$ROOT:"*) ;;
+    *) export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" ;;
+  esac
+fi
+
 qk_lut_select_python() {
   if [[ -n "${PYTHON:-}" ]]; then
     echo "$PYTHON"

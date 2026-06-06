@@ -582,6 +582,16 @@ cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_q
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/package_qkformer_lut_t1_e3_seed_sweep.sh
 ```
 
+Local SSH/GitHub/server/download/analyze loop:
+
+```bash
+cd /Users/cvue/Documents/github_zr/sdr-lutattn-qkformer-lut && bash scripts/local/run_remote_qk_lut_loop.sh
+```
+
+Use `--kind train` for expensive training jobs so the remote command checks
+GPU availability before falling back to GPU 2. Small calibration and diagnostic
+jobs default to GPU 2 without probing every time.
+
 Specify GPU for train/E0/E1/E2:
 
 ```bash

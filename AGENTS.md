@@ -87,6 +87,10 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
   - `scripts/server/run_qkformer_lut_t1_e3_conservative_sweep.sh`
   - `scripts/server/run_qkformer_lut_t1_e3_seed_sweep.sh`
   - `scripts/server/package_qkformer_lut_t1_e3_seed_sweep.sh`
+- Local automation:
+  - `scripts/local/run_remote_qk_lut_loop.sh`
+  - `scripts/local/analyze_qk_lut_results.py`
+  - `docs/REMOTE_EXPERIMENT_LOOP.md`
 
 Latest uploaded E0 smoke result:
 
@@ -415,6 +419,19 @@ Run the T=1 E3 multi-seed control sweep and package artifacts:
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_t1_e3_seed_sweep.sh --gpu 2
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/package_qkformer_lut_t1_e3_seed_sweep.sh
 ```
+
+Run the same loop from local Codex through SSH/GitHub/server/download/analyze:
+
+```bash
+cd /Users/cvue/Documents/github_zr/sdr-lutattn-qkformer-lut && bash scripts/local/run_remote_qk_lut_loop.sh
+```
+
+Remote automation defaults: server `lbz@192.168.70.60`, remote repo
+`~/mac_agent/sdr-lutattn-qkformer-lut`, conda env `sdr`, branch
+`codex/qkformer-lut-hybrid`, small diagnostics on GPU 2. For expensive training
+jobs, use `--kind train`; it checks `nvidia-smi` for an idle GPU before falling
+back to GPU 2. Never store server passwords in scripts, docs, or commits; the
+loop requires SSH key authentication.
 
 ## Phase Gate
 

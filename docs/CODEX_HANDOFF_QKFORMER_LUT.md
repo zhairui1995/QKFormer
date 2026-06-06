@@ -19,6 +19,7 @@ address-specific LUT advantage.
 - Server repo: `~/mac_agent/sdr-lutattn-qkformer-lut`
 - Branch: `codex/qkformer-lut-hybrid`
 - Push remote: `fork` / `git@github.com:zhairui1995/QKFormer.git`
+- Server Git remote: `origin` / `git@github.com:zhairui1995/QKFormer.git`
 - Upstream reference: `https://github.com/zhouchenlin2096/QKFormer`
 - Core status doc: `docs/QKFORMER_LUT_BRANCH_STATUS.md`
 
@@ -109,6 +110,11 @@ QKFormer's spike-form Q-K attention as a binary, LUT-friendly address source.
   conservative controls across seeds 42/43/44 by default.
 - `scripts/server/package_qkformer_lut_t1_e3_seed_sweep.sh`: packages latest
   T=1 train/E0/E3 artifacts for upload.
+- `scripts/local/run_remote_qk_lut_loop.sh`: local SSH/GitHub/server/download
+  loop for unattended remote experiments.
+- `scripts/local/analyze_qk_lut_results.py`: local result summarizer for T=1
+  train/E0/E3 metrics.
+- `docs/REMOTE_EXPERIMENT_LOOP.md`: remote automation workflow and defaults.
 
 ## Server Results So Far
 
@@ -497,6 +503,19 @@ Run the T=1 E3 multi-seed conservative control sweep on server:
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_t1_e3_seed_sweep.sh --gpu 2
 ```
+
+Or run the full loop from local Codex:
+
+```bash
+cd /Users/cvue/Documents/github_zr/sdr-lutattn-qkformer-lut && bash scripts/local/run_remote_qk_lut_loop.sh
+```
+
+The local loop SSHes to `lbz@192.168.70.60`, pulls the latest GitHub branch,
+activates conda env `sdr`, runs the server script, packages artifacts, downloads
+them to local `results/`, extracts them, and runs local metric analysis.
+Small diagnostics default to GPU 2. Expensive training jobs should use
+`--kind train`, which checks `nvidia-smi` for an idle GPU before falling back to
+GPU 2.
 
 To specify a GPU, pass `--gpu N`:
 
