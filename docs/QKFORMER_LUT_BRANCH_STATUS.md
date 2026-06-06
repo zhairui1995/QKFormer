@@ -392,8 +392,9 @@ Interpretation:
   but all modes degrade validation accuracy in the first pilot.
 - Alpha grows too high under 5 epochs, suggesting overfitting/drift rather than
   stable residual correction.
-- Next step is a conservative E3 sweep: fixed alpha 0.1, 2 epochs, lower LR,
-  stronger KL and local-MSE constraints, same three controls.
+- The next step at that point was a conservative E3 sweep: fixed alpha 0.1,
+  2 epochs, lower LR, stronger KL and local-MSE constraints, same three
+  controls.
 
 Conservative E3 sweep:
 
@@ -476,6 +477,100 @@ Interpretation:
   Remaining claim boundary: no energy, latency, ImageNet, or full-wrapper claim
   without new experiments.
 
+T=1 E3 five-way trainable control sweep:
+
+- Result summary: `docs/QK_LUTFORMER_T1_E3_5WAY_CONTROL_RESULTS.md`.
+- Result dirs: `results/qkformer_lut_e3_trainable_lut_20260606_162845`
+  through `results/qkformer_lut_e3_trainable_lut_20260606_165343`.
+- Branch/scripts used:
+  - `codex/qkformer-lut-5way-controls`
+  - `scripts/server/run_qkformer_lut_t1_e3_5way_control_sweep.sh`
+  - `scripts/server/package_qkformer_lut_t1_e3_5way_control_sweep.sh`
+- Setting: T=1, `stage1.0.tssa`, fixed alpha 0.1, two epochs, 128
+  calibration/train batches, full validation, seeds 42/43/44.
+- Address LUT:
+  - Mean Acc@1 delta: +0.0600.
+  - Mean loss delta: -0.002594.
+- Global mean:
+  - Mean Acc@1 delta: -0.0933.
+  - Mean loss delta: +0.000182.
+- Token-channel LUT:
+  - Mean Acc@1 delta: -0.0233.
+  - Mean loss delta: -0.001102.
+- Shuffled-address LUT:
+  - Mean Acc@1 delta: +0.0967.
+  - Min/max Acc@1 delta: -0.3900/+0.3700.
+  - Mean loss delta: -0.000587.
+
+Interpretation:
+
+- The earlier three-way T=1 E3 signal does not survive the stronger
+  trainable shuffled-address control as an address-specific accuracy claim.
+- Because the shuffled table has the same trainable parameter budget, it can
+  partially learn around the broken address mapping. This means trainable E3
+  is not a clean proof that Q/K address alignment itself causes the gain.
+- Phase judgment for **trainable E3 address-specific accuracy**:
+  `NO-GO at this setting`.
+- This does not invalidate the LUT route; it changes the paper claim boundary.
+  The next proof should freeze LUT prototypes so the shuffled control cannot
+  retrain away the broken alignment.
+
+T=1 E2 frozen prototype alignment test:
+
+- Result: `results/qkformer_lut_e2_alignment_test_20260606_182021`.
+- Report: `docs/QK_LUTFORMER_T1_E2_FROZEN_ALIGNMENT_TEST.md`.
+- Branch/scripts used:
+  - `codex/qkformer-lut-5way-controls`
+  - `tools/qkformer_lut_e2_alignment_test.py`
+  - `scripts/server/run_qkformer_lut_t1_e2_alignment_test.sh`
+  - `scripts/server/package_qkformer_lut_t1_e2_alignment_test.sh`
+- Setting: T=1, stable checkpoint
+  `results/qkformer_cifar10_train_20260606_001151`, target
+  `stage1.0.tssa`, frozen calibration prototypes, no LUT-table training,
+  128 CIFAR-10 train calibration batches, full CIFAR-10 validation,
+  `blend=1.0`.
+- Address LUT:
+  - Acc@1 94.9000 -> 94.9400, delta +0.0400.
+  - Delta loss -0.002451.
+  - KL/logit MSE/local MSE: 0.038093 / 0.083226 / 0.055959.
+- Shuffled-address LUT:
+  - Acc@1 94.9000 -> 94.8400, delta -0.0600.
+  - Delta loss +0.000452.
+  - KL/logit MSE/local MSE: 0.039542 / 0.088816 / 0.063405.
+- Global mean:
+  - Acc@1 94.9000 -> 94.7900, delta -0.1100.
+  - Delta loss +0.006395.
+  - KL/logit MSE/local MSE: 0.039620 / 0.087185 / 0.059798.
+
+Interpretation:
+
+- This is the cleanest current evidence for the paper method: when LUT
+  prototypes are frozen and cannot retrain around a broken mapping, correct
+  Q/K address alignment beats shuffled alignment and global mean on Acc@1
+  delta, loss drift, KL, logit MSE, and local replacement MSE.
+- Phase judgment for **Q/K address as a LUT indexing signal**:
+  `CONDITIONAL GO`.
+- Supported claim: Q/K binary spike addresses provide a meaningful frozen LUT
+  indexing signal for stage1 module-output replacement in this T=1 CIFAR-10
+  setting.
+- Still unsafe: energy gain, latency gain, ImageNet-scale gain, production LUT
+  wrapper, or a broad accuracy-improvement claim.
+- Note: full-train and 512-batch calibration were attempted but the current
+  hook aggregation path was too slow for this turn; 128-batch calibration is
+  the completed evidence point.
+
+Next experiment:
+
+- Do not tune random seeds or alpha first. Prioritize a claim-checking repeat:
+  run the frozen alignment test on another T=1 checkpoint or a second early
+  stage1 target, still comparing `address_lut`, `shuffled_address_lut`, and
+  `global_mean` under the same frozen prototype bank.
+- In parallel, optimize the alignment-test calibration path so 512-batch or
+  full-train calibration is practical without changing the scientific setup.
+- If frozen alignment repeats, the paper can use it as the main address-space
+  evidence and treat trainable E3 as a cautionary regularization result rather
+  than the primary proof.
+
 ## Phase Gate
 
 - **GO**: QKFormer binary Q/K addresses have materially better bucket occupancy
@@ -489,7 +584,7 @@ Interpretation:
   training or hybrid ANN-SNN baseline.
 
 Current verdict: **CONDITIONAL GO after trained-checkpoint E0**. The next gate
-is E1 split-aware reconstruction. E1 result
+was E1 split-aware reconstruction. E1 result
 `results/qkformer_lut_e1_recon_20260605_133910` showed held-out address LUT
 MSE improvement over global and candidate/background baselines:
 
@@ -500,14 +595,20 @@ MSE improvement over global and candidate/background baselines:
 - stage1 / stage2 / stage3 address reductions: 6.147753618879997% /
   2.554365246580402% / 2.814618183406784%
 
-Current verdict: **CONDITIONAL GO to E2 stage-wise replacement diagnostics**.
-The E1 gain is real but modest; prioritize stage1/stage2 and do not build a
-full wrapper yet.
+Current verdict after E1: **CONDITIONAL GO to E2 stage-wise replacement
+diagnostics**. The E1 gain is real but modest; prioritize stage1/stage2 and do
+not build a full wrapper yet.
 
 GPU-selection repeat result `results/qkformer_lut_e1_recon_20260605_134638`
 matches the original E1 metrics exactly and confirms `--gpu 2` logging works:
 the server log records `CUDA_VISIBLE_DEVICES=2`, one visible torch device, and
 RTX 4090 as the active CUDA device.
+
+Current overall verdict after E3 five-way and E2 frozen alignment:
+**CONDITIONAL GO for the Q/K-address LUT methodology, but NO-GO for claiming
+trainable E3 address-specific accuracy at the current setting.** The strongest
+paper-supporting evidence is frozen prototype alignment, not the trainable
+adapter sweep.
 
 ## Server Workflow Update
 
@@ -606,6 +707,20 @@ T=1 E3 multi-seed conservative control sweep:
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_t1_e3_seed_sweep.sh --gpu 2
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/package_qkformer_lut_t1_e3_seed_sweep.sh
+```
+
+T=1 E3 five-way trainable control sweep:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_t1_e3_5way_control_sweep.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/package_qkformer_lut_t1_e3_5way_control_sweep.sh
+```
+
+T=1 E2 frozen prototype alignment test:
+
+```bash
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_t1_e2_alignment_test.sh --gpu 2
+cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/package_qkformer_lut_t1_e2_alignment_test.sh
 ```
 
 Local SSH/GitHub/server/download/analyze loop:
