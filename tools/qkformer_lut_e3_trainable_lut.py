@@ -62,7 +62,7 @@ class TrainableLUTModule(nn.Module):
         self.mode = str(mode)
         self.address_space = int(proto.address_space)
         self.mode_seed = int(mode_seed)
-        if self.mode not in {"address_lut", "global_mean", "token_channel_lut"}:
+        if self.mode not in {"address_lut", "global_mean", "token_channel_lut", "shuffled_address_lut"}:
             raise ValueError(f"unsupported E3 adapter mode: {self.mode}")
 
         if self.mode == "global_mean":
@@ -92,7 +92,20 @@ class TrainableLUTModule(nn.Module):
             return torch.zeros_like(addr)
         if self.mode == "token_channel_lut":
             return torch.div(addr, 4, rounding_mode="floor").clamp_max(self.table.numel() - 1)
+        if self.mode == "shuffled_address_lut":
+            return self._address_permutation(device)[addr]
         return addr
+
+    def _address_permutation(self, device: torch.device) -> torch.Tensor:
+        perm = getattr(self, "_cached_address_permutation", None)
+        if perm is None:
+            digest = hashlib.sha256(f"{self.mode_seed}:{self.name}".encode("utf-8")).hexdigest()
+            seed = int(digest[:16], 16) % (2**63)
+            generator = torch.Generator()
+            generator.manual_seed(seed)
+            perm = torch.randperm(self.address_space, generator=generator, dtype=torch.long)
+            self._cached_address_permutation = perm
+        return perm.to(device=device)
 
     def _address_init(self, proto: ModulePrototype, shrinkage_tau: float) -> torch.Tensor:
         means = proto.address_mean.to(torch.float32)

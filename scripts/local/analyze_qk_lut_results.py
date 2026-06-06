@@ -72,11 +72,149 @@ def fmt(value: Any, digits: int = 4) -> str:
         return str(value)
 
 
+def mean_or_none(values: list[float]) -> float | None:
+    return statistics.mean(values) if values else None
+
+
+def summarize_rows(grouped: dict[str, list[dict[str, Any]]]) -> dict[str, dict[str, Any]]:
+    summary: dict[str, dict[str, Any]] = {}
+    for mode, rows in sorted(grouped.items()):
+        deltas = [float(row["delta_top1"]) for row in rows if row["delta_top1"] is not None]
+        losses = [float(row["delta_loss"]) for row in rows if row["delta_loss"] is not None]
+        kls = [float(row["kl"]) for row in rows if row["kl"] is not None]
+        logit_mses = [float(row["logit_mse"]) for row in rows if row["logit_mse"] is not None]
+        local_mses = [float(row["local_mse"]) for row in rows if row["local_mse"] is not None]
+        baseline_top1 = [float(row["baseline_top1"]) for row in rows if row["baseline_top1"] is not None]
+        replacement_top1 = [float(row["replacement_top1"]) for row in rows if row["replacement_top1"] is not None]
+        if not deltas:
+            continue
+        summary[mode] = {
+            "n": len(deltas),
+            "mean_baseline_top1": mean_or_none(baseline_top1),
+            "mean_replacement_top1": mean_or_none(replacement_top1),
+            "mean_delta_top1": statistics.mean(deltas),
+            "min_delta_top1": min(deltas),
+            "max_delta_top1": max(deltas),
+            "mean_delta_loss": mean_or_none(losses),
+            "mean_kl": mean_or_none(kls),
+            "mean_logit_mse": mean_or_none(logit_mses),
+            "mean_local_mse": mean_or_none(local_mses),
+        }
+    return summary
+
+
+def decide_verdict(summary: dict[str, dict[str, Any]]) -> str:
+    required = {"address_lut", "global_mean", "token_channel_lut"}
+    if not required.issubset(summary):
+        return "PENDING"
+    address = float(summary["address_lut"]["mean_delta_top1"])
+    controls = [
+        float(summary["global_mean"]["mean_delta_top1"]),
+        float(summary["token_channel_lut"]["mean_delta_top1"]),
+    ]
+    if "shuffled_address_lut" in summary:
+        controls.append(float(summary["shuffled_address_lut"]["mean_delta_top1"]))
+    best_control = max(controls)
+    if address > 0 and address > best_control:
+        return "CONDITIONAL GO: address_lut leads T=1 controls; repeat on another checkpoint before broad paper claim"
+    if address > best_control:
+        return "CONDITIONAL GO: address_lut beats controls but mean gain is not positive"
+    return "NO-GO for address-specific accuracy claim at this setting"
+
+
+def write_markdown_report(
+    path: Path,
+    root: Path,
+    train_dir: Path | None,
+    train_best: tuple[str | None, str | None, str | None] | None,
+    e0_dir: Path | None,
+    e0: dict[str, Any] | None,
+    grouped: dict[str, list[dict[str, Any]]],
+    summary: dict[str, dict[str, Any]],
+    verdict: str,
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines: list[str] = []
+    lines.append("# QK-LUTFormer T=1 E3 5-Way Control Results")
+    lines.append("")
+    lines.append("## Scope")
+    lines.append("")
+    lines.append("- Setting: CIFAR-10 T=1, conservative E3 residual LUT adapter, stage1-only target.")
+    lines.append("- Five-way comparison: QKFormer baseline plus `address_lut`, `global_mean`, `token_channel_lut`, and `shuffled_address_lut` controls.")
+    lines.append("- Artifact policy: this report is based on lightweight `metrics.json`, `train_log.txt`, manifest, and summary files only; checkpoint weights are not required locally.")
+    lines.append("")
+    lines.append("## Backbone And E0 Context")
+    lines.append("")
+    if train_dir and train_best:
+        epoch, best_top1, last_top1 = train_best
+        lines.append(f"- T=1 train result: `{train_dir.name}`.")
+        lines.append(f"- Best validation Acc@1: {best_top1}% at epoch {epoch}; final logged Acc@1: {last_top1}%.")
+    else:
+        lines.append("- T=1 train result: missing from local lightweight artifacts.")
+    if e0_dir and e0:
+        lines.append(f"- T=1 E0 result: `{e0_dir.name}`.")
+        lines.append(
+            "- E0 address coverage / singleton fraction / conditional variance: "
+            f"{fmt(e0.get('address_coverage'), 6)} / {fmt(e0.get('singleton_fraction'), 6)} / "
+            f"{fmt(e0.get('conditional_variance'), 6)}."
+        )
+    else:
+        lines.append("- T=1 E0 result: missing from local lightweight artifacts.")
+    lines.append("")
+    lines.append("## Aggregate Results")
+    lines.append("")
+    lines.append("| Setting | n | Baseline Acc@1 | Adapter Acc@1 | Delta Acc@1 | Delta Loss | KL | Logit MSE | Local MSE |")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+    for mode in ["address_lut", "global_mean", "token_channel_lut", "shuffled_address_lut"]:
+        item = summary.get(mode)
+        if not item:
+            lines.append(f"| `{mode}` | 0 | n/a | n/a | n/a | n/a | n/a | n/a | n/a |")
+            continue
+        lines.append(
+            f"| `{mode}` | {item['n']} | {fmt(item.get('mean_baseline_top1'), 4)} | "
+            f"{fmt(item.get('mean_replacement_top1'), 4)} | {fmt(item.get('mean_delta_top1'), 4)} | "
+            f"{fmt(item.get('mean_delta_loss'), 6)} | {fmt(item.get('mean_kl'), 6)} | "
+            f"{fmt(item.get('mean_logit_mse'), 6)} | {fmt(item.get('mean_local_mse'), 6)} |"
+        )
+    lines.append("")
+    lines.append("## Per-Seed Rows")
+    lines.append("")
+    lines.append("| Mode | Seed | Baseline Acc@1 | Adapter Acc@1 | Delta Acc@1 | Delta Loss | Result Dir |")
+    lines.append("|---|---:|---:|---:|---:|---:|---|")
+    for mode in ["address_lut", "global_mean", "token_channel_lut", "shuffled_address_lut"]:
+        for row in sorted(grouped.get(mode, []), key=lambda item: str(item.get("seed"))):
+            lines.append(
+                f"| `{mode}` | {row.get('seed')} | {fmt(row.get('baseline_top1'), 4)} | "
+                f"{fmt(row.get('replacement_top1'), 4)} | {fmt(row.get('delta_top1'), 4)} | "
+                f"{fmt(row.get('delta_loss'), 6)} | `{row.get('dir')}` |"
+            )
+    lines.append("")
+    lines.append("## Interpretation")
+    lines.append("")
+    lines.append(f"- Verdict: `{verdict}`.")
+    if "address_lut" in summary and "shuffled_address_lut" in summary:
+        addr = float(summary["address_lut"]["mean_delta_top1"])
+        shuf = float(summary["shuffled_address_lut"]["mean_delta_top1"])
+        lines.append(
+            "- Address-alignment check: "
+            f"`address_lut` mean Delta Acc@1 is {fmt(addr, 4)}, while `shuffled_address_lut` is {fmt(shuf, 4)}."
+        )
+    lines.append("- Claim boundary: this supports or weakens an address-specific adapter ablation only; it does not support energy, latency, ImageNet, or full-wrapper claims.")
+    lines.append("")
+    lines.append("## Local Evidence Check")
+    lines.append("")
+    lines.append(f"- Report root: `{root}`.")
+    lines.append("- Local artifact set should contain no checkpoint weights; verify with `find results -name '*.pth*' -o -name '*.pt' -o -name '*.ckpt'` before committing artifacts.")
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Summarize QK-LUTFormer local results.")
     parser.add_argument("--root", default=".", help="Repository root")
-    parser.add_argument("--e3-count", type=int, default=9, help="Latest T=1 E3 runs to summarize")
+    parser.add_argument("--e3-count", type=int, default=12, help="Latest T=1 E3 runs to summarize")
     parser.add_argument("--brief", action="store_true", help="Print compact summary only")
+    parser.add_argument("--write-md", type=Path, help="Write a markdown report to this path")
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
@@ -85,10 +223,12 @@ def main() -> int:
 
     train_dir = latest_t1_train(results)
     if train_dir:
-        epoch, best_top1, last_top1 = best_summary_row(train_dir)
+        train_best = best_summary_row(train_dir)
+        epoch, best_top1, last_top1 = train_best
         print(f"[qk-lut-analyze] latest_t1_train={train_dir.name}")
         print(f"[qk-lut-analyze] train_best_epoch={epoch} train_best_top1={best_top1} train_last_top1={last_top1}")
     else:
+        train_best = None
         print("[qk-lut-analyze] latest_t1_train=missing")
 
     e0_dir = latest_t1_e0(results)
@@ -101,6 +241,7 @@ def main() -> int:
             f"conditional_variance={fmt(e0.get('conditional_variance'), 6)}"
         )
     else:
+        e0 = None
         print("[qk-lut-analyze] latest_t1_e0=missing")
 
     grouped: dict[str, list[dict[str, Any]]] = {}
@@ -138,30 +279,21 @@ def main() -> int:
                 f"kl={fmt(row['kl'], 6)} logit_mse={fmt(row['logit_mse'], 6)} local_mse={fmt(row['local_mse'], 6)}"
             )
 
-    means: dict[str, float] = {}
-    for mode, rows in sorted(grouped.items()):
-        deltas = [float(row["delta_top1"]) for row in rows if row["delta_top1"] is not None]
-        losses = [float(row["delta_loss"]) for row in rows if row["delta_loss"] is not None]
-        if deltas:
-            means[mode] = statistics.mean(deltas)
+    summary = summarize_rows(grouped)
+    for mode, item in sorted(summary.items()):
             print(
                 "[qk-lut-analyze] summary "
-                f"mode={mode} n={len(deltas)} mean_delta_top1={fmt(means[mode], 4)} "
-                f"min_delta_top1={fmt(min(deltas), 4)} max_delta_top1={fmt(max(deltas), 4)} "
-                f"mean_delta_loss={fmt(statistics.mean(losses) if losses else None, 6)}"
+                f"mode={mode} n={item['n']} mean_delta_top1={fmt(item.get('mean_delta_top1'), 4)} "
+                f"min_delta_top1={fmt(item.get('min_delta_top1'), 4)} max_delta_top1={fmt(item.get('max_delta_top1'), 4)} "
+                f"mean_delta_loss={fmt(item.get('mean_delta_loss'), 6)}"
             )
 
-    verdict = "PENDING"
-    if {"address_lut", "global_mean", "token_channel_lut"}.issubset(means):
-        address = means["address_lut"]
-        best_control = max(means["global_mean"], means["token_channel_lut"])
-        if address > 0 and address > best_control:
-            verdict = "CONDITIONAL GO: address_lut leads T=1 controls; repeat or broaden before paper claim"
-        elif address > best_control:
-            verdict = "CONDITIONAL GO: address_lut beats controls but mean gain is not positive"
-        else:
-            verdict = "NO-GO for address-specific accuracy claim at this setting"
+    verdict = decide_verdict(summary)
     print(f"[qk-lut-analyze] verdict={verdict}")
+    if args.write_md:
+        report_path = args.write_md if args.write_md.is_absolute() else root / args.write_md
+        write_markdown_report(report_path, root, train_dir, train_best, e0_dir, e0, grouped, summary, verdict)
+        print(f"[qk-lut-analyze] wrote_report={report_path}")
     return 0
 
 
