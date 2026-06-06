@@ -1,0 +1,70 @@
+\section{Method}
+\label{sec:method}
+
+\subsection{Q/K Address Construction}
+\label{sec:qk_address}
+
+We target the QKFormer attention modules and hook their binary Q/K spike
+vectors and token/channel gating signals. For each module, we convert the
+observed binary Q and K spike vectors into a compact integer address. Let
+$\mathbf{q}_{i},\mathbf{k}_{i}\in\{0,1\}^{d}$ denote spike vectors associated
+with a token or channel position. We define an address
+\begin{equation}
+  a_i = \operatorname{pack}(\mathbf{q}_i,\mathbf{k}_i,\mathbf{g}_i),
+\end{equation}
+where $\mathbf{g}_i$ denotes the observed token/channel gate code and
+$\operatorname{pack}(\cdot)$ is deterministic bit packing. The address is used
+only as a diagnostic and adapter index; the original QKFormer backbone remains
+unchanged.
+
+\subsection{Feasibility Diagnostics}
+\label{sec:e0e1}
+
+The first diagnostic stage measures whether addresses are usable. We report
+address coverage, singleton fraction, and conditional response variance for
+captured module responses. High coverage and low singleton fraction indicate
+that many address buckets are populated by repeated observations rather than
+isolated examples.
+
+The second diagnostic stage uses split-aware reconstruction. We calibrate
+address-wise response prototypes on training batches and evaluate held-out
+validation reconstruction MSE. We compare address LUT prototypes with global
+mean and candidate/background mean baselines. This stage tests whether the
+address is predictive beyond a single average response.
+
+\subsection{Forward-Only Replacement Diagnostic}
+\label{sec:e2}
+
+Forward-only replacement substitutes selected module outputs with calibrated
+prototype predictions through hooks. This is not the proposed final method. It
+is a controlled diagnostic that measures whether replacing a local module
+output collapses classification and which stages are most tolerant to LUT-like
+responses. We evaluate stage1-only, stage2-only, and combined replacements,
+calibration sizes, blend ratios, random calibration subsets, and non-address
+controls.
+
+\subsection{Trainable Residual LUT Adapter}
+\label{sec:e3}
+
+The paper-oriented method is a trainable residual LUT adapter. Given a frozen
+QKFormer module output $\mathbf{y}$ and a LUT prediction
+$\hat{\mathbf{y}}_{a}$ indexed by address $a$, the adapted response is
+\begin{equation}
+  \tilde{\mathbf{y}} = (1-\alpha)\mathbf{y} + \alpha \hat{\mathbf{y}}_{a}.
+\end{equation}
+The table is initialized from shrinkage-calibrated prototypes and then trained
+with the backbone frozen. The loss combines cross entropy, KL divergence to the
+frozen baseline logits, and local MSE to the baseline module response:
+\begin{equation}
+  \mathcal{L} =
+  \lambda_{\mathrm{ce}}\mathcal{L}_{\mathrm{ce}}
+  + \lambda_{\mathrm{kl}}\mathcal{L}_{\mathrm{kl}}
+  + \lambda_{\mathrm{mse}}\|\tilde{\mathbf{y}}-\mathbf{y}\|_2^2 .
+\end{equation}
+Our conservative setting fixes $\alpha=0.1$, trains for two epochs over 128
+training batches, and evaluates on the full CIFAR-10 validation split.
+
+We compare three modes: \emph{address LUT}, which uses the full Q/K-derived
+address; \emph{global mean}, a non-address smoothing control; and
+\emph{token-channel LUT}, a weaker-address control that removes Q/K bit detail.
+

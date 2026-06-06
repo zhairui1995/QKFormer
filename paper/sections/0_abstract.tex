@@ -1,0 +1,20 @@
+\begin{abstract}
+Spiking Transformers avoid dense floating-point attention, but it remains
+unclear whether their binary query--key spike patterns can serve as a useful
+discrete lookup-table (LUT) address space. We study this question in QKFormer,
+a hierarchical spiking Transformer whose Q-K attention already exposes binary
+query/key spike vectors and token/channel gates. Instead of claiming a full
+hardware LUT replacement, we evaluate whether Q/K-derived addresses explain and
+improve local attention-module responses under controlled diagnostics. On
+CIFAR-10, trained QKFormer checkpoints produce well occupied Q/K address
+buckets. A split-aware reconstruction diagnostic reduces response MSE by
+$3.58\%$ relative to a global mean baseline, with the strongest gain in stage 1.
+Forward-only prototype replacement is only weakly address-specific, motivating
+a frozen-backbone trainable residual LUT adapter. In a single-step ($T=1$)
+stress setting, the Q/K-addressed adapter is the only control with positive
+mean top-1 delta across three adapter seeds ($+0.06$), outperforming global
+smoothing ($-0.093$) and token/channel-only LUTs ($-0.023$). These results
+support Q/K binary addresses as a meaningful structure for small residual LUT
+adapters, while leaving energy, latency, ImageNet, and full-wrapper claims to
+future experiments.
+\end{abstract}

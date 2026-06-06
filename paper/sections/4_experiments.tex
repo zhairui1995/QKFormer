@@ -1,0 +1,144 @@
+\section{Experiments}
+\label{sec:experiments}
+
+\subsection{Setup}
+\label{sec:setup}
+
+We evaluate on CIFAR-10 using the QKFormer CIFAR architecture from the upstream
+implementation~\cite{zhou2024qkformer}. Unless otherwise stated, diagnostics
+use the trained checkpoint with $T=4$ that reaches $96.08\%$ best validation
+top-1 accuracy, and the $T=1$ checkpoint that reaches $95.20\%$ best validation
+top-1 accuracy. All E3 adapter experiments freeze the trained QKFormer
+backbone and train only the adapter table parameters.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+Checkpoint & Time steps & Best Acc@1 & Final Acc@1 \\
+\midrule
+QKFormer CIFAR-10 & 4 & 96.08 & 95.73 \\
+QKFormer CIFAR-10 & 1 & 95.20 & 94.64 \\
+\bottomrule
+\end{tabular}
+}
+\caption{QKFormer baselines used for QK-LUTFormer diagnostics. Accuracy is
+reported in percent on CIFAR-10 validation.}
+\label{tab:qkformer_baselines}
+\end{table}
+
+\subsection{Address Feasibility}
+\label{sec:address_feasibility}
+
+Table~\ref{tab:e0_feasibility} reports Q/K address occupancy diagnostics. The
+$T=1$ checkpoint keeps similar address coverage to $T=4$ while lowering
+conditional response variance, making it a useful stress setting for testing
+whether the address boundary itself carries structure.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\begin{tabular}{lccc}
+\toprule
+Setting & Coverage & Singleton frac. & Cond. var. \\
+\midrule
+$T=4$ & 0.5993 & 0.0865 & 0.0713 \\
+$T=1$ & 0.5805 & 0.0794 & 0.0549 \\
+\bottomrule
+\end{tabular}
+\caption{E0 address feasibility diagnostics. Lower conditional variance
+indicates that responses are more predictable within Q/K-derived buckets.}
+\label{tab:e0_feasibility}
+\end{table}
+
+\subsection{Split-Aware Reconstruction}
+\label{sec:e1_results}
+
+Table~\ref{tab:e1_recon} shows held-out response reconstruction. Address LUT
+prototypes reduce MSE by $3.58\%$ relative to the global mean baseline, while
+candidate/background means are nearly identical to the global mean.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lcc}
+\toprule
+Predictor & MSE & Rel. MSE reduction \\
+\midrule
+Global mean & 0.07146 & 0.00 \\
+Candidate/background mean & 0.07144 & 0.03 \\
+Address LUT & \textbf{0.06887} & \textbf{3.58} \\
+\bottomrule
+\end{tabular}
+}
+\caption{E1 split-aware reconstruction on held-out validation batches. Relative
+reduction is reported in percent against the global mean baseline.}
+\label{tab:e1_recon}
+\end{table}
+
+\subsection{Forward-Only Replacement Diagnostics}
+\label{sec:e2_results}
+
+Forward-only replacement is useful diagnostically but not sufficient as a final
+method. Stage1-only replacement is slightly positive on full validation, while
+stage2 and combined stage1+stage2 replacement are negative. Further control
+sweeps show that global smoothing nearly matches address LUT in T=4 settings,
+so the forward-only path alone does not establish an address-specific claim.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\begin{tabular}{lcc}
+\toprule
+Targets & Baseline Acc@1 & Replacement Acc@1 \\
+\midrule
+Stage1 only & 95.73 & \textbf{95.88} \\
+Stage2 only & 95.73 & 95.59 \\
+Stage1+Stage2 & 95.73 & 95.54 \\
+\bottomrule
+\end{tabular}
+\caption{E2 full-validation forward-only replacement. Accuracy is in percent.
+The result motivates using trainable residual adapters rather than pure
+prototype replacement.}
+\label{tab:e2_stage}
+\end{table}
+
+\subsection{Trainable Residual LUT Adapter}
+\label{sec:e3_results}
+
+The conservative E3 adapter uses fixed $\alpha=0.1$, two training epochs, 128
+calibration batches, 128 training batches, full validation, and target module
+\texttt{stage1.0.tssa}. Table~\ref{tab:e3_t1_multiseed} reports the $T=1$
+multi-seed control sweep. The Q/K-address LUT is the only mode with positive
+mean top-1 delta and it also has the best mean loss delta.
+
+\begin{table*}[t]
+\centering
+\footnotesize
+\begin{tabular}{lcccccc}
+\toprule
+Mode & Params & Seed 42 & Seed 43 & Seed 44 & Mean Acc@1 delta & Mean loss delta \\
+\midrule
+Address LUT & 2048 & +0.12 & +0.07 & -0.01 & \textbf{+0.0600} & \textbf{-0.002594} \\
+Global mean & 1 & -0.07 & -0.17 & -0.04 & -0.0933 & +0.000182 \\
+Token-channel LUT & 512 & -0.06 & +0.06 & -0.07 & -0.0233 & -0.001102 \\
+\bottomrule
+\end{tabular}
+\caption{T=1 E3 multi-seed conservative control sweep. Values are replacement
+minus baseline top-1 accuracy deltas in percent unless otherwise noted. Address
+LUT is the only control with positive mean top-1 delta.}
+\label{tab:e3_t1_multiseed}
+\end{table*}
+
+\subsection{Current Claim Boundary}
+\label{sec:claim_boundary}
+
+These experiments support the claim that Q/K binary addresses contain useful
+structure for small residual LUT adapters in a $T=1$ boundary setting. They do
+not yet support claims about hardware speed, energy reduction, ImageNet
+accuracy, or a production full-LUT QKFormer wrapper. An independent
+checkpoint-seed replication is running to test whether the T=1 adapter signal
+survives a different trained backbone.

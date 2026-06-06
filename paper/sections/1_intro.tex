@@ -1,0 +1,47 @@
+\section{Introduction}
+\label{sec:intro}
+
+Spiking neural networks (SNNs) are attractive for event-driven and low-power
+inference, but modern visual recognition increasingly depends on Transformer
+attention. Directly translating dense softmax attention into spikes is
+difficult: attention weights depend on continuous query--key scores and on
+row-wise normalization over all tokens. Recent spiking Transformers therefore
+often redesign attention rather than convert standard attention literally.
+
+QKFormer~\cite{zhou2024qkformer} is a strong example of this design direction.
+Its spike-form Q-K attention uses binary vectors to model token or channel
+importance and obtains a hierarchical spiking Transformer. This design raises a
+different question from standard ANN-to-SNN conversion: if Q/K spike vectors
+are already binary, can they form a useful discrete address space for lookup
+modules?
+
+This paper studies that question through QK-LUTFormer. We do not claim a pure
+LUT hardware replacement for the full QKFormer block. Instead, we build a
+diagnostic and adapter pipeline that asks whether Q/K binary addresses explain
+attention-module responses better than non-address controls. The method freezes
+a trained QKFormer backbone, calibrates address-indexed response prototypes,
+and trains only tiny residual LUT adapters under classification, baseline-logit
+distillation, and local response constraints.
+
+Our experiments show a nuanced picture. Forward-only address prototypes can
+slightly improve early-stage replacement, but global smoothing nearly matches
+them in several T=4 settings. The stronger evidence appears in a $T=1$ stress
+setting, where temporal averaging is removed and the address boundary becomes
+sharper. Under this setting, a Q/K-addressed residual LUT adapter beats global
+mean and token/channel-only controls across three adapter seeds.
+
+Our contributions are:
+\begin{itemize}
+  \item We formulate QKFormer Q/K spike vectors as a discrete LUT address
+  space and define feasibility diagnostics for coverage, singleton rate, and
+  conditional response variance.
+  \item We introduce a frozen-backbone trainable residual LUT adapter that uses
+  calibrated Q/K-address prototypes with small trainable correction tables.
+  \item We provide a staged ablation study on CIFAR-10, including
+  reconstruction diagnostics, forward-only replacement, stage/calibration/blend
+  sweeps, and T=1 multi-seed control experiments.
+  \item We explicitly identify claim boundaries: current results support a
+  paper-oriented address-specific adapter story, not energy, latency,
+  ImageNet, or full-wrapper claims.
+\end{itemize}
+

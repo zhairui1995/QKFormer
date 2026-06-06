@@ -1,0 +1,31 @@
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Spiking Transformers.}
+Spiking Transformers combine the sequence modeling capacity of Transformers
+with the event-driven computation of SNNs. Spikformer introduced spike-form
+self-attention as a practical design for directly trained spiking
+Transformers~\cite{zhou2023spikformer}. QKFormer further improves this line
+with hierarchical structure and spike-form Q-K attention based on binary
+token/channel vectors~\cite{zhou2024qkformer}. Our work is not a replacement
+for QKFormer; it studies whether QKFormer's existing binary Q/K patterns form a
+useful LUT address space.
+
+\paragraph{Transformer-to-SNN conversion.}
+ANN-to-SNN conversion has been successful for convolutional networks, but
+Transformer attention introduces additional difficulty because token
+interactions depend on softmax normalization and continuous query--key scores.
+Recent conversion work such as SpikedAttention directly addresses attention
+conversion for Transformers~\cite{hwang2024spikedattention}. In contrast, this
+paper begins from a spiking Transformer whose attention already exposes binary
+Q/K structure, and asks whether that structure can index residual lookup
+adapters.
+
+\paragraph{Lookup-style neural computation.}
+Lookup tables have long been attractive for replacing repeated computation with
+discrete indexing. For attention, however, naive table lookup can lose
+input-dependent context. Our diagnostic results reflect this: forward-only
+prototype tables are not enough when global smoothing controls perform nearly
+as well. The proposed residual adapter route treats LUTs as trainable,
+constrained correction modules rather than full forward-only replacements.
+

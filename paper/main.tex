@@ -1,0 +1,46 @@
+% QK-LUTFormer paper draft
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\IfFileExists{cvpr.sty}{
+  \usepackage[review]{cvpr}
+}{
+  \usepackage[margin=1in]{geometry}
+}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{cleveref}
+
+\def\paperID{****}
+\def\confName{CVPR}
+\def\confYear{2027}
+
+\title{QK-LUTFormer: Discrete Q-K Addressed Residual LUT Adapters for Spiking Transformers}
+
+\author{Author Name\\
+Institution\\
+{\tt\small author@example.com}
+}
+
+\begin{document}
+
+\maketitle
+
+\input{sections/0_abstract}
+\input{sections/1_intro}
+\input{sections/2_related_work}
+\input{sections/3_method}
+\input{sections/4_experiments}
+\input{sections/5_conclusion}
+
+\IfFileExists{ieee_fullname.bst}{
+  \bibliographystyle{ieee_fullname}
+}{
+  \bibliographystyle{plain}
+}
+\bibliography{refs}
+
+\end{document}
