@@ -16,7 +16,7 @@ if [[ -z "$PYTHON_BIN" ]]; then
   fi
 fi
 
-SOURCE_ROOT="${CIFAR100_SOURCE_ROOT:-/home/lbz/git-hub/datasets}"
+SOURCE_ROOT="${CIFAR100_SOURCE_ROOT:-/home/datasets}"
 TARGET_ROOT="${QKFORMER_LUT_CIFAR100_DATA_DIR:-$ROOT/data/cifar100}"
 TS="$(date +%Y%m%d_%H%M%S)"
 RESULT_DIR="$ROOT/results/qkformer_lut_cifar100_data_link_${TS}"
