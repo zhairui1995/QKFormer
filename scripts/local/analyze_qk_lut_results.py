@@ -40,6 +40,15 @@ def latest_t1_e0(results: Path) -> Path | None:
     return latest(candidates)
 
 
+def latest_t1_e1(results: Path) -> Path | None:
+    candidates: list[Path] = []
+    for metrics in results.glob("qkformer_lut_e1_recon_*/metrics.json"):
+        data = load_json(metrics)
+        if str(data.get("model", {}).get("time_step")) == "1":
+            candidates.append(metrics.parent)
+    return latest(candidates)
+
+
 def latest_t1_e3(results: Path, limit: int, checkpoint_marker: str | None = None) -> list[Path]:
     candidates_by_key: dict[tuple[str, str, str], Path] = {}
     for metrics in results.glob("qkformer_lut_e3_trainable_lut_*/metrics.json"):
@@ -252,7 +261,8 @@ def main() -> int:
     e0_dir = latest_t1_e0(results)
     if e0_dir:
         e0 = load_json(e0_dir / "metrics.json")
-        print(f"[qk-lut-analyze] latest_t1_e0={e0_dir.name}")
+        e0_family = e0.get("model", {}).get("family", "unknown")
+        print(f"[qk-lut-analyze] latest_t1_e0={e0_dir.name} family={e0_family}")
         print(
             "[qk-lut-analyze] e0 coverage="
             f"{fmt(e0.get('address_coverage'), 6)} singleton={fmt(e0.get('singleton_fraction'), 6)} "
@@ -261,6 +271,21 @@ def main() -> int:
     else:
         e0 = None
         print("[qk-lut-analyze] latest_t1_e0=missing")
+
+    e1_dir = latest_t1_e1(results)
+    if e1_dir:
+        e1 = load_json(e1_dir / "metrics.json")
+        e1_family = e1.get("model", {}).get("family", "unknown")
+        recon = e1.get("overall_reconstruction", {})
+        print(f"[qk-lut-analyze] latest_t1_e1={e1_dir.name} family={e1_family}")
+        print(
+            "[qk-lut-analyze] e1 global_mse="
+            f"{fmt(recon.get('global_mean_mse'), 6)} "
+            f"address_mse={fmt(recon.get('address_lut_mse'), 6)} "
+            f"relative_reduction_pct={fmt(100.0 * float(recon.get('address_relative_mse_reduction', 0.0)), 4)}"
+        )
+    else:
+        print("[qk-lut-analyze] latest_t1_e1=missing")
 
     grouped: dict[str, list[dict[str, Any]]] = {}
     checkpoint_marker = None if args.all_checkpoints or train_dir is None else train_dir.name
