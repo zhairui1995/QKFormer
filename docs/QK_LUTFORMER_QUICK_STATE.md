@@ -6,7 +6,8 @@ history are needed.
 
 ## Current Verdict
 
-`CONDITIONAL GO`, but the accuracy-gain claim is not checkpoint-stable.
+`CONDITIONAL GO` for structured addresses and constrained adaptation; `NO-GO`
+for a stable address-specific accuracy-gain claim with the current adapter.
 
 The CIFAR-10 T=1 conservative E3 adapter sweep on the first checkpoint was
 positive for Q/K address LUT. An independent T=1 checkpoint repeat showed that
@@ -14,6 +15,11 @@ alpha 0.1 does not replicate as a stable positive setting. A follow-up alpha
 sweep found a positive low-disturbance window at alpha 0.025 on seed 43, but
 the same setting did not remain positive on the independent seed-44
 checkpoint.
+
+CIFAR-100 broadens the evidence: T=1 QKFormer reaches 77.76% Acc@1 and its
+stage1 address LUT beats shuffled and token/channel controls, but global-mean
+smoothing remains stronger. The next gate therefore tests whether a centered
+address residual adds value on top of the global component.
 
 ## Key Evidence
 
@@ -60,6 +66,24 @@ checkpoint.
   - Address LUT has the best mean loss delta at -0.001450, but global mean has
     the best mean Acc@1 delta. This supports stage-dependent fidelity, not an
     address-specific accuracy advantage.
+- T=1 stage2 alpha 0.025 on the seed-44 checkpoint:
+  - address/global/token-channel/shuffled mean Acc@1 deltas are
+    -0.1033 / +0.1133 / +0.0367 / -0.0233.
+  - Address LUT also has a positive mean loss delta (+0.000882), while global
+    mean improves loss (-0.001570). The seed-43 stage2 loss advantage does not
+    replicate.
+- CIFAR-100 T=1 baseline, training seed 42:
+  - Best Acc@1/Acc@5: 77.76% / 93.93% at epoch 390.
+  - Final Acc@1/Acc@5: 77.40% / 94.24% at epoch 409.
+- CIFAR-100 T=1 E0:
+  - Overall coverage 0.590042, singleton fraction 0.076803, conditional
+    variance 0.074674.
+  - Stage1/stage2 coverage is approximately 1.0; stage3 coverage is 0.180817.
+- CIFAR-100 T=1 stage1 alpha 0.025:
+  - address/global/token-channel/shuffled mean Acc@1 deltas are
+    +0.1633 / +0.3233 / -0.1333 / -0.0933.
+  - Address alignment beats same-capacity shuffled and token/channel controls,
+    but does not beat generic global smoothing.
 
 ## Baseline Meaning
 
@@ -70,6 +94,8 @@ checkpoint.
   without Q/K binary address detail.
 - `shuffled_address_lut` is a strong reviewer-facing control for address/table
   alignment; add it to a key table or appendix when possible.
+- `global_plus_address_lut` and its same-capacity shuffled control explicitly
+  test whether a zero-mean address residual adds value beyond global smoothing.
 - T=1 vs T=4 is a stress setting comparison, not an adapter baseline.
 
 ## Default Commands
@@ -97,11 +123,11 @@ before falling back to GPU 2. Small diagnostics default to GPU 2.
 
 ## Next Useful Experiments
 
-1. Finish the seed-44 stage2 repeat to separate layer effects from checkpoint
-   variance.
-2. Finish the CIFAR-100 T=1 baseline and run the prepared E0/E3 four-control
-   workflow before making any cross-dataset claim.
-3. Reframe the main paper claim around address structure and constrained
+1. Complete the CIFAR-100 centered address-residual control against its
+   same-capacity shuffled version.
+2. If the centered residual beats global mean, repeat it on CIFAR-10 seed 43
+   and seed 44; otherwise stop accuracy-oriented adapter tuning.
+3. Reframe the paper around address structure, occupancy, and constrained
    fidelity; treat small Acc@1 changes as secondary and checkpoint-dependent.
 
 ## Claim Boundary
@@ -110,7 +136,8 @@ Allowed now: E0/E1 diagnostics support Q/K binary addresses as structured,
 well-occupied LUT indices; T=1 E3 supports a low-disturbance residual-adapter
 route whose fidelity benefit is stage- and checkpoint-dependent. Seed-43
 stage1 shows address-specific Acc@1 separation, while seed-44 stage1 does not;
-seed-43 stage2 favors address LUT in loss but global mean in Acc@1.
+CIFAR-100 shows address alignment is meaningful relative to shuffled and
+token/channel controls, but global smoothing is stronger in Acc@1 and loss.
 
 Not allowed yet: energy gain, latency gain, ImageNet gain, production LUT
 wrapper, or full pure-spike Transformer claims.
