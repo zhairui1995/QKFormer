@@ -53,6 +53,7 @@ class TrainableLUTModule(nn.Module):
         alpha_init: float,
         learn_alpha: bool,
         shrinkage_tau: float,
+        address_scale: float,
         mode_seed: int,
     ) -> None:
         super().__init__()
@@ -61,6 +62,7 @@ class TrainableLUTModule(nn.Module):
         self.stage = proto.stage
         self.mode = str(mode)
         self.address_space = int(proto.address_space)
+        self.address_scale = float(address_scale)
         self.mode_seed = int(mode_seed)
         supported_modes = {
             "address_lut",
@@ -99,7 +101,7 @@ class TrainableLUTModule(nn.Module):
         if self.mode in {"global_plus_address_lut", "global_plus_shuffled_address_lut"}:
             centered_table = table - table.mean()
             global_value = self.global_table.to(device=response.device, dtype=response.dtype)[0]
-            pred = global_value + centered_table[index]
+            pred = global_value + self.address_scale * centered_table[index]
         else:
             pred = table[index]
         return response + self.alpha.to(device=response.device, dtype=response.dtype) * (pred - response), index
@@ -164,6 +166,7 @@ class TrainableLUTModule(nn.Module):
         if hasattr(self, "global_table"):
             summary["global_value"] = float(self.global_table.detach().cpu().item())
             summary["centered_table_mean"] = float((self.table - self.table.mean()).detach().mean().cpu().item())
+            summary["address_scale"] = self.address_scale
         return summary
 
 
@@ -180,6 +183,7 @@ class TrainableLUTAdapter(nn.Module):
         alpha_init: float,
         learn_alpha: bool,
         shrinkage_tau: float,
+        address_scale: float,
         mode_seed: int,
     ) -> None:
         super().__init__()
@@ -199,6 +203,7 @@ class TrainableLUTAdapter(nn.Module):
                     alpha_init=alpha_init,
                     learn_alpha=learn_alpha,
                     shrinkage_tau=shrinkage_tau,
+                    address_scale=address_scale,
                     mode_seed=mode_seed,
                 )
         self.enabled = False
@@ -347,6 +352,9 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
     env_shrinkage_tau = os.environ.get("QKFORMER_LUT_E3_SHRINKAGE_TAU")
     if env_shrinkage_tau:
         adapter_cfg["shrinkage_tau"] = float(env_shrinkage_tau)
+    env_address_scale = os.environ.get("QKFORMER_LUT_E3_ADDRESS_SCALE")
+    if env_address_scale:
+        adapter_cfg["address_scale"] = float(env_address_scale)
     env_calib_batches = os.environ.get("QKFORMER_LUT_E3_CALIB_BATCHES")
     if env_calib_batches:
         data_cfg["calibration"]["num_batches"] = int(env_calib_batches)
@@ -371,6 +379,7 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
         "QKFORMER_LUT_E3_ALPHA_INIT": env_alpha_init,
         "QKFORMER_LUT_E3_LEARN_ALPHA": os.environ.get("QKFORMER_LUT_E3_LEARN_ALPHA"),
         "QKFORMER_LUT_E3_SHRINKAGE_TAU": env_shrinkage_tau,
+        "QKFORMER_LUT_E3_ADDRESS_SCALE": env_address_scale,
         "QKFORMER_LUT_E3_CALIB_BATCHES": env_calib_batches,
         "QKFORMER_LUT_E3_TRAIN_BATCHES": env_train_batches,
         "QKFORMER_LUT_E3_EVAL_BATCHES": env_eval_batches,
@@ -539,6 +548,7 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         alpha_init=float(adapter_cfg.get("alpha_init", 0.25)),
         learn_alpha=bool(adapter_cfg.get("learn_alpha", True)),
         shrinkage_tau=float(adapter_cfg.get("shrinkage_tau", 256.0)),
+        address_scale=float(adapter_cfg.get("address_scale", 1.0)),
         mode_seed=int(adapter_cfg.get("mode_seed", 0)),
     ).to(device)
     optimizer = torch.optim.AdamW(

@@ -32,7 +32,10 @@ def set_seed(seed: int) -> None:
 
 
 def build_cifar10_model(root: Path, cfg: Dict[str, object]) -> torch.nn.Module:
-    model_dir = root / "cifar10"
+    family = str(cfg.get("family", "cifar10"))
+    if family not in {"cifar10", "cifar100"}:
+        raise ValueError(f"unsupported QKFormer model family: {family}")
+    model_dir = root / family
     sys.path.insert(0, str(model_dir))
     try:
         model_module = importlib.import_module("model")
@@ -133,12 +136,53 @@ def make_cifar10_loader(
     return loader, "cifar10"
 
 
+def make_cifar100_loader(
+    data_dir: str,
+    split: str,
+    batch_size: int,
+    workers: int,
+    device: torch.device,
+) -> Tuple[Iterable[Tuple[torch.Tensor, Optional[torch.Tensor]]], str]:
+    from torch.utils.data import DataLoader
+    from torchvision import datasets, transforms
+
+    root = Path(data_dir).expanduser()
+    dataset = datasets.CIFAR100(
+        root=str(root),
+        train=split == "train",
+        download=False,
+        transform=transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=(0.4914, 0.4822, 0.4465),
+                    std=(0.2470, 0.2435, 0.2616),
+                ),
+            ]
+        ),
+    )
+    loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=workers,
+        pin_memory=device.type == "cuda",
+    )
+    return loader, "cifar100"
+
+
 def build_loader(cfg: Dict[str, object], model_cfg: Dict[str, object], device: torch.device):
     mode = str(cfg.get("mode", "auto"))
     batch_size = int(cfg["batch_size"])
-    if mode in {"auto", "cifar10"}:
+    family = str(model_cfg.get("family", "cifar10"))
+    selected_mode = family if mode == "auto" else mode
+    loaders = {
+        "cifar10": make_cifar10_loader,
+        "cifar100": make_cifar100_loader,
+    }
+    if selected_mode in loaders:
         try:
-            return make_cifar10_loader(
+            return loaders[selected_mode](
                 data_dir=str(cfg["data_dir"]),
                 split=str(cfg.get("split", "validation")),
                 batch_size=batch_size,
@@ -146,9 +190,9 @@ def build_loader(cfg: Dict[str, object], model_cfg: Dict[str, object], device: t
                 device=device,
             )
         except Exception as exc:
-            if mode == "cifar10":
+            if mode != "auto":
                 raise
-            print(f"[qk-lut-e1] CIFAR-10 loader unavailable, using synthetic input: {exc}")
+            print(f"[qk-lut-e1] {selected_mode} loader unavailable, using synthetic input: {exc}")
     batches = int(cfg.get("synthetic_batches", cfg.get("num_batches", 4)))
     return (
         make_synthetic_loader(
@@ -454,8 +498,8 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         raise RuntimeError("CUDA is required for the upstream cupy-backed QKFormer LIF modules")
     device = torch.device(device_name)
 
-    if model_cfg.get("family") != "cifar10":
-        raise ValueError("E1 currently supports model.family=cifar10")
+    if model_cfg.get("family") not in {"cifar10", "cifar100"}:
+        raise ValueError("E1 currently supports model.family=cifar10 or cifar100")
     env_checkpoint = os.environ.get("QKFORMER_LUT_CKPT")
     if env_checkpoint:
         model_cfg["checkpoint"] = env_checkpoint

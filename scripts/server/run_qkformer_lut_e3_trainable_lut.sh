@@ -80,6 +80,7 @@ fi
   echo "[qk-lut-e3] alpha_init=${QKFORMER_LUT_E3_ALPHA_INIT:-configs/qkformer_lut_e3_trainable_lut.yaml default}"
   echo "[qk-lut-e3] learn_alpha=${QKFORMER_LUT_E3_LEARN_ALPHA:-configs/qkformer_lut_e3_trainable_lut.yaml default}"
   echo "[qk-lut-e3] shrinkage_tau=${QKFORMER_LUT_E3_SHRINKAGE_TAU:-configs/qkformer_lut_e3_trainable_lut.yaml default}"
+  echo "[qk-lut-e3] address_scale=${QKFORMER_LUT_E3_ADDRESS_SCALE:-configs/qkformer_lut_e3_trainable_lut.yaml default}"
   echo "[qk-lut-e3] calib_batches=${QKFORMER_LUT_E3_CALIB_BATCHES:-configs/qkformer_lut_e3_trainable_lut.yaml default}"
   echo "[qk-lut-e3] train_batches=${QKFORMER_LUT_E3_TRAIN_BATCHES:-configs/qkformer_lut_e3_trainable_lut.yaml default}"
   echo "[qk-lut-e3] eval_batches=${QKFORMER_LUT_E3_EVAL_BATCHES:-configs/qkformer_lut_e3_trainable_lut.yaml default}"
