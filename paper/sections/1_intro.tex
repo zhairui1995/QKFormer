@@ -24,13 +24,14 @@ and trains only tiny residual LUT adapters under classification, baseline-logit
 distillation, and local response constraints.
 
 Our experiments show a nuanced picture. Forward-only address prototypes can
-slightly improve early-stage replacement, but global smoothing nearly matches
-them in several T=4 settings. The stronger evidence appears in a $T=1$ stress
-setting, where temporal averaging is removed and the address boundary becomes
-sharper. Under this setting, an independent-checkpoint alpha sweep shows that
-Q/K-addressed residual LUT adapters have a stable low-disturbance window:
-$\alpha=0.025$ improves all three adapter seeds, while larger residual weights
-become seed-dependent and negative.
+slightly improve early-stage replacement, but global smoothing is a strong
+control. A $T=1$ stress setting removes temporal averaging and exposes useful
+address alignment on one checkpoint, including a negative same-capacity
+shuffled control. Additional checkpoints, stages, and CIFAR-100 show that the
+classification effect is not universally address-specific: address LUTs often
+beat shuffled and token/channel controls, while global smoothing can remain
+stronger. This distinction separates evidence for address structure from a
+broader accuracy-gain claim.
 
 Our contributions are:
 \begin{itemize}
@@ -39,11 +40,11 @@ Our contributions are:
   conditional response variance.
   \item We introduce a frozen-backbone trainable residual LUT adapter that uses
   calibrated Q/K-address prototypes with small trainable correction tables.
-  \item We provide a staged ablation study on CIFAR-10, including
+  \item We provide a staged ablation study on CIFAR-10 and CIFAR-100, including
   reconstruction diagnostics, forward-only replacement, stage/calibration/blend
   sweeps, independent-checkpoint replication, and T=1 alpha sensitivity
   controls.
   \item We explicitly identify claim boundaries: current results support a
-  paper-oriented address-specific adapter story, not energy, latency,
-  ImageNet, or full-wrapper claims.
+  structured low-disturbance adapter analysis, not checkpoint-stable accuracy,
+  energy, latency, ImageNet, or full-wrapper claims.
 \end{itemize}

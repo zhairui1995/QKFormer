@@ -4,13 +4,11 @@
 \subsection{Setup}
 \label{sec:setup}
 
-We evaluate on CIFAR-10 using the QKFormer CIFAR architecture from the upstream
-implementation~\cite{zhou2024qkformer}. Unless otherwise stated, diagnostics
-use the trained checkpoint with $T=4$ that reaches $96.08\%$ best validation
-top-1 accuracy, the first $T=1$ checkpoint that reaches $95.20\%$, and an
-independently trained $T=1$ checkpoint with training seed 43 that reaches
-$95.04\%$. All E3 adapter experiments freeze the trained QKFormer backbone and
-train only the adapter table parameters.
+We evaluate the QKFormer CIFAR architecture~\cite{zhou2024qkformer} on CIFAR-10
+and CIFAR-100. CIFAR-10 includes one $T=4$ checkpoint and three independently
+trained $T=1$ checkpoints. CIFAR-100 uses a $T=1$ checkpoint trained from
+scratch. All E3 experiments freeze the backbone and train only adapter
+parameters.
 
 \begin{table}[t]
 \centering
@@ -23,25 +21,28 @@ Checkpoint & Time steps & Best Acc@1 & Final Acc@1 \\
 QKFormer CIFAR-10 & 4 & 96.08 & 95.73 \\
 QKFormer CIFAR-10 & 1 & 95.20 & 94.64 \\
 QKFormer CIFAR-10 seed 43 & 1 & 95.04 & 94.76 \\
+QKFormer CIFAR-10 seed 44 & 1 & 95.08 & 94.54 \\
+QKFormer CIFAR-100 seed 42 & 1 & 77.76 & 77.40 \\
 \bottomrule
 \end{tabular}
 }
 \caption{QKFormer baselines used for QK-LUTFormer diagnostics. Accuracy is
-reported in percent on CIFAR-10 validation.}
+reported in percent on the corresponding validation split.}
 \label{tab:qkformer_baselines}
 \end{table}
 
 \subsection{Address Feasibility}
 \label{sec:address_feasibility}
 
-Table~\ref{tab:e0_feasibility} reports Q/K address occupancy diagnostics. Both
-$T=1$ checkpoints keep similar address coverage to $T=4$ while lowering
+Table~\ref{tab:e0_feasibility} reports Q/K address occupancy diagnostics. The
+$T=1$ checkpoints keep similar address coverage to $T=4$ while generally lowering
 conditional response variance, making $T=1$ a useful stress setting for testing
 whether the address boundary itself carries structure.
 
 \begin{table}[t]
 \centering
 \footnotesize
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lccc}
 \toprule
 Setting & Coverage & Singleton frac. & Cond. var. \\
@@ -49,8 +50,11 @@ Setting & Coverage & Singleton frac. & Cond. var. \\
 $T=4$ & 0.5993 & 0.0865 & 0.0713 \\
 $T=1$ & 0.5805 & 0.0794 & 0.0549 \\
 $T=1$ seed 43 & 0.5789 & 0.0822 & 0.0498 \\
+$T=1$ seed 44 & 0.5840 & 0.0805 & 0.0529 \\
+CIFAR-100 $T=1$ & 0.5900 & 0.0768 & 0.0747 \\
 \bottomrule
 \end{tabular}
+}
 \caption{E0 address feasibility diagnostics. Lower conditional variance
 indicates that responses are more predictable within Q/K-derived buckets.}
 \label{tab:e0_feasibility}
@@ -113,11 +117,10 @@ prototype replacement.}
 \label{sec:e3_results}
 
 The conservative E3 adapter uses fixed $\alpha$, two training epochs, 128
-calibration batches, 128 training batches, full validation, and target module
-\texttt{stage1.0.tssa}. The first $T=1$ checkpoint made address LUT positive
-on average, but a repeat on the independent seed-43 checkpoint showed that
-$\alpha=0.1$ is too strong and seed-dependent. We therefore run an alpha
-sensitivity sweep on the independent checkpoint.
+calibration batches, 128 training batches, and full validation. An alpha
+sensitivity sweep on the seed-43 checkpoint identifies $\alpha=0.025$ as a
+local low-disturbance setting. We then hold this setting fixed across an
+additional checkpoint, stage2, and CIFAR-100.
 
 \begin{table*}[t]
 \centering
@@ -140,21 +143,71 @@ Global mean & 0.100 & -0.05 & -0.17 & +0.01 & -0.0700 \\
 Token-channel LUT & 0.100 & -0.17 & -0.17 & +0.08 & -0.0867 \\
 \bottomrule
 \end{tabular}
-\caption{T=1 E3 alpha sensitivity on the independent seed-43 checkpoint. Values
-are replacement minus baseline top-1 accuracy deltas in percent. The
-Q/K-address LUT has a stable low-disturbance window at $\alpha=0.025$; the
-same-capacity shuffled-address control is negative, and larger residual weights
-become negative and seed-dependent.}
+\caption{T=1 E3 alpha sensitivity on the seed-43 checkpoint. Values are
+replacement minus baseline top-1 accuracy deltas in percent. The address LUT
+has a local low-disturbance window at $\alpha=0.025$, while larger residual
+weights become negative and seed-dependent. Table~\ref{tab:e3_generalization}
+tests whether this behavior generalizes.}
 \label{tab:e3_t1_multiseed}
 \end{table*}
+
+\begin{table*}[t]
+\centering
+\footnotesize
+\begin{tabular}{lccccc}
+\toprule
+Setting & Address & Global & Token/channel & Shuffled & Address $-$ shuffled \\
+\midrule
+CIFAR-10 seed 43, stage1 & +0.1400 & +0.0400 & +0.0000 & -0.1033 & +0.2433 \\
+CIFAR-10 seed 44, stage1 & -0.0167 & +0.0000 & -0.0800 & -0.0833 & +0.0666 \\
+CIFAR-10 seed 43, stage2 & +0.0567 & +0.1067 & -0.1733 & +0.0200 & +0.0367 \\
+CIFAR-10 seed 44, stage2 & -0.1033 & +0.1133 & +0.0367 & -0.0233 & -0.0800 \\
+CIFAR-100 seed 42, stage1 & +0.1633 & +0.3233 & -0.1333 & -0.0933 & +0.2566 \\
+\bottomrule
+\end{tabular}
+\caption{Generalization of the $T=1$, $\alpha=0.025$ adapter. Each entry is
+the mean Acc@1 delta over three adapter seeds. Address alignment is meaningful
+in several settings relative to shuffled and token/channel controls, but it is
+not checkpoint-stable and global smoothing is often stronger.}
+\label{tab:e3_generalization}
+\end{table*}
+
+To isolate address information from generic smoothing, we decompose the LUT
+target into a trainable global scalar and a zero-mean address table. On
+CIFAR-100 this centered address residual improves the mean Acc@1 delta relative
+to a matched centered-shuffled table by $0.3667$ points
+(Table~\ref{tab:e3_centered}). It still trails global mean in both accuracy and
+loss, so the result isolates address alignment rather than establishing a new
+best classifier.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lcc}
+\toprule
+Mode & Mean Acc@1 delta & Mean loss delta \\
+\midrule
+Global mean & +0.3233 & -0.006822 \\
+Address LUT & +0.1633 & -0.001600 \\
+Shuffled address LUT & -0.0933 & +0.003595 \\
+Global + centered address & +0.1967 & +0.002959 \\
+Global + centered shuffled & -0.1700 & +0.000421 \\
+\bottomrule
+\end{tabular}
+}
+\caption{CIFAR-100 stage1 decomposition at $T=1$ and $\alpha=0.025$.
+Address alignment separates strongly from the matched shuffled control, while
+global smoothing remains the strongest classification and loss baseline.}
+\label{tab:e3_centered}
+\end{table}
 
 \subsection{Current Claim Boundary}
 \label{sec:claim_boundary}
 
-These experiments support the claim that Q/K binary addresses contain useful
-structure for low-disturbance residual LUT adapters in a $T=1$ boundary
-setting. They do not yet support claims about hardware speed, energy reduction,
-ImageNet accuracy, or a production full-LUT QKFormer wrapper. The current
-accuracy evidence is strongest at $\alpha=0.025$ and includes a negative
-same-capacity shuffled-address control, but broader datasets and additional
-checkpoints are still needed for a general address-specific claim.
+These experiments support the claim that Q/K binary addresses contain
+measurable response structure and can support low-disturbance residual LUT
+adapters. They do not support a checkpoint-stable address-specific accuracy
+gain: global smoothing is a strong baseline and wins several stage/checkpoint
+comparisons. They also do not support claims about hardware speed, energy
+reduction, ImageNet accuracy, or a production full-LUT QKFormer wrapper.

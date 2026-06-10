@@ -2,14 +2,16 @@
 \label{sec:conclusion}
 
 We studied whether QKFormer's binary Q/K spike vectors form a useful LUT
-address space. The evidence is conditional but encouraging: Q/K-derived
-addresses are well occupied, improve held-out reconstruction over global
-averages, and expose a low-disturbance residual-adapter window in a T=1 stress
-setting. The negative results are equally important: prototype replacement
-alone is not enough, several T=4 controls nearly match address LUTs, and
-larger residual weights can create seed-dependent drift. The current best
-interpretation is therefore a carefully constrained trainable residual adapter
-story, not a full hardware replacement story. Future work should validate the
-result with shuffled-address controls, additional independent checkpoints,
-larger datasets, additional stages, and real LUT-oriented efficiency
-measurements.
+address space. Q/K-derived addresses are well occupied on CIFAR-10 and
+CIFAR-100 and improve held-out reconstruction over global averages. Address
+alignment also separates from same-capacity shuffled controls in several
+low-disturbance adapter settings. The negative evidence is equally important:
+the classification effect changes across checkpoints and stages, and global
+smoothing often matches or exceeds the address LUT. A centered decomposition
+separates aligned from shuffled address residuals but still does not surpass
+global smoothing. The supported result is
+therefore a structured-address and constrained-fidelity story, not a
+checkpoint-stable accuracy improvement or full hardware replacement story.
+Future work should test whether a centered address residual adds value beyond
+the global component and should measure real LUT-oriented latency and energy
+only after the algorithmic gate is satisfied.

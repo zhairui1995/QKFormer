@@ -84,6 +84,14 @@ address residual adds value on top of the global component.
     +0.1633 / +0.3233 / -0.1333 / -0.0933.
   - Address alignment beats same-capacity shuffled and token/channel controls,
     but does not beat generic global smoothing.
+- CIFAR-100 global-plus-centered-address decomposition:
+  - Centered address deltas +0.32 / +0.34 / -0.07, mean +0.1967.
+  - Same-capacity centered shuffled deltas -0.15 / +0.04 / -0.40, mean
+    -0.1700; the alignment gap is +0.3667 points.
+  - Mean loss deltas are +0.002959 for centered address and +0.000421 for
+    centered shuffled, while global mean improves loss by -0.006822.
+  - This strengthens the address-alignment claim but still does not beat the
+    strongest global-smoothing classification or loss baseline.
 
 ## Baseline Meaning
 
@@ -123,10 +131,11 @@ before falling back to GPU 2. Small diagnostics default to GPU 2.
 
 ## Next Useful Experiments
 
-1. Complete the CIFAR-100 centered address-residual control against its
-   same-capacity shuffled version.
-2. If the centered residual beats global mean, repeat it on CIFAR-10 seed 43
-   and seed 44; otherwise stop accuracy-oriented adapter tuning.
+1. Run CIFAR-100 E1 reconstruction to test whether address-conditioned MSE
+   reduction generalizes beyond CIFAR-10.
+2. Sweep a smaller address-residual scale on top of fixed global smoothing,
+   with a matched shuffled control; stop accuracy-oriented tuning if this does
+   not exceed global mean.
 3. Reframe the paper around address structure, occupancy, and constrained
    fidelity; treat small Acc@1 changes as secondary and checkpoint-dependent.
 

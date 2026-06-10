@@ -61,10 +61,13 @@ frozen baseline logits, and local MSE to the baseline module response:
   + \lambda_{\mathrm{kl}}\mathcal{L}_{\mathrm{kl}}
   + \lambda_{\mathrm{mse}}\|\tilde{\mathbf{y}}-\mathbf{y}\|_2^2 .
 \end{equation}
-Our conservative setting fixes $\alpha=0.1$, trains for two epochs over 128
-training batches, and evaluates on the full CIFAR-10 validation split.
+Our conservative setting trains for two epochs over 128 training batches and
+evaluates on the full validation split. We sweep $\alpha\in\{0.025,0.05,0.1\}$
+and use $\alpha=0.025$ for low-disturbance checkpoint, stage, and dataset
+controls.
 
-We compare three modes: \emph{address LUT}, which uses the full Q/K-derived
-address; \emph{global mean}, a non-address smoothing control; and
-\emph{token-channel LUT}, a weaker-address control that removes Q/K bit detail.
-
+We compare \emph{address LUT}, \emph{global mean}, and a weaker
+\emph{token-channel LUT}. A same-capacity \emph{shuffled address LUT} preserves
+the table-value distribution while breaking address alignment. We additionally
+test a global-plus-centered-address decomposition whose zero-mean address table
+asks whether address-specific residuals add value beyond global smoothing.
