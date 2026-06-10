@@ -6,22 +6,27 @@ history are needed.
 
 ## Current Verdict
 
-`CONDITIONAL GO`, but the accuracy-gain claim is now weaker.
+`CONDITIONAL GO`, but the accuracy-gain claim is not checkpoint-stable.
 
 The CIFAR-10 T=1 conservative E3 adapter sweep on the first checkpoint was
 positive for Q/K address LUT. An independent T=1 checkpoint repeat showed that
-alpha 0.1 does not replicate as a stable positive setting, but a follow-up
-alpha sweep found a stable low-disturbance window at alpha 0.025.
+alpha 0.1 does not replicate as a stable positive setting. A follow-up alpha
+sweep found a positive low-disturbance window at alpha 0.025 on seed 43, but
+the same setting did not remain positive on the independent seed-44
+checkpoint.
 
 ## Key Evidence
 
 - T=4 QKFormer best checkpoint: 96.08% Acc@1.
 - T=1 QKFormer first checkpoint: 95.20% best Acc@1.
 - T=1 independent checkpoint, training seed 43: 95.04% best Acc@1.
+- T=1 independent checkpoint, training seed 44: 95.08% best Acc@1.
 - T=1 E0: coverage 0.580482, singleton 0.079362, conditional variance
   0.054878.
 - T=1 E0 on the independent seed-43 checkpoint: coverage 0.578857,
   singleton 0.082159, conditional variance 0.049788.
+- T=1 E0 on the independent seed-44 checkpoint: coverage 0.583961,
+  singleton 0.080493, conditional variance 0.052902.
 - T=1 E3 multi-seed conservative sweep on the first checkpoint:
   - `address_lut`: deltas +0.12 / +0.07 / -0.01, mean +0.0600.
   - `global_mean`: deltas -0.07 / -0.17 / -0.04, mean -0.0933.
@@ -43,6 +48,18 @@ alpha sweep found a stable low-disturbance window at alpha 0.025.
     address/global/token-channel means -0.0833 / -0.0633 / -0.0400.
   - alpha 0.1:
     address/global/token-channel means -0.1067 / -0.0700 / -0.0867.
+- T=1 E3 alpha 0.025 on the independent seed-44 checkpoint:
+  - `address_lut`: deltas -0.12 / +0.21 / -0.14, mean -0.0167.
+  - `global_mean`: mean +0.0000.
+  - `token_channel_lut`: mean -0.0800.
+  - `shuffled_address_lut`: mean -0.0833.
+  - This is a NO-GO for claiming per-checkpoint stable Acc@1 improvement.
+- T=1 stage2 alpha 0.025 on the seed-43 checkpoint:
+  - address/global/token-channel/shuffled mean Acc@1 deltas are
+    +0.0567 / +0.1067 / -0.1733 / +0.0200.
+  - Address LUT has the best mean loss delta at -0.001450, but global mean has
+    the best mean Acc@1 delta. This supports stage-dependent fidelity, not an
+    address-specific accuracy advantage.
 
 ## Baseline Meaning
 
@@ -80,19 +97,20 @@ before falling back to GPU 2. Small diagnostics default to GPU 2.
 
 ## Next Useful Experiments
 
-1. Update/keep the paper tables around alpha 0.025 as the main E3 result and
-   alpha 0.05/0.1 as drift controls.
-2. Broaden only after the CIFAR-10 low-disturbance adapter story remains stable:
-   larger dataset, harder stage, or ImageNet-lite style stress.
-3. Consider a third independent T=1 checkpoint or a CIFAR-100/ImageNet-lite
-   smoke before making broad generalization claims.
+1. Finish the seed-44 stage2 repeat to separate layer effects from checkpoint
+   variance.
+2. Finish the CIFAR-100 T=1 baseline and run the prepared E0/E3 four-control
+   workflow before making any cross-dataset claim.
+3. Reframe the main paper claim around address structure and constrained
+   fidelity; treat small Acc@1 changes as secondary and checkpoint-dependent.
 
 ## Claim Boundary
 
 Allowed now: E0/E1 diagnostics support Q/K binary addresses as structured,
-well-occupied LUT indices; T=1 E3 alpha sweep supports a low-disturbance
-residual-adapter route at alpha 0.025 against global, token/channel, and
-same-capacity shuffled-address controls.
+well-occupied LUT indices; T=1 E3 supports a low-disturbance residual-adapter
+route whose fidelity benefit is stage- and checkpoint-dependent. Seed-43
+stage1 shows address-specific Acc@1 separation, while seed-44 stage1 does not;
+seed-43 stage2 favors address LUT in loss but global mean in Acc@1.
 
 Not allowed yet: energy gain, latency gain, ImageNet gain, production LUT
 wrapper, or full pure-spike Transformer claims.
