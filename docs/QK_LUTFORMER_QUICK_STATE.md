@@ -18,8 +18,11 @@ checkpoint.
 
 CIFAR-100 broadens the evidence: T=1 QKFormer reaches 77.76% Acc@1 and its
 stage1 address LUT beats shuffled and token/channel controls, but global-mean
-smoothing remains stronger. The next gate therefore tests whether a centered
-address residual adds value on top of the global component.
+smoothing remains stronger. Split-aware reconstruction nevertheless shows a
+clean cross-dataset signal, and a centered residual separates aligned from
+shuffled addresses. The current gate sweeps the centered address-residual
+scale to test whether this structure can improve classification beyond the
+global component.
 
 ## Key Evidence
 
@@ -79,6 +82,13 @@ address residual adds value on top of the global component.
   - Overall coverage 0.590042, singleton fraction 0.076803, conditional
     variance 0.074674.
   - Stage1/stage2 coverage is approximately 1.0; stage3 coverage is 0.180817.
+- CIFAR-100 T=1 E1 split-aware reconstruction:
+  - Global mean / candidate-background / address LUT MSE are 0.079005 /
+    0.078969 / 0.075965.
+  - Address LUT relative MSE reduction is 4.4004% overall, versus 0.0396% for
+    candidate/background means.
+  - Stage1/stage2 address reductions are 10.3056% / 3.9579%; both have 100%
+    evaluation address hit rate.
 - CIFAR-100 T=1 stage1 alpha 0.025:
   - address/global/token-channel/shuffled mean Acc@1 deltas are
     +0.1633 / +0.3233 / -0.1333 / -0.0933.
@@ -131,19 +141,18 @@ before falling back to GPU 2. Small diagnostics default to GPU 2.
 
 ## Next Useful Experiments
 
-1. Run CIFAR-100 E1 reconstruction to test whether address-conditioned MSE
-   reduction generalizes beyond CIFAR-10.
-2. Sweep a smaller address-residual scale on top of fixed global smoothing,
-   with a matched shuffled control; stop accuracy-oriented tuning if this does
-   not exceed global mean.
-3. Reframe the paper around address structure, occupancy, and constrained
+1. Complete the smaller address-residual scale sweep on top of fixed global
+   smoothing, with a matched shuffled control; stop accuracy-oriented tuning
+   if this does not exceed global mean.
+2. Reframe the paper around address structure, occupancy, and constrained
    fidelity; treat small Acc@1 changes as secondary and checkpoint-dependent.
 
 ## Claim Boundary
 
 Allowed now: E0/E1 diagnostics support Q/K binary addresses as structured,
-well-occupied LUT indices; T=1 E3 supports a low-disturbance residual-adapter
-route whose fidelity benefit is stage- and checkpoint-dependent. Seed-43
+well-occupied LUT indices on CIFAR-10 and CIFAR-100; T=1 E3 supports a
+low-disturbance residual-adapter route whose fidelity benefit is stage- and
+checkpoint-dependent. Seed-43
 stage1 shows address-specific Acc@1 separation, while seed-44 stage1 does not;
 CIFAR-100 shows address alignment is meaningful relative to shuffled and
 token/channel controls, but global smoothing is stronger in Acc@1 and loss.

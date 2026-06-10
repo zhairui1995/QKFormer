@@ -64,25 +64,27 @@ indicates that responses are more predictable within Q/K-derived buckets.}
 \label{sec:e1_results}
 
 Table~\ref{tab:e1_recon} shows held-out response reconstruction. Address LUT
-prototypes reduce MSE by $3.58\%$ relative to the global mean baseline, while
-candidate/background means are nearly identical to the global mean.
+prototypes reduce MSE relative to the global mean on both datasets, by
+$3.58\%$ on CIFAR-10 and $4.40\%$ on CIFAR-100. On CIFAR-100 the reduction is
+largest in stage1 ($10.31\%$) and remains positive in stage2 ($3.96\%$), while
+candidate/background means remain nearly identical to the global mean.
 
 \begin{table}[t]
 \centering
 \footnotesize
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{lcc}
+\begin{tabular}{lcccc}
 \toprule
-Predictor & MSE & Rel. MSE reduction \\
+Dataset & Global & Cand./back. & Address LUT & Rel. reduction \\
 \midrule
-Global mean & 0.07146 & 0.00 \\
-Candidate/background mean & 0.07144 & 0.03 \\
-Address LUT & \textbf{0.06887} & \textbf{3.58} \\
+CIFAR-10 & 0.07146 & 0.07144 & \textbf{0.06887} & \textbf{3.58} \\
+CIFAR-100 & 0.07900 & 0.07897 & \textbf{0.07596} & \textbf{4.40} \\
 \bottomrule
 \end{tabular}
 }
-\caption{E1 split-aware reconstruction on held-out validation batches. Relative
-reduction is reported in percent against the global mean baseline.}
+\caption{E1 split-aware reconstruction on held-out validation batches. MSE is
+aggregated over the instrumented modules; relative reduction is reported in
+percent against the corresponding global mean baseline.}
 \label{tab:e1_recon}
 \end{table}
 
