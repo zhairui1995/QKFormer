@@ -62,13 +62,25 @@ class TrainableLUTModule(nn.Module):
         self.mode = str(mode)
         self.address_space = int(proto.address_space)
         self.mode_seed = int(mode_seed)
-        if self.mode not in {"address_lut", "global_mean", "token_channel_lut", "shuffled_address_lut"}:
+        supported_modes = {
+            "address_lut",
+            "global_mean",
+            "token_channel_lut",
+            "shuffled_address_lut",
+            "global_plus_address_lut",
+            "global_plus_shuffled_address_lut",
+        }
+        if self.mode not in supported_modes:
             raise ValueError(f"unsupported E3 adapter mode: {self.mode}")
 
         if self.mode == "global_mean":
             init = torch.tensor([float(proto.global_mean)], dtype=torch.float32)
         elif self.mode == "token_channel_lut":
             init = self._coarse_init(proto, shrinkage_tau)
+        elif self.mode in {"global_plus_address_lut", "global_plus_shuffled_address_lut"}:
+            address_init = self._address_init(proto, shrinkage_tau)
+            init = address_init - address_init.mean()
+            self.global_table = nn.Parameter(torch.tensor([float(proto.global_mean)], dtype=torch.float32))
         else:
             init = self._address_init(proto, shrinkage_tau)
         self.table = nn.Parameter(init)
@@ -83,7 +95,13 @@ class TrainableLUTModule(nn.Module):
 
     def forward(self, address: torch.Tensor, response: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         index = self._index(address, response.device)
-        pred = self.table.to(device=response.device, dtype=response.dtype)[index]
+        table = self.table.to(device=response.device, dtype=response.dtype)
+        if self.mode in {"global_plus_address_lut", "global_plus_shuffled_address_lut"}:
+            centered_table = table - table.mean()
+            global_value = self.global_table.to(device=response.device, dtype=response.dtype)[0]
+            pred = global_value + centered_table[index]
+        else:
+            pred = table[index]
         return response + self.alpha.to(device=response.device, dtype=response.dtype) * (pred - response), index
 
     def _index(self, address: torch.Tensor, device: torch.device) -> torch.Tensor:
@@ -92,7 +110,7 @@ class TrainableLUTModule(nn.Module):
             return torch.zeros_like(addr)
         if self.mode == "token_channel_lut":
             return torch.div(addr, 4, rounding_mode="floor").clamp_max(self.table.numel() - 1)
-        if self.mode == "shuffled_address_lut":
+        if self.mode in {"shuffled_address_lut", "global_plus_shuffled_address_lut"}:
             return self._address_permutation(device)[addr]
         return addr
 
@@ -133,7 +151,7 @@ class TrainableLUTModule(nn.Module):
         return means.to(torch.float32)
 
     def summary(self) -> Dict[str, object]:
-        return {
+        summary = {
             "name": self.name,
             "kind": self.kind,
             "stage": self.stage,
@@ -143,6 +161,10 @@ class TrainableLUTModule(nn.Module):
             "trainable_parameters": sum(param.numel() for param in self.parameters() if param.requires_grad),
             "alpha": float(self.alpha.detach().cpu().item()),
         }
+        if hasattr(self, "global_table"):
+            summary["global_value"] = float(self.global_table.detach().cpu().item())
+            summary["centered_table_mean"] = float((self.table - self.table.mean()).detach().mean().cpu().item())
+        return summary
 
 
 class TrainableLUTAdapter(nn.Module):
