@@ -1,0 +1,36 @@
+experiment:
+  name: qkformer_lut_cifar100_t1_e0_diag
+  seed: 42
+
+model:
+  family: cifar100
+  checkpoint:
+  time_step: 1
+  layer: 4
+  dim: 384
+  num_heads: 8
+  patch_size: 4
+  mlp_ratio: 4
+  img_size: 32
+  in_channels: 3
+  num_classes: 100
+
+data:
+  mode: cifar100
+  data_dir: data/cifar100
+  split: validation
+  batch_size: 32
+  num_batches: 8
+  workers: 4
+
+diagnostic:
+  device: cuda
+  token_bins: 8
+  channel_bins: 8
+  population_bins: 4
+  max_records_per_module_per_batch: 65536
+  response_source: proj_lif
+  ccs_reference:
+    coarse_context_conditional_variance: 0.0047152074
+    coarse_context_relative_variance_reduction: 0.2099
+    aggregate_head_output_mse_gain: 0.0175

@@ -1,0 +1,70 @@
+experiment:
+  name: qkformer_lut_cifar100_t1_e3_trainable_lut
+  seed: 42
+
+model:
+  family: cifar100
+  checkpoint:
+  time_step: 1
+  layer: 4
+  dim: 384
+  num_heads: 8
+  patch_size: 4
+  mlp_ratio: 4
+  img_size: 32
+  in_channels: 3
+  num_classes: 100
+
+data:
+  calibration:
+    mode: cifar100
+    data_dir: data/cifar100
+    split: train
+    batch_size: 32
+    num_batches: 128
+    workers: 4
+    shuffle: true
+    seed: 42
+  train:
+    mode: cifar100
+    data_dir: data/cifar100
+    split: train
+    batch_size: 32
+    num_batches: 128
+    workers: 4
+    shuffle: true
+    seed: 43
+  evaluation:
+    mode: cifar100
+    data_dir: data/cifar100
+    split: validation
+    batch_size: 32
+    num_batches: 0
+    workers: 4
+
+diagnostic:
+  device: cuda
+  token_bins: 8
+  channel_bins: 8
+  population_bins: 4
+  max_records_per_module_per_batch: 65536
+  prototype_min_count: 2
+
+adapter:
+  mode: address_lut
+  target_modules:
+    - stage1.0.tssa
+  init: shrinkage_prototype
+  shrinkage_tau: 256.0
+  alpha_init: 0.025
+  learn_alpha: false
+  mode_seed: 0
+
+train:
+  epochs: 2
+  lr: 0.003
+  weight_decay: 0.0
+  lambda_ce: 1.0
+  lambda_kl: 2.0
+  lambda_local_mse: 0.2
+  grad_clip_norm: 1.0

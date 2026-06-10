@@ -34,7 +34,10 @@ def set_seed(seed: int) -> None:
 
 
 def build_cifar10_model(root: Path, cfg: Dict[str, object]) -> torch.nn.Module:
-    model_dir = root / "cifar10"
+    family = str(cfg.get("family", "cifar10"))
+    if family not in {"cifar10", "cifar100"}:
+        raise ValueError(f"unsupported QKFormer model family: {family}")
+    model_dir = root / family
     sys.path.insert(0, str(model_dir))
     try:
         model_module = importlib.import_module("model")
@@ -129,11 +132,57 @@ def make_cifar10_loader(
     )
 
 
+def make_cifar100_loader(
+    data_dir: str,
+    split: str,
+    batch_size: int,
+    workers: int,
+    device: torch.device,
+    shuffle: bool = False,
+    seed: Optional[int] = None,
+):
+    from torch.utils.data import DataLoader
+    from torchvision import datasets, transforms
+
+    root = Path(data_dir).expanduser()
+    dataset = datasets.CIFAR100(
+        root=str(root),
+        train=split == "train",
+        download=False,
+        transform=transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=(0.4914, 0.4822, 0.4465),
+                    std=(0.2470, 0.2435, 0.2616),
+                ),
+            ]
+        ),
+    )
+    generator = None
+    if shuffle:
+        generator = torch.Generator()
+        if seed is not None:
+            generator.manual_seed(int(seed))
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=bool(shuffle),
+        num_workers=workers,
+        pin_memory=device.type == "cuda",
+        generator=generator,
+    )
+
+
 def build_loader(cfg: Dict[str, object], device: torch.device):
     mode = str(cfg.get("mode", "cifar10"))
-    if mode != "cifar10":
-        raise ValueError("E2 replacement currently requires data.mode=cifar10")
-    return make_cifar10_loader(
+    loaders = {
+        "cifar10": make_cifar10_loader,
+        "cifar100": make_cifar100_loader,
+    }
+    if mode not in loaders:
+        raise ValueError(f"E2/E3 requires data.mode in {sorted(loaders)}, got {mode}")
+    return loaders[mode](
         data_dir=str(cfg["data_dir"]),
         split=str(cfg.get("split", "validation")),
         batch_size=int(cfg["batch_size"]),

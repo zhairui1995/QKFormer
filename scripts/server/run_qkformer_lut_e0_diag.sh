@@ -15,6 +15,7 @@ fi
 TS="$(date +%Y%m%d_%H%M%S)"
 RESULT_DIR="$ROOT/results/qkformer_lut_e0_diag_${TS}"
 LOG_FILE="$RESULT_DIR/train_log.txt"
+CONFIG_FILE="${QKFORMER_LUT_E0_CONFIG:-configs/qkformer_lut_e0_diag.yaml}"
 mkdir -p "$RESULT_DIR"
 
 if [[ -z "${QKFORMER_LUT_DATA_DIR:-}" && -d "$ROOT/data/cifar10/cifar-10-batches-py" ]]; then
@@ -67,6 +68,7 @@ fi
   echo "[qk-lut-e0] start=$(date -Is)"
   echo "[qk-lut-e0] commit=$(git rev-parse --short HEAD)"
   echo "[qk-lut-e0] python=$PYTHON_BIN"
+  echo "[qk-lut-e0] config=$CONFIG_FILE"
   echo "[qk-lut-e0] data_dir=${QKFORMER_LUT_DATA_DIR:-configs/qkformer_lut_e0_diag.yaml default}"
   echo "[qk-lut-e0] checkpoint=${QKFORMER_LUT_CKPT:-configs/qkformer_lut_e0_diag.yaml default}"
   echo "[qk-lut-e0] time_step=${QKFORMER_LUT_TIME_STEP:-configs/qkformer_lut_e0_diag.yaml default}"
@@ -99,7 +101,7 @@ PY
   qk_lut_log_gpu "$PYTHON_BIN" "qk-lut-e0"
 
   "$PYTHON_BIN" tools/qkformer_lut_e0_diag.py \
-    --config configs/qkformer_lut_e0_diag.yaml \
+    --config "$CONFIG_FILE" \
     --output-dir "$RESULT_DIR"
 
   "$PYTHON_BIN" - "$RESULT_DIR/metrics.json" <<'PY'
