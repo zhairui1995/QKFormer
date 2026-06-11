@@ -432,7 +432,7 @@ def run_pass(
     processed = 0
     with torch.no_grad():
         for images, _targets in loader:
-            if processed >= max_batches:
+            if max_batches > 0 and processed >= max_batches:
                 break
             if not torch.is_tensor(images):
                 images = images[0]
