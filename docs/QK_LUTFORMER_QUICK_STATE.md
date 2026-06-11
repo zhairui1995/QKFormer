@@ -96,6 +96,13 @@ across calibration subsets and full validation.
   - Address exceeds token/channel by 1.0001 percentage points and beats all
     controls for every calibration seed and in every stage. This is the
     strongest current address-specific positive result.
+- CIFAR-10 T=4 E1 randomized-subset controls:
+  - Three randomized 128-batch calibration subsets with full validation give
+    address reduction 3.7080% with standard deviation 0.0038 points.
+  - Token/channel / candidate-background / shuffled reductions are 2.7941% /
+    0.0329% / -17.8260%; address exceeds token/channel by 0.9139 points.
+  - The same ordering holds for every seed and stage, replicating the
+    address-specific reconstruction result across datasets and time steps.
 - CIFAR-100 T=1 stage1 alpha 0.025:
   - address/global/token-channel/shuffled mean Acc@1 deltas are
     +0.1633 / +0.3233 / -0.1333 / -0.0933.
@@ -155,8 +162,8 @@ before falling back to GPU 2. Small diagnostics default to GPU 2.
 
 ## Next Useful Experiments
 
-1. Repeat the randomized-subset E1 reconstruction controls on CIFAR-10 to
-   establish the address-specific result across both datasets.
+1. Repeat E1 controls on the independent CIFAR-10 T=1 checkpoints to test
+   whether address-specific reconstruction is stable across training seeds.
 2. Reframe the paper around address structure, occupancy, and response
    reconstruction; treat small Acc@1 changes as secondary negative evidence.
 

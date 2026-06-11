@@ -4,10 +4,11 @@ unclear whether binary query--key spike patterns form a useful discrete
 lookup-table (LUT) address space. We study this question in QKFormer through a
 staged diagnostic and frozen-backbone adapter pipeline rather than claiming a
 full hardware LUT replacement. Q/K-addressed prototypes reduce held-out
-response MSE relative to a global mean by $3.58\%$ on CIFAR-10 and
-$4.42\%\pm0.004$ across three randomized CIFAR-100 calibration subsets. On
-CIFAR-100, a coarse token/channel LUT reaches $3.42\%$, while shuffling the
-address--prototype alignment degrades MSE by $15.82\%$. Across independently
+response MSE relative to a global mean by $3.71\%\pm0.004$ on CIFAR-10 and
+$4.42\%\pm0.004$ on CIFAR-100 across randomized calibration subsets. Coarse
+token/channel LUTs reach $2.79\%$ and $3.42\%$, while shuffling the
+address--prototype alignment degrades MSE by $17.83\%$ and $15.82\%$,
+respectively. Across independently
 trained single-step ($T=1$) checkpoints, early Q-K attention modules retain
 near-complete address coverage, although residual-adapter accuracy changes are
 checkpoint- and stage-dependent. We further train a $T=1$ CIFAR-100 baseline to

@@ -65,9 +65,10 @@ indicates that responses are more predictable within Q/K-derived buckets.}
 
 Table~\ref{tab:e1_recon} shows held-out response reconstruction. Address LUT
 prototypes reduce MSE relative to the global mean on both datasets, by
-$3.58\%$ on CIFAR-10 and $4.42\%$ on CIFAR-100. The CIFAR-100 value is the mean
-over three randomized 128-batch calibration subsets evaluated on the complete
-validation split; its standard deviation is only $0.0042$ percentage points.
+$3.71\%$ on CIFAR-10 and $4.42\%$ on CIFAR-100. Each value is the mean over
+three randomized 128-batch calibration subsets evaluated on the complete
+validation split; the standard deviations are only $0.0038$ and $0.0042$
+percentage points, respectively.
 The mean reduction is largest in stage1 ($10.04\%$), remains positive in
 stage2 ($3.96\%$), and is $1.85\%$ in stage3. The address LUT also consistently
 beats the coarse token/channel LUT ($3.42\%$ overall), while shuffled address
@@ -82,25 +83,24 @@ identical to the global mean.
 \toprule
 Dataset & Global & Cand./back. & Token/channel & Address LUT & Rel. reduction \\
 \midrule
-CIFAR-10 & 0.07146 & 0.07144 & -- & \textbf{0.06887} & \textbf{3.58} \\
+CIFAR-10 & 0.07129 & 0.07127 & 0.06926 & \textbf{0.06861} & \textbf{3.71} \\
 CIFAR-100 & 0.07853 & 0.07850 & 0.07613 & \textbf{0.07547} & \textbf{4.42} \\
 \bottomrule
 \end{tabular}
 }
 \caption{E1 split-aware reconstruction on held-out validation batches. MSE is
 aggregated over the instrumented modules; relative reduction is reported in
-percent against the corresponding global mean baseline. CIFAR-100 reports the
-mean over three randomized calibration subsets and full validation.}
+percent against the corresponding global mean baseline. Both datasets report
+the mean over three randomized calibration subsets and full validation.}
 \label{tab:e1_recon}
 \end{table}
 
-For the CIFAR-100 randomized-subset runs, the address, token/channel, and
-candidate/background relative reductions are $4.4247\%$, $3.4246\%$, and
-$0.0356\%$, respectively. The shuffled-address control has the same address
-space and prototype-value distribution but yields $-15.8216\%$. The ordering
-holds for every calibration seed and in all three stages, supporting an
-address-specific reconstruction claim rather than a generic table-capacity
-effect.
+For CIFAR-10, the address, token/channel, candidate/background, and shuffled
+relative reductions are $3.7080\%$, $2.7941\%$, $0.0329\%$, and $-17.8260\%$.
+The corresponding CIFAR-100 values are $4.4247\%$, $3.4246\%$, $0.0356\%$,
+and $-15.8216\%$. The ordering holds for every calibration seed and in all
+three stages on both datasets, supporting an address-specific reconstruction
+claim rather than a generic table-capacity effect.
 
 \subsection{Forward-Only Replacement Diagnostics}
 \label{sec:e2_results}
