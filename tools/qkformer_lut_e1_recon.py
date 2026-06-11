@@ -414,6 +414,19 @@ class ModulePrototype:
             "background_variance": self.background.variance,
         }
 
+    def supported_entry_counts(self) -> Dict[str, int]:
+        return {
+            "full": int((self.count >= self.min_count).sum().item()),
+            "plus_k": int((self.component_counts["plus_k"] >= self.min_count).sum().item()),
+            "plus_q_or_gate": int(
+                (self.component_counts["plus_q_or_gate"] >= self.min_count).sum().item()
+            ),
+            "token_channel": int(
+                (self.component_counts["token_channel"] >= self.min_count).sum().item()
+            ),
+            "global": 1,
+        }
+
 
 class ModuleEval:
     def __init__(self, prototype: ModulePrototype) -> None:
@@ -422,6 +435,7 @@ class ModuleEval:
         self.address_mse = MSEStats()
         self.token_channel_mse = MSEStats()
         self.shuffled_address_mse = MSEStats()
+        self.hierarchical_backoff_mse = MSEStats()
         self.component_mse = {
             "token_channel": MSEStats(),
             "plus_q_or_gate": MSEStats(),
@@ -432,6 +446,14 @@ class ModuleEval:
         self.candidate_background_mse = MSEStats()
         self.response = VarianceStats()
         self.address_hits = 0
+        self.hierarchical_hits = 0
+        self.hierarchical_level_counts = {
+            "full": 0,
+            "plus_k": 0,
+            "plus_q_or_gate": 0,
+            "token_channel": 0,
+            "global": 0,
+        }
         self.candidates = 0
 
     def update(self, address: torch.Tensor, response: torch.Tensor, candidate_mask: torch.Tensor) -> None:
@@ -452,11 +474,39 @@ class ModuleEval:
         token_channel_pred = proto.coarse_mean[coarse_addr]
         token_channel_pred = torch.where(coarse_seen, token_channel_pred, global_pred)
         component_predictions = {"token_channel": token_channel_pred}
+        component_seen_masks = {"token_channel": coarse_seen}
         for component in ("plus_q_or_gate", "plus_k"):
             component_addr = proto.component_address(addr, component)
             component_seen = proto.component_counts[component][component_addr] >= proto.min_count
             component_pred = proto.component_mean(component)[component_addr]
             component_predictions[component] = torch.where(component_seen, component_pred, global_pred)
+            component_seen_masks[component] = component_seen
+        hierarchy_pred = global_pred.clone()
+        selected_level = torch.full_like(addr, fill_value=4)
+        hierarchy_pred = torch.where(coarse_seen, token_channel_pred, hierarchy_pred)
+        selected_level = torch.where(coarse_seen, torch.full_like(selected_level, 3), selected_level)
+        hierarchy_pred = torch.where(
+            component_seen_masks["plus_q_or_gate"],
+            component_predictions["plus_q_or_gate"],
+            hierarchy_pred,
+        )
+        selected_level = torch.where(
+            component_seen_masks["plus_q_or_gate"],
+            torch.full_like(selected_level, 2),
+            selected_level,
+        )
+        hierarchy_pred = torch.where(
+            component_seen_masks["plus_k"],
+            component_predictions["plus_k"],
+            hierarchy_pred,
+        )
+        selected_level = torch.where(
+            component_seen_masks["plus_k"],
+            torch.full_like(selected_level, 1),
+            selected_level,
+        )
+        hierarchy_pred = torch.where(seen, proto.address_mean[addr], hierarchy_pred)
+        selected_level = torch.where(seen, torch.zeros_like(selected_level), selected_level)
         shuffled_address_pred = proto.shuffled_address_mean[addr]
         shuffled_address_pred = torch.where(seen, shuffled_address_pred, global_pred)
         cb_values = torch.where(
@@ -469,11 +519,21 @@ class ModuleEval:
         self.address_mse.update(float(torch.sum((resp - address_pred) ** 2).item()), count)
         self.token_channel_mse.update(float(torch.sum((resp - token_channel_pred) ** 2).item()), count)
         self.shuffled_address_mse.update(float(torch.sum((resp - shuffled_address_pred) ** 2).item()), count)
+        self.hierarchical_backoff_mse.update(float(torch.sum((resp - hierarchy_pred) ** 2).item()), count)
         for component, pred in component_predictions.items():
             self.component_mse[component].update(float(torch.sum((resp - pred) ** 2).item()), count)
         self.candidate_background_mse.update(float(torch.sum((resp - cb_values) ** 2).item()), count)
         self.response.update_many(resp.tolist())
         self.address_hits += int(seen.sum().item())
+        self.hierarchical_hits += int((selected_level != 4).sum().item())
+        for level_name, level_id in (
+            ("full", 0),
+            ("plus_k", 1),
+            ("plus_q_or_gate", 2),
+            ("token_channel", 3),
+            ("global", 4),
+        ):
+            self.hierarchical_level_counts[level_name] += int((selected_level == level_id).sum().item())
         self.candidates += int(cand.sum().item())
 
     def summary(self) -> Dict[str, object]:
@@ -481,7 +541,18 @@ class ModuleEval:
         address_mse = self.address_mse.mse
         token_channel_mse = self.token_channel_mse.mse
         shuffled_address_mse = self.shuffled_address_mse.mse
+        hierarchical_backoff_mse = self.hierarchical_backoff_mse.mse
         cb_mse = self.candidate_background_mse.mse
+        supported_entries = self.prototype.supported_entry_counts()
+        hierarchical_supported_entries = int(sum(supported_entries.values()))
+        hierarchical_nominal_entries = int(
+            self.prototype.address_space
+            + self.prototype.component_address_spaces["plus_k"]
+            + self.prototype.component_address_spaces["plus_q_or_gate"]
+            + self.prototype.component_address_spaces["token_channel"]
+            + 1
+        )
+        total = float(self.global_mse.count) if self.global_mse.count else 0.0
         component_values = {
             "component_token_channel_mse": self.component_mse["token_channel"].mse,
             "component_plus_q_or_gate_mse": self.component_mse["plus_q_or_gate"].mse,
@@ -503,11 +574,15 @@ class ModuleEval:
             "eval_samples": int(self.global_mse.count),
             "eval_response_variance": self.response.variance,
             "eval_address_hit_rate": self.address_hits / float(self.global_mse.count) if self.global_mse.count else 0.0,
+            "hierarchical_backoff_hit_rate": (
+                self.hierarchical_hits / float(self.global_mse.count) if self.global_mse.count else 0.0
+            ),
             "eval_candidate_fraction": self.candidates / float(self.global_mse.count) if self.global_mse.count else 0.0,
             "global_mean_mse": global_mse,
             "address_lut_mse": address_mse,
             "token_channel_lut_mse": token_channel_mse,
             "shuffled_address_lut_mse": shuffled_address_mse,
+            "hierarchical_backoff_mse": hierarchical_backoff_mse,
             "candidate_background_mse": cb_mse,
             "address_relative_mse_reduction": (
                 (global_mse - address_mse) / global_mse if global_mse > 0 else 0.0
@@ -518,9 +593,42 @@ class ModuleEval:
             "shuffled_address_relative_mse_reduction": (
                 (global_mse - shuffled_address_mse) / global_mse if global_mse > 0 else 0.0
             ),
+            "hierarchical_backoff_relative_mse_reduction": (
+                (global_mse - hierarchical_backoff_mse) / global_mse if global_mse > 0 else 0.0
+            ),
             "candidate_background_relative_mse_reduction": (
                 (global_mse - cb_mse) / global_mse if global_mse > 0 else 0.0
             ),
+            "fallback_fraction_full": (
+                self.hierarchical_level_counts["full"] / total if total > 0 else 0.0
+            ),
+            "fallback_fraction_plus_k": (
+                self.hierarchical_level_counts["plus_k"] / total if total > 0 else 0.0
+            ),
+            "fallback_fraction_plus_q_or_gate": (
+                self.hierarchical_level_counts["plus_q_or_gate"] / total if total > 0 else 0.0
+            ),
+            "fallback_fraction_token_channel": (
+                self.hierarchical_level_counts["token_channel"] / total if total > 0 else 0.0
+            ),
+            "fallback_fraction_global": (
+                self.hierarchical_level_counts["global"] / total if total > 0 else 0.0
+            ),
+            "hierarchical_supported_entries": hierarchical_supported_entries,
+            "hierarchical_nominal_entries": hierarchical_nominal_entries,
+            "monolithic_full_address_entries": int(self.prototype.address_space),
+            "full_address_supported_entries": supported_entries["full"],
+            "hierarchical_supported_compression": (
+                hierarchical_supported_entries / float(self.prototype.address_space)
+                if self.prototype.address_space
+                else 0.0
+            ),
+            "hierarchical_nominal_compression": (
+                hierarchical_nominal_entries / float(self.prototype.address_space)
+                if self.prototype.address_space
+                else 0.0
+            ),
+            "hierarchical_supported_entry_counts": supported_entries,
             **component_values,
             **component_reductions,
         }
@@ -614,6 +722,10 @@ def _weighted_mean(items: Iterable[Dict[str, object]], key: str, weight_key: str
     return total / total_weight
 
 
+def _sum_int(items: Iterable[Dict[str, object]], key: str) -> int:
+    return int(sum(int(item.get(key, 0) or 0) for item in items))
+
+
 def group_eval_summary(modules: Iterable[Dict[str, object]], key: str) -> Dict[str, Dict[str, object]]:
     grouped: Dict[str, list] = {}
     for item in modules:
@@ -629,6 +741,18 @@ def group_eval_summary(modules: Iterable[Dict[str, object]], key: str) -> Dict[s
         "component_plus_k_relative_mse_reduction",
         "component_full_address_relative_mse_reduction",
         "component_shuffled_full_address_relative_mse_reduction",
+    ]
+    hierarchical_weighted_keys = [
+        "hierarchical_backoff_mse",
+        "hierarchical_backoff_relative_mse_reduction",
+        "hierarchical_backoff_hit_rate",
+        "fallback_fraction_full",
+        "fallback_fraction_plus_k",
+        "fallback_fraction_plus_q_or_gate",
+        "fallback_fraction_token_channel",
+        "fallback_fraction_global",
+        "hierarchical_supported_compression",
+        "hierarchical_nominal_compression",
     ]
     return {
         name: {
@@ -649,7 +773,15 @@ def group_eval_summary(modules: Iterable[Dict[str, object]], key: str) -> Dict[s
             "candidate_background_relative_mse_reduction": _weighted_mean(items, "candidate_background_relative_mse_reduction"),
             "eval_address_hit_rate": _weighted_mean(items, "eval_address_hit_rate"),
             "eval_candidate_fraction": _weighted_mean(items, "eval_candidate_fraction"),
+            "hierarchical_supported_entries": _sum_int(items, "hierarchical_supported_entries"),
+            "hierarchical_nominal_entries": _sum_int(items, "hierarchical_nominal_entries"),
+            "monolithic_full_address_entries": _sum_int(items, "monolithic_full_address_entries"),
+            "full_address_supported_entries": _sum_int(items, "full_address_supported_entries"),
             **{component_key: _weighted_mean(items, component_key) for component_key in component_keys},
+            **{
+                hierarchical_key: _weighted_mean(items, hierarchical_key)
+                for hierarchical_key in hierarchical_weighted_keys
+            },
         }
         for name, items in grouped.items()
     }
@@ -677,6 +809,19 @@ COMPONENT_RECONSTRUCTION_KEYS = [
     "component_plus_k_relative_mse_reduction",
     "component_full_address_relative_mse_reduction",
     "component_shuffled_full_address_relative_mse_reduction",
+]
+
+HIERARCHICAL_RECONSTRUCTION_KEYS = [
+    "hierarchical_backoff_mse",
+    "hierarchical_backoff_relative_mse_reduction",
+    "hierarchical_backoff_hit_rate",
+    "fallback_fraction_full",
+    "fallback_fraction_plus_k",
+    "fallback_fraction_plus_q_or_gate",
+    "fallback_fraction_token_channel",
+    "fallback_fraction_global",
+    "hierarchical_supported_compression",
+    "hierarchical_nominal_compression",
 ]
 
 
@@ -759,6 +904,10 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     module_reconstruction = list(bank.eval_summary().values())
     per_stage = group_eval_summary(module_reconstruction, "stage")
     per_block = group_eval_summary(module_reconstruction, "name")
+    hierarchical_supported_entries = _sum_int(module_reconstruction, "hierarchical_supported_entries")
+    hierarchical_nominal_entries = _sum_int(module_reconstruction, "hierarchical_nominal_entries")
+    monolithic_full_address_entries = _sum_int(module_reconstruction, "monolithic_full_address_entries")
+    full_address_supported_entries = _sum_int(module_reconstruction, "full_address_supported_entries")
     overall = {
         "eval_samples": int(sum(int(item.get("eval_samples", 0)) for item in module_reconstruction)),
         "global_mean_mse": _weighted_mean(module_reconstruction, "global_mean_mse"),
@@ -776,9 +925,28 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         "candidate_background_relative_mse_reduction": _weighted_mean(module_reconstruction, "candidate_background_relative_mse_reduction"),
         "eval_address_hit_rate": _weighted_mean(module_reconstruction, "eval_address_hit_rate"),
         "eval_candidate_fraction": _weighted_mean(module_reconstruction, "eval_candidate_fraction"),
+        "hierarchical_supported_entries": hierarchical_supported_entries,
+        "hierarchical_nominal_entries": hierarchical_nominal_entries,
+        "monolithic_full_address_entries": monolithic_full_address_entries,
+        "full_address_supported_entries": full_address_supported_entries,
+        "hierarchical_supported_compression": (
+            hierarchical_supported_entries / float(monolithic_full_address_entries)
+            if monolithic_full_address_entries > 0
+            else 0.0
+        ),
+        "hierarchical_nominal_compression": (
+            hierarchical_nominal_entries / float(monolithic_full_address_entries)
+            if monolithic_full_address_entries > 0
+            else 0.0
+        ),
         **{
             component_key: _weighted_mean(module_reconstruction, component_key)
             for component_key in COMPONENT_RECONSTRUCTION_KEYS
+        },
+        **{
+            hierarchical_key: _weighted_mean(module_reconstruction, hierarchical_key)
+            for hierarchical_key in HIERARCHICAL_RECONSTRUCTION_KEYS
+            if hierarchical_key not in {"hierarchical_supported_compression", "hierarchical_nominal_compression"}
         },
     }
 
