@@ -126,6 +126,31 @@ protocol and full validation.}
 \label{tab:e1_checkpoints}
 \end{table}
 
+Table~\ref{tab:e1_calibration} measures calibration data efficiency on
+CIFAR-100. Eight batches already recover $3.80\%$ relative MSE reduction,
+approximately $85\%$ of the $4.47\%$ obtained with 512 batches. Address LUT
+remains above token/channel at every calibration size, and validation address
+hit rate exceeds $99.79\%$ even at the smallest setting.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\begin{tabular}{rccc}
+\toprule
+Calib. batches & Address & Token/channel & Hit rate \\
+\midrule
+8 & 3.8001 & 3.3315 & 99.7952 \\
+32 & 4.2756 & 3.4084 & 99.9557 \\
+128 & 4.4243 & 3.4253 & 99.9908 \\
+512 & 4.4674 & 3.4274 & 99.9981 \\
+\bottomrule
+\end{tabular}
+\caption{CIFAR-100 E1 calibration-size sweep. Address and token/channel values
+are relative MSE reductions in percent; hit rate is the percentage of
+validation samples whose address has sufficient calibration support.}
+\label{tab:e1_calibration}
+\end{table}
+
 \subsection{Forward-Only Replacement Diagnostics}
 \label{sec:e2_results}
 

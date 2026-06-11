@@ -111,6 +111,13 @@ across calibration subsets and full validation.
     negative at -18.8859% / -17.5642% / -17.0855%.
   - This establishes the positive E1 claim across datasets, time steps,
     calibration subsets, stages, and independent training checkpoints.
+- CIFAR-100 E1 calibration-size sweep:
+  - Address reductions at 8/32/128/512 batches are 3.8001% / 4.2756% /
+    4.4243% / 4.4674%; token/channel is 3.3315% / 3.4084% / 3.4253% /
+    3.4274%.
+  - Address leads at every size. Eight batches recover about 85% of the
+    512-batch address gain, with 99.7952% validation address hit rate.
+  - This supports calibration data efficiency, not hardware latency or energy.
 - CIFAR-100 T=1 stage1 alpha 0.025:
   - address/global/token-channel/shuffled mean Acc@1 deltas are
     +0.1633 / +0.3233 / -0.1333 / -0.0933.
@@ -170,8 +177,8 @@ before falling back to GPU 2. Small diagnostics default to GPU 2.
 
 ## Next Useful Experiments
 
-1. Run an E1 calibration-size sweep to quantify how much data is required for
-   the address-specific reconstruction advantage.
+1. Convert the E0/E1 evidence into publication figures: coverage/conditional
+   variance, control MSE reduction, and calibration-size curves.
 2. Reframe the paper around address structure, occupancy, and response
    reconstruction; treat small Acc@1 changes as secondary negative evidence.
 

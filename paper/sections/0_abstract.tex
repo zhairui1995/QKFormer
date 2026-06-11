@@ -10,7 +10,9 @@ token/channel LUTs reach $2.79\%$ and $3.42\%$, while shuffling the
 address--prototype alignment degrades MSE by $17.83\%$ and $15.82\%$,
 respectively. Across three independently trained single-step ($T=1$)
 CIFAR-10 checkpoints, address reductions range from $3.76\%$ to $5.94\%$ and
-exceed token/channel controls in every case. Residual-adapter accuracy changes
+exceed token/channel controls in every case. With only eight CIFAR-100
+calibration batches, the address LUT already attains $3.80\%$ reduction versus
+$4.47\%$ at 512 batches. Residual-adapter accuracy changes
 remain checkpoint- and stage-dependent. We further train a $T=1$ CIFAR-100 baseline to
 $77.76\%$ top-1 accuracy. On CIFAR-100, the address LUT improves top-1 accuracy
 by $0.163$ points on average and outperforms token/channel and same-capacity
