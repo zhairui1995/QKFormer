@@ -182,22 +182,34 @@ Paper use:
 - This directly strengthens novelty against “this is just token/channel
   binning” and “ordinary lookup table capacity” objections.
 
-### Priority 3: Budgeted / Compressed Hierarchy
+### Priority 3: Fixed-Budget / Compressed Hierarchy
 
-Goal: test whether support-threshold budgeting can satisfy the E5 compression
-gate without losing address reconstruction.
+Goal: test whether a fixed-entry-budget hierarchy can satisfy the E5
+compression gate without losing address reconstruction. This is the direct
+reply to the reviewer concern that full Q/K lookup tables can explode in size.
+
+Current implementation:
+
+- `tools/qkformer_lut_e1_recon.py` supports
+  `QKFORMER_LUT_E1_HIERARCHY_BUDGET_FRACTION`.
+- `scripts/server/run_qkformer_lut_e6_budget_fraction_sweep.sh` runs the
+  fixed-budget sweep.
+- Default policy is `balanced_quota`: keep a small quota for token/channel
+  fallback and reserve the rest for progressively more Q/K-specific levels.
 
 Run:
 
 - CIFAR-100 T=1.
 - Calibration sizes: 8, 32, 128, 512.
 - Calibration seeds: 42, 43, 44.
-- Support thresholds: min-count sweep such as 4, 8, 16, 32, 64.
+- Budget fraction: 0.25 of the compact full-address space.
+- Support thresholds: min-count sweep such as 2, 4, 8 under the same fixed
+  budget.
 
 Gate:
 
-- A budgeted setting should exist for every size/seed with effective entries
-  <= 25% of compact full-address space.
+- A fixed-budget setting should exist for every size/seed with effective
+  entries <= 25% of compact full-address space.
 - It should retain at least 80% of full-address reconstruction gain.
 - It must beat token/channel and remain above shuffled controls.
 

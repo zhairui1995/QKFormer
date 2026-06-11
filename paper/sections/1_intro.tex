@@ -22,9 +22,10 @@ attention-module responses better than non-address controls. To address the
 obvious dimensionality concern of direct full-vector lookup, we additionally
 evaluate a support-aware hierarchical backoff LUT that searches from fine
 Q/K-address prototypes to coarser token/channel prototypes before falling back
-to the global mean. The method freezes a trained QKFormer backbone, calibrates
-response prototypes, and trains only tiny residual LUT adapters under
-classification, baseline-logit distillation, and local response constraints.
+to the global mean. For downstream utility, we additionally use frozen-backbone
+residual LUT adapter probes with classification, baseline-logit distillation,
+and local response constraints; these probes test whether the reconstruction
+signal transfers to accuracy, rather than defining the main claim.
 
 Our experiments show a nuanced picture. Forward-only address prototypes can
 slightly improve early-stage replacement, but global smoothing is a strong
@@ -56,8 +57,9 @@ Our contributions are:
   \item We introduce a support-aware hierarchical backoff QK-LUT audit that
   makes lookup misses explicit through full-address, partial-address,
   token/channel, and global fallback levels.
-  \item We introduce a frozen-backbone trainable residual LUT adapter that uses
-  calibrated Q/K-address prototypes with small trainable correction tables.
+  \item We use frozen-backbone residual LUT adapter probes to test whether
+  calibrated Q/K-address prototypes transfer to downstream utility under
+  strict global, token/channel, and shuffled-address controls.
   \item We provide a staged ablation study on CIFAR-10 and CIFAR-100, including
   reconstruction diagnostics, forward-only replacement, stage/calibration/blend
   sweeps, independent-checkpoint replication, and T=1 alpha sensitivity

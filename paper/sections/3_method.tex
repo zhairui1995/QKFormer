@@ -90,11 +90,12 @@ responses. We evaluate stage1-only, stage2-only, and combined replacements,
 calibration sizes, blend ratios, random calibration subsets, and non-address
 controls.
 
-\subsection{Trainable Residual LUT Adapter}
+\subsection{Residual LUT Adapter Probe}
 \label{sec:e3}
 
-The paper-oriented method is a trainable residual LUT adapter. Given a frozen
-QKFormer module output $\mathbf{y}$ and a LUT prediction
+To test whether reconstruction structure transfers to downstream predictions,
+we use a trainable residual LUT adapter probe. Given a frozen QKFormer module
+output $\mathbf{y}$ and a LUT prediction
 $\hat{\mathbf{y}}_{a}$ indexed by address $a$, the adapted response is
 \begin{equation}
   \tilde{\mathbf{y}} = (1-\alpha)\mathbf{y} + \alpha \hat{\mathbf{y}}_{a}.
@@ -108,10 +109,12 @@ frozen baseline logits, and local MSE to the baseline module response:
   + \lambda_{\mathrm{kl}}\mathcal{L}_{\mathrm{kl}}
   + \lambda_{\mathrm{mse}}\|\tilde{\mathbf{y}}-\mathbf{y}\|_2^2 .
 \end{equation}
-Our conservative setting trains for two epochs over 128 training batches and
-evaluates on the full validation split. We sweep $\alpha\in\{0.025,0.05,0.1\}$
-and use $\alpha=0.025$ for low-disturbance checkpoint, stage, and dataset
-controls.
+This is a probe rather than a claimed production method: the backbone is
+frozen, the adapter is small, and every address result is compared to global,
+token/channel, and shuffled-address controls. Our conservative setting trains
+for two epochs over 128 training batches and evaluates on the full validation
+split. We sweep $\alpha\in\{0.025,0.05,0.1\}$ and use $\alpha=0.025$ for
+low-disturbance checkpoint, stage, and dataset controls.
 
 We compare \emph{address LUT}, \emph{global mean}, and a weaker
 \emph{token-channel LUT}. A same-capacity \emph{shuffled address LUT} preserves

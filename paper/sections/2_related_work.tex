@@ -18,14 +18,14 @@ interactions depend on softmax normalization and continuous query--key scores.
 Recent conversion work such as SpikedAttention directly addresses attention
 conversion for Transformers~\cite{hwang2024spikedattention}. In contrast, this
 paper begins from a spiking Transformer whose attention already exposes binary
-Q/K structure, and asks whether that structure can index residual lookup
-adapters.
+Q/K structure, and asks whether that structure can index auditable lookup
+prototypes and controlled downstream probes.
 
 \paragraph{Lookup-style neural computation.}
 Lookup tables have long been attractive for replacing repeated computation with
 discrete indexing. For attention, however, naive table lookup can lose
 input-dependent context. Our diagnostic results reflect this: forward-only
 prototype tables are not enough when global smoothing controls perform nearly
-as well. The proposed residual adapter route treats LUTs as trainable,
-constrained correction modules rather than full forward-only replacements.
-
+as well. We therefore treat LUTs first as auditable reconstruction objects, and
+only secondarily as constrained downstream probes rather than full forward-only
+replacements.
