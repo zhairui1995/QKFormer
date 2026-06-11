@@ -89,20 +89,22 @@ if [[ -z "$SERVER_SCRIPT" ]]; then
 fi
 
 env_exports=""
-for item in "${REMOTE_ENV[@]}"; do
-  if [[ "$item" != *=* ]]; then
-    echo "[remote-detached] --env must be KEY=VALUE, got: $item" >&2
-    exit 2
-  fi
-  key="${item%%=*}"
-  value="${item#*=}"
-  if [[ ! "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
-    echo "[remote-detached] invalid env key: $key" >&2
-    exit 2
-  fi
-  printf -v quoted_value '%q' "$value"
-  env_exports+="export ${key}=${quoted_value}; "
-done
+if [[ "${#REMOTE_ENV[@]}" -gt 0 ]]; then
+  for item in "${REMOTE_ENV[@]}"; do
+    if [[ "$item" != *=* ]]; then
+      echo "[remote-detached] --env must be KEY=VALUE, got: $item" >&2
+      exit 2
+    fi
+    key="${item%%=*}"
+    value="${item#*=}"
+    if [[ ! "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      echo "[remote-detached] invalid env key: $key" >&2
+      exit 2
+    fi
+    printf -v quoted_value '%q' "$value"
+    env_exports+="export ${key}=${quoted_value}; "
+  done
+fi
 
 printf -v quoted_server_script '%q' "$SERVER_SCRIPT"
 printf -v quoted_package_script '%q' "$PACKAGE_SCRIPT"
@@ -126,6 +128,7 @@ if [[ $quoted_run_kind == train ]]; then
 else
   GPU=$quoted_gpu_default
 fi
+export GPU
 LOG="results/remote_jobs/${quoted_job_name}.log"
 PID_FILE="results/remote_jobs/${quoted_job_name}.pid"
 RUNNER="source ~/miniconda/etc/profile.d/conda.sh; conda activate $quoted_conda_env; cd $REMOTE_ROOT; ${env_exports}echo [remote-detached] selected_gpu=\\\$GPU kind=$RUN_KIND; bash $quoted_server_script --gpu \\\$GPU"
