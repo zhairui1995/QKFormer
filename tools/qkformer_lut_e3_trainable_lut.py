@@ -55,6 +55,9 @@ class TrainableLUTModule(nn.Module):
         shrinkage_tau: float,
         address_scale: float,
         mode_seed: int,
+        token_bins: int,
+        channel_bins: int,
+        population_bins: int,
     ) -> None:
         super().__init__()
         self.name = proto.name
@@ -64,6 +67,9 @@ class TrainableLUTModule(nn.Module):
         self.address_space = int(proto.address_space)
         self.address_scale = float(address_scale)
         self.mode_seed = int(mode_seed)
+        self.token_bins = int(token_bins)
+        self.channel_bins = int(channel_bins)
+        self.population_bins = int(population_bins)
         supported_modes = {
             "address_lut",
             "global_mean",
@@ -71,11 +77,32 @@ class TrainableLUTModule(nn.Module):
             "shuffled_address_lut",
             "global_plus_address_lut",
             "global_plus_shuffled_address_lut",
+            "factorized_sum_lut",
+            "factorized_gated_lut",
+            "matched_param_address_lut",
+            "factorized_shuffled_lut",
         }
         if self.mode not in supported_modes:
             raise ValueError(f"unsupported E3 adapter mode: {self.mode}")
 
-        if self.mode == "global_mean":
+        self.component_names, self.component_sizes = self._component_spec()
+        self.factorized_modes = {
+            "factorized_sum_lut",
+            "factorized_gated_lut",
+            "factorized_shuffled_lut",
+        }
+        if self.mode in self.factorized_modes:
+            self.global_table = nn.Parameter(torch.tensor([float(proto.global_mean)], dtype=torch.float32))
+            component_init = self._component_init(proto, shrinkage_tau)
+            self.component_tables = nn.ParameterDict(
+                {name: nn.Parameter(component_init[name]) for name in self.component_names}
+            )
+            if self.mode == "factorized_gated_lut":
+                self.component_gate_logits = nn.Parameter(torch.zeros(len(self.component_names), dtype=torch.float32))
+        elif self.mode == "matched_param_address_lut":
+            matched_entries = 1 + sum(self.component_sizes) + len(self.component_names)
+            self.table = nn.Parameter(self._hashed_address_init(proto, matched_entries, shrinkage_tau))
+        elif self.mode == "global_mean":
             init = torch.tensor([float(proto.global_mean)], dtype=torch.float32)
         elif self.mode == "token_channel_lut":
             init = self._coarse_init(proto, shrinkage_tau)
@@ -85,17 +112,27 @@ class TrainableLUTModule(nn.Module):
             self.global_table = nn.Parameter(torch.tensor([float(proto.global_mean)], dtype=torch.float32))
         else:
             init = self._address_init(proto, shrinkage_tau)
-        self.table = nn.Parameter(init)
+        if self.mode not in self.factorized_modes and self.mode != "matched_param_address_lut":
+            self.table = nn.Parameter(init)
 
-        alpha = min(max(float(alpha_init), 1e-4), 1.0 - 1e-4)
-        alpha_logit = math.log(alpha / (1.0 - alpha))
-        self.alpha_logit = nn.Parameter(torch.tensor(alpha_logit, dtype=torch.float32), requires_grad=bool(learn_alpha))
+        alpha_value = float(alpha_init)
+        if learn_alpha:
+            alpha = min(max(alpha_value, 1e-4), 1.0 - 1e-4)
+            alpha_logit = math.log(alpha / (1.0 - alpha))
+            self.alpha_logit = nn.Parameter(torch.tensor(alpha_logit, dtype=torch.float32))
+        else:
+            self.register_buffer("fixed_alpha", torch.tensor(min(max(alpha_value, 0.0), 1.0), dtype=torch.float32))
 
     @property
     def alpha(self) -> torch.Tensor:
-        return torch.sigmoid(self.alpha_logit)
+        if hasattr(self, "alpha_logit"):
+            return torch.sigmoid(self.alpha_logit)
+        return self.fixed_alpha
 
     def forward(self, address: torch.Tensor, response: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        if self.mode in self.factorized_modes:
+            pred, index = self._factorized_prediction(address, response)
+            return response + self.alpha.to(device=response.device, dtype=response.dtype) * (pred - response), index
         index = self._index(address, response.device)
         table = self.table.to(device=response.device, dtype=response.dtype)
         if self.mode in {"global_plus_address_lut", "global_plus_shuffled_address_lut"}:
@@ -111,7 +148,10 @@ class TrainableLUTModule(nn.Module):
         if self.mode == "global_mean":
             return torch.zeros_like(addr)
         if self.mode == "token_channel_lut":
-            return torch.div(addr, 4, rounding_mode="floor").clamp_max(self.table.numel() - 1)
+            detail_factor = 4 if self.kind == "token_qk" else 4 * self.population_bins * self.population_bins
+            return torch.div(addr, detail_factor, rounding_mode="floor").clamp_max(self.table.numel() - 1)
+        if self.mode == "matched_param_address_lut":
+            return torch.remainder(addr, self.table.numel())
         if self.mode in {"shuffled_address_lut", "global_plus_shuffled_address_lut"}:
             return self._address_permutation(device)[addr]
         return addr
@@ -127,6 +167,62 @@ class TrainableLUTModule(nn.Module):
             self._cached_address_permutation = perm
         return perm.to(device=device)
 
+    def _component_spec(self) -> Tuple[List[str], List[int]]:
+        detail = 4 if self.kind == "token_qk" else 4 * self.population_bins * self.population_bins
+        denominator = self.token_bins * self.channel_bins * detail
+        if denominator <= 0 or self.address_space % denominator != 0:
+            raise ValueError(
+                f"cannot factor address space for {self.name}: address_space={self.address_space}, denominator={denominator}"
+            )
+        heads = self.address_space // denominator
+        names = ["head", "token", "channel", "q_bit", "k_bit"]
+        sizes = [heads, self.token_bins, self.channel_bins, 2, 2]
+        if self.kind == "spiking_self":
+            names.extend(["q_population", "k_population"])
+            sizes.extend([self.population_bins, self.population_bins])
+        return names, sizes
+
+    def split_address(self, address: torch.Tensor) -> Dict[str, torch.Tensor]:
+        value = address.detach().to(dtype=torch.long)
+        decoded: Dict[str, torch.Tensor] = {}
+        for name, size in reversed(list(zip(self.component_names, self.component_sizes))):
+            decoded[name] = torch.remainder(value, size)
+            value = torch.div(value, size, rounding_mode="floor")
+        return {name: decoded[name] for name in self.component_names}
+
+    def _component_permutation(self, name: str, size: int, device: torch.device) -> torch.Tensor:
+        cache_name = f"_cached_component_permutation_{name}"
+        perm = getattr(self, cache_name, None)
+        if perm is None:
+            digest = hashlib.sha256(f"{self.mode_seed}:{self.name}:{name}".encode("utf-8")).hexdigest()
+            generator = torch.Generator()
+            generator.manual_seed(int(digest[:16], 16) % (2**63))
+            perm = torch.randperm(size, generator=generator, dtype=torch.long)
+            setattr(self, cache_name, perm)
+        return perm.to(device=device)
+
+    def _factorized_prediction(
+        self, address: torch.Tensor, response: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        components = self.split_address(address.to(device=response.device))
+        residuals = []
+        packed_index = torch.zeros_like(address, device=response.device, dtype=torch.long)
+        for name, size in zip(self.component_names, self.component_sizes):
+            index = components[name].to(device=response.device)
+            if self.mode == "factorized_shuffled_lut":
+                index = self._component_permutation(name, size, response.device)[index]
+            table = self.component_tables[name].to(device=response.device, dtype=response.dtype)
+            residuals.append(table[index])
+            packed_index = packed_index * size + index
+        stacked = torch.stack(residuals, dim=0)
+        if self.mode == "factorized_gated_lut":
+            weights = torch.softmax(self.component_gate_logits, dim=0).to(response.dtype) * len(self.component_names)
+            residual = torch.sum(stacked * weights.reshape((-1,) + (1,) * address.ndim), dim=0)
+        else:
+            residual = torch.sum(stacked, dim=0)
+        global_value = self.global_table.to(device=response.device, dtype=response.dtype)[0]
+        return global_value + residual, packed_index
+
     def _address_init(self, proto: ModulePrototype, shrinkage_tau: float) -> torch.Tensor:
         means = proto.address_mean.to(torch.float32)
         counts = proto.count.to(torch.float32)
@@ -137,10 +233,11 @@ class TrainableLUTModule(nn.Module):
         return weight * means + (1.0 - weight) * global_mean
 
     def _coarse_init(self, proto: ModulePrototype, shrinkage_tau: float) -> torch.Tensor:
-        coarse_space = max(1, proto.address_space // 4)
+        detail_factor = 4 if self.kind == "token_qk" else 4 * self.population_bins * self.population_bins
+        coarse_space = max(1, proto.address_space // detail_factor)
         coarse_sum = torch.zeros(coarse_space, dtype=torch.float64)
         coarse_count = torch.zeros(coarse_space, dtype=torch.float64)
-        coarse_index = torch.arange(proto.address_space, dtype=torch.long) // 4
+        coarse_index = torch.arange(proto.address_space, dtype=torch.long) // detail_factor
         coarse_sum.scatter_add_(0, coarse_index, proto.sum)
         coarse_count.scatter_add_(0, coarse_index, proto.count)
         global_mean = torch.full((coarse_space,), fill_value=float(proto.global_mean), dtype=torch.float64)
@@ -152,18 +249,78 @@ class TrainableLUTModule(nn.Module):
             means = weight * means + (1.0 - weight) * global_mean
         return means.to(torch.float32)
 
+    def _component_init(self, proto: ModulePrototype, shrinkage_tau: float) -> Dict[str, torch.Tensor]:
+        all_addresses = torch.arange(self.address_space, dtype=torch.long)
+        components = self.split_address(all_addresses)
+        output: Dict[str, torch.Tensor] = {}
+        for name, size in zip(self.component_names, self.component_sizes):
+            sums = torch.zeros(size, dtype=torch.float64)
+            counts = torch.zeros(size, dtype=torch.float64)
+            sums.scatter_add_(0, components[name], proto.sum)
+            counts.scatter_add_(0, components[name], proto.count)
+            means = torch.full((size,), float(proto.global_mean), dtype=torch.float64)
+            seen = counts > 0
+            means[seen] = sums[seen] / counts[seen]
+            if shrinkage_tau > 0:
+                weight = counts / (counts + float(shrinkage_tau))
+                means = weight * means + (1.0 - weight) * float(proto.global_mean)
+            output[name] = (means - float(proto.global_mean)).to(torch.float32)
+        return output
+
+    def _hashed_address_init(
+        self, proto: ModulePrototype, table_entries: int, shrinkage_tau: float
+    ) -> torch.Tensor:
+        index = torch.remainder(torch.arange(self.address_space, dtype=torch.long), table_entries)
+        sums = torch.zeros(table_entries, dtype=torch.float64)
+        counts = torch.zeros(table_entries, dtype=torch.float64)
+        sums.scatter_add_(0, index, proto.sum)
+        counts.scatter_add_(0, index, proto.count)
+        means = torch.full((table_entries,), float(proto.global_mean), dtype=torch.float64)
+        seen = counts > 0
+        means[seen] = sums[seen] / counts[seen]
+        if shrinkage_tau > 0:
+            weight = counts / (counts + float(shrinkage_tau))
+            means = weight * means + (1.0 - weight) * float(proto.global_mean)
+        return means.to(torch.float32)
+
     def summary(self) -> Dict[str, object]:
+        if self.mode in self.factorized_modes:
+            table_entries = 1 + sum(table.numel() for table in self.component_tables.values())
+            active_entries = table_entries
+            component_entries = {
+                name: int(self.component_tables[name].numel()) for name in self.component_names
+            }
+        else:
+            table_entries = int(self.table.numel())
+            active_entries = int(torch.count_nonzero(self.table.detach()).item())
+            component_entries = None
         summary = {
             "name": self.name,
             "kind": self.kind,
             "stage": self.stage,
             "mode": self.mode,
             "address_space": self.address_space,
-            "table_entries": int(self.table.numel()),
+            "table_entries": table_entries,
+            "active_entries": active_entries,
+            "estimated_table_bytes_fp32": 4 * table_entries,
+            "estimated_trainable_bytes_fp32": 4
+            * sum(param.numel() for param in self.parameters() if param.requires_grad),
             "trainable_parameters": sum(param.numel() for param in self.parameters() if param.requires_grad),
             "alpha": float(self.alpha.detach().cpu().item()),
         }
-        if hasattr(self, "global_table"):
+        if component_entries is not None:
+            summary["component_entries"] = component_entries
+            summary["component_order"] = list(self.component_names)
+            summary["composition"] = "gated_sum" if self.mode == "factorized_gated_lut" else "sum"
+            if hasattr(self, "component_gate_logits"):
+                summary["component_weights"] = {
+                    name: float(weight)
+                    for name, weight in zip(
+                        self.component_names,
+                        (torch.softmax(self.component_gate_logits.detach(), dim=0) * len(self.component_names)).cpu(),
+                    )
+                }
+        if self.mode in {"global_plus_address_lut", "global_plus_shuffled_address_lut"}:
             summary["global_value"] = float(self.global_table.detach().cpu().item())
             summary["centered_table_mean"] = float((self.table - self.table.mean()).detach().mean().cpu().item())
             summary["address_scale"] = self.address_scale
@@ -205,6 +362,9 @@ class TrainableLUTAdapter(nn.Module):
                     shrinkage_tau=shrinkage_tau,
                     address_scale=address_scale,
                     mode_seed=mode_seed,
+                    token_bins=self.token_bins,
+                    channel_bins=self.channel_bins,
+                    population_bins=self.population_bins,
                 )
         self.enabled = False
         self.buffers: Dict[str, Dict[str, torch.Tensor]] = defaultdict(dict)
