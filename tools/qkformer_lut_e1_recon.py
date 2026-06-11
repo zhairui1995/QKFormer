@@ -861,6 +861,9 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     env_evaluation_batches = os.environ.get("QKFORMER_LUT_E1_EVAL_BATCHES")
     if env_evaluation_batches is not None:
         evaluation_cfg["num_batches"] = int(env_evaluation_batches)
+    env_min_count = os.environ.get("QKFORMER_LUT_E1_MIN_COUNT")
+    if env_min_count is not None:
+        diag_cfg["prototype_min_count"] = int(env_min_count)
     env_calibration_shuffle = os.environ.get("QKFORMER_LUT_E1_CALIB_SHUFFLE")
     if env_calibration_shuffle is not None:
         calibration_cfg["shuffle"] = env_calibration_shuffle.lower() in {"1", "true", "yes", "on"}
