@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT"
+
+source "$ROOT/scripts/server/qkformer_lut_common.sh"
+qk_lut_parse_gpu_args "$@"
+export QKFORMER_LUT_GPU="${QKFORMER_LUT_GPU:-2}"
+qk_lut_configure_gpu
+
+if ! PYTHON_BIN="$(qk_lut_select_python)"; then
+  echo "[qk-lut-c100-t4-after-train] missing python3/python"
+  exit 1
+fi
+
+QKFORMER_LUT_CKPT="$("$PYTHON_BIN" - "$ROOT" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+candidates = []
+for path in root.glob("results/qkformer_cifar100_train_*"):
+    manifest_path = path / "checkpoint_manifest.json"
+    if not manifest_path.exists():
+        continue
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if str(manifest.get("time_step")) != "4":
+        continue
+    checkpoint = manifest.get("best_checkpoint") or manifest.get("latest_checkpoint")
+    if checkpoint and Path(checkpoint).exists():
+        candidates.append((path, checkpoint))
+if not candidates:
+    raise SystemExit("no completed CIFAR-100 T=4 checkpoint found")
+_, checkpoint = max(candidates, key=lambda item: (item[0].stat().st_mtime, str(item[0])))
+print(checkpoint)
+PY
+)"
+
+export QKFORMER_LUT_CKPT
+export QKFORMER_LUT_TIME_STEP=4
+export QKFORMER_LUT_DATA_DIR="${QKFORMER_LUT_CIFAR100_DATA_DIR:-$ROOT/data/cifar100}"
+export QKFORMER_LUT_E0_CONFIG=configs/qkformer_lut_cifar100_t1_e0_diag.yaml
+export QKFORMER_LUT_E1_CONFIG=configs/qkformer_lut_cifar100_t1_e1_recon.yaml
+export QKFORMER_LUT_E3_CONFIG=configs/qkformer_lut_cifar100_t1_e3_trainable_lut.yaml
+
+export QKFORMER_LUT_E1_CALIB_BATCHES="${QKFORMER_LUT_C100_T4_E1_CALIB_BATCHES:-128}"
+export QKFORMER_LUT_E1_EVAL_BATCHES="${QKFORMER_LUT_C100_T4_E1_EVAL_BATCHES:-0}"
+export QKFORMER_LUT_E1_CALIB_SHUFFLE="${QKFORMER_LUT_C100_T4_E1_CALIB_SHUFFLE:-1}"
+export QKFORMER_LUT_E1_SEED="${QKFORMER_LUT_C100_T4_E1_SEED:-42}"
+
+export QKFORMER_LUT_E3_ALPHA_INIT="${QKFORMER_LUT_C100_T4_E3_ALPHA_INIT:-0.025}"
+export QKFORMER_LUT_E3_LEARN_ALPHA=0
+export QKFORMER_LUT_E3_SWEEP_TARGETS="${QKFORMER_LUT_C100_T4_E3_TARGETS:-stage1.0.tssa}"
+export QKFORMER_LUT_E3_MODE_SWEEP="${QKFORMER_LUT_C100_T4_E3_MODES:-address_lut,global_mean,token_channel_lut,shuffled_address_lut}"
+export QKFORMER_LUT_E3_SEED_SWEEP="${QKFORMER_LUT_C100_T4_E3_SEEDS:-42,43,44}"
+export QKFORMER_LUT_E3_EPOCHS="${QKFORMER_LUT_C100_T4_E3_EPOCHS:-2}"
+export QKFORMER_LUT_E3_CALIB_BATCHES="${QKFORMER_LUT_C100_T4_E3_CALIB_BATCHES:-128}"
+export QKFORMER_LUT_E3_TRAIN_BATCHES="${QKFORMER_LUT_C100_T4_E3_TRAIN_BATCHES:-128}"
+export QKFORMER_LUT_E3_EVAL_BATCHES="${QKFORMER_LUT_C100_T4_E3_EVAL_BATCHES:-0}"
+
+echo "[qk-lut-c100-t4-after-train] checkpoint=$QKFORMER_LUT_CKPT"
+echo "[qk-lut-c100-t4-after-train] gpu=$QKFORMER_LUT_GPU"
+echo "[qk-lut-c100-t4-after-train] e1_calib_batches=$QKFORMER_LUT_E1_CALIB_BATCHES"
+echo "[qk-lut-c100-t4-after-train] e3_modes=$QKFORMER_LUT_E3_MODE_SWEEP"
+echo "[qk-lut-c100-t4-after-train] e3_seeds=$QKFORMER_LUT_E3_SEED_SWEEP"
+
+bash scripts/server/run_qkformer_lut_e0_diag.sh --gpu "$QKFORMER_LUT_GPU"
+QKFORMER_LUT_RESULT_TAG=cifar100_t4_e1_calib${QKFORMER_LUT_E1_CALIB_BATCHES}_seed${QKFORMER_LUT_E1_SEED} \
+  bash scripts/server/run_qkformer_lut_e1_recon.sh --gpu "$QKFORMER_LUT_GPU"
+bash scripts/server/run_qkformer_lut_e3_conservative_sweep.sh --gpu "$QKFORMER_LUT_GPU"
+QKFORMER_LUT_PACKAGE_E3_COUNT=12 \
+  bash scripts/server/package_qkformer_lut_cifar100_t4.sh
+
+echo "[qk-lut-c100-t4-after-train] done=$(date -Is)"

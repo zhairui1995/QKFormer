@@ -118,5 +118,8 @@ if [[ "$ANALYZE" -eq 1 ]]; then
   if [[ -x scripts/local/analyze_qk_lut_e6_budgeted_backoff.py || -f scripts/local/analyze_qk_lut_e6_budgeted_backoff.py ]]; then
     python3 scripts/local/analyze_qk_lut_e6_budgeted_backoff.py || true
   fi
+  if [[ -x scripts/local/analyze_qk_lut_cifar100_t4.py || -f scripts/local/analyze_qk_lut_cifar100_t4.py ]]; then
+    python3 scripts/local/analyze_qk_lut_cifar100_t4.py || true
+  fi
   python3 scripts/local/analyze_qk_lut_results.py --root "$ROOT" --brief || true
 fi
