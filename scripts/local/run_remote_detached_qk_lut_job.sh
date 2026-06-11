@@ -121,7 +121,7 @@ cd $REMOTE_ROOT
 mkdir -p results/remote_jobs
 git fetch $quoted_git_remote $quoted_branch
 git checkout $quoted_branch
-git pull --ff-only $quoted_git_remote $quoted_branch
+git merge --ff-only FETCH_HEAD
 if [[ $quoted_run_kind == train ]]; then
   GPU=\$(nvidia-smi --query-gpu=index,memory.used,utilization.gpu --format=csv,noheader,nounits | awk -F, '\$2+0<1000 && \$3+0<20 {gsub(/ /,"",\$1); print \$1; exit}' || true)
   GPU=\${GPU:-$quoted_gpu_default}

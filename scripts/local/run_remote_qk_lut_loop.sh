@@ -109,7 +109,7 @@ set -euo pipefail
 cd $REMOTE_ROOT
 git fetch $GIT_REMOTE $BRANCH
 git checkout $BRANCH
-git pull --ff-only $GIT_REMOTE $BRANCH
+git merge --ff-only FETCH_HEAD
 source ~/miniconda/etc/profile.d/conda.sh
 conda activate $CONDA_ENV
 if [[ "$RUN_KIND" == "train" ]]; then
