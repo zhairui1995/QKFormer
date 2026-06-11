@@ -50,7 +50,7 @@ def latest_t1_e1(results: Path) -> Path | None:
 
 
 def latest_t1_e3(results: Path, limit: int, checkpoint_marker: str | None = None) -> list[Path]:
-    candidates_by_key: dict[tuple[str, str, str], Path] = {}
+    candidates_by_key: dict[tuple[str, str, str, str, str], Path] = {}
     for metrics in results.glob("qkformer_lut_e3_trainable_lut_*/metrics.json"):
         data = load_json(metrics)
         if str(data.get("model", {}).get("time_step")) == "1":
@@ -66,7 +66,10 @@ def latest_t1_e3(results: Path, limit: int, checkpoint_marker: str | None = None
             alpha = data.get("env_overrides", {}).get("QKFORMER_LUT_E3_ALPHA_INIT")
             if alpha is None:
                 alpha = data.get("adapter_config", {}).get("alpha_init")
-            key = (checkpoint_path, str(mode), str(seed), str(alpha))
+            address_scale = data.get("env_overrides", {}).get("QKFORMER_LUT_E3_ADDRESS_SCALE")
+            if address_scale is None:
+                address_scale = data.get("adapter_config", {}).get("address_scale")
+            key = (checkpoint_path, str(mode), str(seed), str(alpha), str(address_scale))
             old = candidates_by_key.get(key)
             if old is None or metrics.parent.stat().st_mtime > old.stat().st_mtime:
                 candidates_by_key[key] = metrics.parent
@@ -240,6 +243,11 @@ def main() -> int:
     parser.add_argument("--e3-count", type=int, default=12, help="Latest T=1 E3 runs to summarize")
     parser.add_argument("--all-checkpoints", action="store_true", help="Summarize T=1 E3 runs across all checkpoints")
     parser.add_argument("--group-alpha", action="store_true", help="Group E3 rows by mode and alpha")
+    parser.add_argument(
+        "--group-address-scale",
+        action="store_true",
+        help="Group E3 rows by mode and address residual scale",
+    )
     parser.add_argument("--brief", action="store_true", help="Print compact summary only")
     parser.add_argument("--write-md", type=Path, help="Write a markdown report to this path")
     args = parser.parse_args()
@@ -299,7 +307,14 @@ def main() -> int:
         alpha = metrics.get("env_overrides", {}).get("QKFORMER_LUT_E3_ALPHA_INIT")
         if alpha is None:
             alpha = metrics.get("adapter_config", {}).get("alpha_init")
-        group_mode = f"{mode}@alpha={fmt(alpha, 3)}" if args.group_alpha else mode
+        address_scale = metrics.get("env_overrides", {}).get("QKFORMER_LUT_E3_ADDRESS_SCALE")
+        if address_scale is None:
+            address_scale = metrics.get("adapter_config", {}).get("address_scale")
+        group_mode = mode
+        if args.group_alpha:
+            group_mode += f"@alpha={fmt(alpha, 3)}"
+        if args.group_address_scale:
+            group_mode += f"@address_scale={fmt(address_scale, 3)}"
         cls = metrics.get("classification", {})
         replacement = cls.get("replacement", {})
         seed = (

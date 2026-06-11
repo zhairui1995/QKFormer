@@ -20,9 +20,10 @@ CIFAR-100 broadens the evidence: T=1 QKFormer reaches 77.76% Acc@1 and its
 stage1 address LUT beats shuffled and token/channel controls, but global-mean
 smoothing remains stronger. Split-aware reconstruction nevertheless shows a
 clean cross-dataset signal, and a centered residual separates aligned from
-shuffled addresses. The current gate sweeps the centered address-residual
-scale to test whether this structure can improve classification beyond the
-global component.
+shuffled addresses at unit scale. A residual-scale sweep does not preserve
+that separation and never exceeds global smoothing. Accuracy-oriented adapter
+tuning is therefore stopped; the next gate tests E1 reconstruction stability
+across calibration subsets and full validation.
 
 ## Key Evidence
 
@@ -102,6 +103,13 @@ global component.
     centered shuffled, while global mean improves loss by -0.006822.
   - This strengthens the address-alignment claim but still does not beat the
     strongest global-smoothing classification or loss baseline.
+- CIFAR-100 centered address-residual scale sweep:
+  - Scales 0.1 / 0.25 / 0.5 aligned mean Acc@1 deltas are +0.0333 / +0.1233 /
+    +0.0767; none exceeds global mean at +0.3233.
+  - Matched shuffled deltas are -0.0767 / +0.2600 / +0.0033, giving alignment
+    gaps +0.1100 / -0.1367 / +0.0733.
+  - The aligned-versus-shuffled ordering is not scale-stable. This is a NO-GO
+    for further accuracy-oriented tuning of the current adapter.
 
 ## Baseline Meaning
 
@@ -141,11 +149,11 @@ before falling back to GPU 2. Small diagnostics default to GPU 2.
 
 ## Next Useful Experiments
 
-1. Complete the smaller address-residual scale sweep on top of fixed global
-   smoothing, with a matched shuffled control; stop accuracy-oriented tuning
-   if this does not exceed global mean.
-2. Reframe the paper around address structure, occupancy, and constrained
-   fidelity; treat small Acc@1 changes as secondary and checkpoint-dependent.
+1. Run CIFAR-100 E1 with randomized 128-batch calibration subsets and full
+   validation to establish the stability of the cross-dataset reconstruction
+   claim.
+2. Reframe the paper around address structure, occupancy, and response
+   reconstruction; treat small Acc@1 changes as secondary negative evidence.
 
 ## Claim Boundary
 
@@ -156,6 +164,8 @@ checkpoint-dependent. Seed-43
 stage1 shows address-specific Acc@1 separation, while seed-44 stage1 does not;
 CIFAR-100 shows address alignment is meaningful relative to shuffled and
 token/channel controls, but global smoothing is stronger in Acc@1 and loss.
+The centered residual's aligned-versus-shuffled classification ordering is not
+stable across scales, so the current adapter does not support an accuracy claim.
 
 Not allowed yet: energy gain, latency gain, ImageNet gain, production LUT
 wrapper, or full pure-spike Transformer claims.

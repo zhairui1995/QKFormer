@@ -12,12 +12,13 @@ checkpoint- and stage-dependent. We further train a $T=1$ CIFAR-100 baseline to
 $77.76\%$ top-1 accuracy. On CIFAR-100, the address LUT improves top-1 accuracy
 by $0.163$ points on average and outperforms token/channel and same-capacity
 shuffled-address controls, but global-mean smoothing is stronger at $+0.323$
-points. Decomposing the adapter into a global component and a zero-mean address
-residual yields $+0.197$ points versus $-0.170$ for its matched shuffled
-control, further isolating address alignment without surpassing the global
-baseline. These results establish that Q/K address alignment contains
-measurable response structure, while also showing that generic smoothing is a
-strong classification baseline. The supported claim is therefore structured,
-low-disturbance LUT adaptation rather than checkpoint-stable accuracy gains,
-energy or latency improvements, or a production full-LUT wrapper.
+points. At unit residual scale, decomposing the adapter into a global component
+and a zero-mean address residual yields $+0.197$ points versus $-0.170$ for its
+matched shuffled control. However, a residual-scale sweep does not preserve
+this separation and no aligned setting surpasses global smoothing. These
+results establish measurable Q/K-addressed response structure, while showing
+that it does not translate into a stable classification advantage. The
+supported claim is therefore structured response reconstruction rather than
+checkpoint-stable accuracy gains, energy or latency improvements, or a
+production full-LUT wrapper.
 \end{abstract}

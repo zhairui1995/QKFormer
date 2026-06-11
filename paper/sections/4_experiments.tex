@@ -177,7 +177,7 @@ not checkpoint-stable and global smoothing is often stronger.}
 To isolate address information from generic smoothing, we decompose the LUT
 target into a trainable global scalar and a zero-mean address table. On
 CIFAR-100 this centered address residual improves the mean Acc@1 delta relative
-to a matched centered-shuffled table by $0.3667$ points
+to a matched centered-shuffled table by $0.3667$ points at unit residual scale
 (Table~\ref{tab:e3_centered}). It still trails global mean in both accuracy and
 loss, so the result isolates address alignment rather than establishing a new
 best classifier.
@@ -204,12 +204,44 @@ global smoothing remains the strongest classification and loss baseline.}
 \label{tab:e3_centered}
 \end{table}
 
+We next sweep the centered residual scale while keeping the global component,
+$\alpha$, training budget, and matched shuffled control fixed. As shown in
+Table~\ref{tab:e3_scale}, the aligned residual never exceeds the global-mean
+control. Its alignment gap is positive at scales 0.1 and 0.5 but reverses at
+0.25, where the shuffled control is also more stable across adapter seeds. The
+unit-scale separation is therefore not robust to residual scale, and we stop
+accuracy-oriented adapter tuning at this gate.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+Residual scale & Aligned delta & Shuffled delta & Alignment gap \\
+\midrule
+0.10 & +0.0333 & -0.0767 & +0.1100 \\
+0.25 & +0.1233 & +0.2600 & -0.1367 \\
+0.50 & +0.0767 & +0.0033 & +0.0733 \\
+1.00 & +0.1967 & -0.1700 & +0.3667 \\
+\midrule
+Global mean & \multicolumn{3}{c}{+0.3233} \\
+\bottomrule
+\end{tabular}
+}
+\caption{CIFAR-100 centered address-residual scale sweep. Values are mean
+Acc@1 deltas over three adapter seeds. The alignment gap is aligned minus the
+same-capacity shuffled control.}
+\label{tab:e3_scale}
+\end{table}
+
 \subsection{Current Claim Boundary}
 \label{sec:claim_boundary}
 
 These experiments support the claim that Q/K binary addresses contain
 measurable response structure and can support low-disturbance residual LUT
 adapters. They do not support a checkpoint-stable address-specific accuracy
-gain: global smoothing is a strong baseline and wins several stage/checkpoint
-comparisons. They also do not support claims about hardware speed, energy
-reduction, ImageNet accuracy, or a production full-LUT QKFormer wrapper.
+gain: global smoothing is a strong baseline, wins every CIFAR-100 residual-scale
+setting, and the aligned-versus-shuffled ordering is not scale-stable. They
+also do not support claims about hardware speed, energy reduction, ImageNet
+accuracy, or a production full-LUT QKFormer wrapper.

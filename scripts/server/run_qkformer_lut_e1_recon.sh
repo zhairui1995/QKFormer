@@ -75,6 +75,10 @@ fi
   echo "[qk-lut-e1] config=$CONFIG_FILE"
   echo "[qk-lut-e1] data_dir=${QKFORMER_LUT_DATA_DIR:-configs/qkformer_lut_e1_recon.yaml default}"
   echo "[qk-lut-e1] checkpoint=${QKFORMER_LUT_CKPT:-configs/qkformer_lut_e1_recon.yaml default}"
+  echo "[qk-lut-e1] seed=${QKFORMER_LUT_E1_SEED:-config default}"
+  echo "[qk-lut-e1] calib_batches=${QKFORMER_LUT_E1_CALIB_BATCHES:-config default}"
+  echo "[qk-lut-e1] eval_batches=${QKFORMER_LUT_E1_EVAL_BATCHES:-config default}"
+  echo "[qk-lut-e1] calib_shuffle=${QKFORMER_LUT_E1_CALIB_SHUFFLE:-config default}"
 
   "$PYTHON_BIN" - <<'PY'
 import importlib

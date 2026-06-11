@@ -106,6 +106,8 @@ def make_cifar10_loader(
     batch_size: int,
     workers: int,
     device: torch.device,
+    shuffle: bool = False,
+    seed: int = 42,
 ) -> Tuple[Iterable[Tuple[torch.Tensor, Optional[torch.Tensor]]], str]:
     from torch.utils.data import DataLoader
     from torchvision import datasets, transforms
@@ -129,9 +131,10 @@ def make_cifar10_loader(
     loader = DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=False,
+        shuffle=shuffle,
         num_workers=workers,
         pin_memory=device.type == "cuda",
+        generator=torch.Generator().manual_seed(seed),
     )
     return loader, "cifar10"
 
@@ -142,6 +145,8 @@ def make_cifar100_loader(
     batch_size: int,
     workers: int,
     device: torch.device,
+    shuffle: bool = False,
+    seed: int = 42,
 ) -> Tuple[Iterable[Tuple[torch.Tensor, Optional[torch.Tensor]]], str]:
     from torch.utils.data import DataLoader
     from torchvision import datasets, transforms
@@ -164,9 +169,10 @@ def make_cifar100_loader(
     loader = DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=False,
+        shuffle=shuffle,
         num_workers=workers,
         pin_memory=device.type == "cuda",
+        generator=torch.Generator().manual_seed(seed),
     )
     return loader, "cifar100"
 
@@ -188,6 +194,8 @@ def build_loader(cfg: Dict[str, object], model_cfg: Dict[str, object], device: t
                 batch_size=batch_size,
                 workers=int(cfg.get("workers", 4)),
                 device=device,
+                shuffle=bool(cfg.get("shuffle", False)),
+                seed=int(cfg.get("seed", 42)),
             )
         except Exception as exc:
             if mode != "auto":
@@ -486,7 +494,10 @@ def write_module_csv(path: Path, modules: Iterable[Dict[str, object]]) -> None:
 def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     root = Path(__file__).resolve().parents[1]
     cfg = load_config(config_path)
-    set_seed(int(cfg["experiment"].get("seed", 42)))
+    experiment_cfg = dict(cfg["experiment"])
+    experiment_seed = int(os.environ.get("QKFORMER_LUT_E1_SEED", experiment_cfg.get("seed", 42)))
+    experiment_cfg["seed"] = experiment_seed
+    set_seed(experiment_seed)
 
     model_cfg = dict(cfg["model"])
     diag_cfg = dict(cfg["diagnostic"])
@@ -510,6 +521,17 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     if env_data_dir:
         calibration_cfg["data_dir"] = env_data_dir
         evaluation_cfg["data_dir"] = env_data_dir
+    env_calibration_batches = os.environ.get("QKFORMER_LUT_E1_CALIB_BATCHES")
+    if env_calibration_batches is not None:
+        calibration_cfg["num_batches"] = int(env_calibration_batches)
+    env_evaluation_batches = os.environ.get("QKFORMER_LUT_E1_EVAL_BATCHES")
+    if env_evaluation_batches is not None:
+        evaluation_cfg["num_batches"] = int(env_evaluation_batches)
+    env_calibration_shuffle = os.environ.get("QKFORMER_LUT_E1_CALIB_SHUFFLE")
+    if env_calibration_shuffle is not None:
+        calibration_cfg["shuffle"] = env_calibration_shuffle.lower() in {"1", "true", "yes", "on"}
+    calibration_cfg["seed"] = experiment_seed
+    evaluation_cfg["seed"] = experiment_seed
 
     model = build_cifar10_model(root, model_cfg)
     checkpoint_info = load_checkpoint_if_available(model, model_cfg.get("checkpoint"))
@@ -560,7 +582,7 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         verdict = "PENDING_REAL_DATA_CHECKPOINT"
 
     metrics = {
-        "experiment": cfg["experiment"],
+        "experiment": experiment_cfg,
         "model": {
             "family": model_cfg["family"],
             "time_step": model_cfg["time_step"],
@@ -575,12 +597,16 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
                 "split": calibration_cfg.get("split"),
                 "num_batches": calibration_batches,
                 "batch_size": calibration_cfg["batch_size"],
+                "shuffle": bool(calibration_cfg.get("shuffle", False)),
+                "seed": int(calibration_cfg.get("seed", experiment_seed)),
             },
             "evaluation": {
                 "source": evaluation_source,
                 "split": evaluation_cfg.get("split"),
                 "num_batches": evaluation_batches,
                 "batch_size": evaluation_cfg["batch_size"],
+                "shuffle": bool(evaluation_cfg.get("shuffle", False)),
+                "seed": int(evaluation_cfg.get("seed", experiment_seed)),
             },
         },
         "diagnostic_config": diag_cfg,
