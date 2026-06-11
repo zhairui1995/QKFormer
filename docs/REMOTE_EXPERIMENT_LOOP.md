@@ -8,7 +8,8 @@ loop through SSH key authentication.
 - Remote: `lbz@192.168.70.60`
 - Remote repo: `~/mac_agent/sdr-lutattn-qkformer-lut`
 - Local repo: `/Users/cvue/Documents/github_zr/sdr-lutattn-qkformer-lut`
-- Branch: `codex/qkformer-lut-hybrid`
+- Branch: current local branch by default. The active paper branch is currently
+  `codex/qkformer-lut-5way-controls`.
 - Server-side Git remote: `origin` (points to the working GitHub fork)
 - Conda environment: `sdr`
 - Small diagnostics/calibration GPU: `2`
@@ -46,18 +47,71 @@ The default local loop:
 
 ## Large Training Jobs
 
-For expensive training jobs, use `--kind train` so the remote command checks
-`nvidia-smi` and chooses the first GPU with memory usage below 1000 MiB and GPU
-utilization below 20%. If no such GPU is found, it falls back to `--gpu`.
+For expensive training jobs, prefer detached jobs. They need SSH only long
+enough to launch `nohup` on the server, then the job survives local network
+dropouts. Detached `--kind train` checks `nvidia-smi` and chooses the first GPU
+with memory usage below 1000 MiB and GPU utilization below 20%. If no such GPU
+is found, it falls back to `--gpu`.
 
 Example:
 
 ```bash
-bash scripts/local/run_remote_qk_lut_loop.sh \
+bash scripts/local/run_remote_detached_qk_lut_job.sh \
   --kind train \
-  --server-script scripts/server/run_qkformer_cifar10_t1_train.sh \
-  --package-script "" \
-  --no-download
+  --job-name c100_t4_seed42 \
+  --env QKFORMER_LUT_TIME_STEP=4 \
+  --env QKFORMER_CIFAR100_TRAIN_SEED=42 \
+  --env QKFORMER_CIFAR100_TRAIN_EXPERIMENT=qkformer_cifar100_t4_seed42 \
+  --server-script scripts/server/run_qkformer_cifar100_train.sh
+```
+
+Check status and tail the remote log:
+
+```bash
+bash scripts/local/check_remote_detached_qk_lut_job.sh \
+  --job-name c100_t4_seed42 \
+  --tail 120
+```
+
+After the CIFAR-100 T=4 checkpoint finishes, run the registered LUT
+post-training workflow:
+
+```bash
+bash scripts/local/run_remote_detached_qk_lut_job.sh \
+  --job-name c100_t4_lut_after_train \
+  --gpu 2 \
+  --server-script scripts/server/run_qkformer_lut_cifar100_t4_after_latest_train.sh
+```
+
+Download, extract, and analyze the T=4 artifact:
+
+```bash
+bash scripts/local/check_remote_detached_qk_lut_job.sh \
+  --job-name c100_t4_lut_after_train \
+  --artifact qk_lutformer_cifar100_t4_artifacts.tar.gz \
+  --extract \
+  --analyze
+```
+
+## Fixed-Budget Hierarchy
+
+Run the compressed hierarchy gate as a detached small diagnostic:
+
+```bash
+bash scripts/local/run_remote_detached_qk_lut_job.sh \
+  --job-name e6_budgetfrac_c100_t1 \
+  --gpu 2 \
+  --server-script scripts/server/run_qkformer_lut_e6_budget_fraction_sweep.sh
+```
+
+Download and analyze:
+
+```bash
+bash scripts/local/check_remote_detached_qk_lut_job.sh \
+  --job-name e6_budgetfrac_c100_t1 \
+  --artifact qk_lutformer_e6_budget_fraction_artifacts.tar.gz \
+  --extract \
+  --analyze
 ```
 
 ## Useful Overrides
