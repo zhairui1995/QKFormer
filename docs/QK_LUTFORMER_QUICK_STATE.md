@@ -103,6 +103,14 @@ across calibration subsets and full validation.
     0.0329% / -17.8260%; address exceeds token/channel by 0.9139 points.
   - The same ordering holds for every seed and stage, replicating the
     address-specific reconstruction result across datasets and time steps.
+- CIFAR-10 T=1 E1 checkpoint robustness:
+  - Training seeds 42/43/44 address reductions are 3.7597% / 5.9361% /
+    4.6503%; token/channel reductions are 2.8026% / 4.4966% / 3.6514%.
+  - Address beats token/channel on every checkpoint, with mean additional
+    reduction 1.1318 percentage points; shuffled controls remain strongly
+    negative at -18.8859% / -17.5642% / -17.0855%.
+  - This establishes the positive E1 claim across datasets, time steps,
+    calibration subsets, stages, and independent training checkpoints.
 - CIFAR-100 T=1 stage1 alpha 0.025:
   - address/global/token-channel/shuffled mean Acc@1 deltas are
     +0.1633 / +0.3233 / -0.1333 / -0.0933.
@@ -162,8 +170,8 @@ before falling back to GPU 2. Small diagnostics default to GPU 2.
 
 ## Next Useful Experiments
 
-1. Repeat E1 controls on the independent CIFAR-10 T=1 checkpoints to test
-   whether address-specific reconstruction is stable across training seeds.
+1. Run an E1 calibration-size sweep to quantify how much data is required for
+   the address-specific reconstruction advantage.
 2. Reframe the paper around address structure, occupancy, and response
    reconstruction; treat small Acc@1 changes as secondary negative evidence.
 

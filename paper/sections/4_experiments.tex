@@ -102,6 +102,30 @@ and $-15.8216\%$. The ordering holds for every calibration seed and in all
 three stages on both datasets, supporting an address-specific reconstruction
 claim rather than a generic table-capacity effect.
 
+We additionally repeat the same full-validation reconstruction control on
+three independently trained CIFAR-10 $T=1$ checkpoints
+(Table~\ref{tab:e1_checkpoints}). Address LUT reduction varies with the
+backbone, but it exceeds the token/channel control for every checkpoint. The
+mean address advantage over token/channel is $1.1318$ percentage points.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\begin{tabular}{lccc}
+\toprule
+Training seed & Address & Token/channel & Shuffled \\
+\midrule
+42 & 3.7597 & 2.8026 & -18.8859 \\
+43 & 5.9361 & 4.4966 & -17.5642 \\
+44 & 4.6503 & 3.6514 & -17.0855 \\
+\bottomrule
+\end{tabular}
+\caption{Relative E1 MSE reduction (percent) on independently trained CIFAR-10
+$T=1$ checkpoints. Each row uses the same randomized 128-batch calibration
+protocol and full validation.}
+\label{tab:e1_checkpoints}
+\end{table}
+
 \subsection{Forward-Only Replacement Diagnostics}
 \label{sec:e2_results}
 
