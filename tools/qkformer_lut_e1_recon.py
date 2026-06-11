@@ -237,7 +237,7 @@ class ModulePrototype:
         population_bins: int,
         seed: int,
         hierarchy_budget_fraction: Optional[float] = None,
-        hierarchy_budget_policy: str = "token_then_specific",
+        hierarchy_budget_policy: str = "balanced_quota",
     ) -> None:
         self.name = stats.name
         self.kind = stats.kind
@@ -431,6 +431,21 @@ class ModulePrototype:
             "token_channel": self.component_counts["token_channel"],
         }
         selected = {name: torch.zeros_like(mask, dtype=torch.bool) for name, mask in raw_masks.items()}
+        if self.hierarchy_budget_policy == "balanced_quota":
+            quota = {
+                "token_channel": 0.20,
+                "plus_q_or_gate": 0.15,
+                "plus_k": 0.25,
+                "full": 0.40,
+            }
+            remaining = budget
+            for level in ("token_channel", "plus_q_or_gate", "plus_k"):
+                limit = min(remaining, int(round(budget * quota[level])))
+                chosen = self._top_count_mask(counts[level], raw_masks[level], limit)
+                selected[level] = chosen
+                remaining -= int(chosen.sum().item())
+            selected["full"] = self._top_count_mask(counts["full"], raw_masks["full"], remaining)
+            return selected
         if self.hierarchy_budget_policy == "specific_then_token":
             order = ("full", "plus_k", "plus_q_or_gate", "token_channel")
         elif self.hierarchy_budget_policy == "global_top_count":
@@ -731,7 +746,7 @@ class PrototypeBank:
         population_bins: int,
         seed: int,
         hierarchy_budget_fraction: Optional[float] = None,
-        hierarchy_budget_policy: str = "token_then_specific",
+        hierarchy_budget_policy: str = "balanced_quota",
     ) -> None:
         self.min_count = int(min_count)
         self.population_bins = int(population_bins)
@@ -999,7 +1014,7 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
             if diag_cfg.get("hierarchy_budget_fraction") is not None
             else None
         ),
-        hierarchy_budget_policy=str(diag_cfg.get("hierarchy_budget_policy", "token_then_specific")),
+        hierarchy_budget_policy=str(diag_cfg.get("hierarchy_budget_policy", "balanced_quota")),
     )
     print("[qk-lut-e1] calibration_start")
     calibration_batches, calibration_hook_summary = run_pass(
