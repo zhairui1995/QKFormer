@@ -95,6 +95,19 @@ the mean over three randomized calibration subsets and full validation.}
 \label{tab:e1_recon}
 \end{table}
 
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig3_e1_reconstruction.pdf}
+  \caption{E1 held-out response reconstruction under address controls. (a)
+  Correct Q/K addresses consistently reduce MSE more than coarse token/channel
+  lookup across three CIFAR-10 checkpoints and three CIFAR-100 calibration
+  seeds. (b) Shuffling the address--prototype alignment makes reconstruction
+  worse than the global mean baseline, showing that the result is not explained
+  by table capacity alone. Values are relative MSE reductions against the
+  global mean and are read directly from result JSON files.}
+  \label{fig:e1-reconstruction}
+\end{figure*}
+
 For CIFAR-10, the address, token/channel, candidate/background, and shuffled
 relative reductions are $3.7080\%$, $2.7941\%$, $0.0329\%$, and $-17.8260\%$.
 The corresponding CIFAR-100 values are $4.4247\%$, $3.4246\%$, $0.0356\%$,
@@ -150,6 +163,68 @@ are relative MSE reductions in percent; hit rate is the percentage of
 validation samples whose address has sufficient calibration support.}
 \label{tab:e1_calibration}
 \end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/fig4_calibration_sweep.pdf}
+  \caption{CIFAR-100 calibration-size sweep for E1 reconstruction. (a)
+  Correct Q/K addresses remain above token/channel lookup from 8 to 512
+  calibration batches. (b) The validation address hit rate is high even at 8
+  batches and saturates with more calibration data. This sweep is calibration
+  seed 42 only and should not be interpreted as final cross-seed robustness.}
+  \label{fig:calibration-sweep}
+\end{figure}
+
+\subsection{Hierarchical Backoff Under Calibration Scarcity}
+\label{sec:e5_results}
+
+Table~\ref{tab:e5_backoff} evaluates the support-aware hierarchical backoff
+LUT on CIFAR-100 $T=1$ with calibration sizes from 1 to 512 batches and
+calibration seeds 42--44. The hierarchy is explicit about fallback behavior:
+the fallback fractions sum to one for every run, and no validation sample is
+silently assigned to an unsupported missing address. From 8 batches onward,
+hierarchical backoff beats token/channel lookup for every seed and retains at
+least $80\%$ of the full-address reconstruction gain. Shuffled full-address
+lookup remains strongly worse than the correct hierarchy at every size,
+confirming that address--prototype alignment matters.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{rccccc}
+\toprule
+Calib. & Hier. & Full addr. & Token/ch. & Shuffled & Eff. entries \\
+\midrule
+1 & 0.3178 & 0.4179 & 2.5493 & -32.2973 & 0.3305 \\
+2 & 2.1445 & 2.1789 & 3.0002 & -26.0841 & 0.3566 \\
+4 & 3.1962 & 3.2150 & 3.2261 & -24.9300 & 0.3808 \\
+8 & 3.7742 & 3.7840 & 3.3258 & -20.7501 & 0.4040 \\
+32 & 4.2667 & 4.2671 & 3.4027 & -18.0293 & 0.4477 \\
+128 & 4.4248 & 4.4247 & 3.4246 & -15.8216 & 0.4822 \\
+512 & 4.4752 & 4.4752 & 3.4386 & -13.5117 & 0.5107 \\
+\bottomrule
+\end{tabular}
+}
+\caption{E5 hierarchical backoff reconstruction on CIFAR-100 $T=1$. Values are
+mean relative MSE reductions in percent over calibration seeds 42--44. Effective
+entries are supported hierarchy entries divided by the compact full-address
+space; lower is better.}
+\label{tab:e5_backoff}
+\end{table}
+
+The gate outcome is therefore \emph{partial}. The method passes the
+reconstruction and interpretability checks: 21/21 runs completed, the hierarchy
+beats token/channel for all calibration sizes $\geq 8$, shuffled lookup is
+always worse, fallback distributions are valid, and the hierarchy retains the
+full-address gain at practical calibration sizes. It fails two stronger method
+claims. First, at 1--4 batches the hierarchy does not consistently match or
+beat the full-address oracle, because the observed full-address buckets already
+cover most validation samples. Second, effective supported entries are
+$40.4\%$--$51.1\%$ of the compact full-address space for sizes $\geq 8$, above
+our $25\%$ compression gate. Thus hierarchical backoff is useful as a scalable
+and auditable reconstruction mechanism, but we do not claim that it solves
+compact-table compression.
 
 \subsection{Forward-Only Replacement Diagnostics}
 \label{sec:e2_results}

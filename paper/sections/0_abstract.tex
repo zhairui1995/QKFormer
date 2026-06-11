@@ -1,29 +1,27 @@
 \begin{abstract}
-Spiking Transformers avoid dense floating-point attention, but it remains
-unclear whether binary query--key spike patterns form a useful discrete
-lookup-table (LUT) address space. We study this question in QKFormer through a
-staged diagnostic and frozen-backbone adapter pipeline rather than claiming a
-full hardware LUT replacement. Q/K-addressed prototypes reduce held-out
-response MSE relative to a global mean by $3.71\%\pm0.004$ on CIFAR-10 and
-$4.42\%\pm0.004$ on CIFAR-100 across randomized calibration subsets. Coarse
-token/channel LUTs reach $2.79\%$ and $3.42\%$, while shuffling the
-address--prototype alignment degrades MSE by $17.83\%$ and $15.82\%$,
-respectively. Across three independently trained single-step ($T=1$)
-CIFAR-10 checkpoints, address reductions range from $3.76\%$ to $5.94\%$ and
-exceed token/channel controls in every case. With only eight CIFAR-100
-calibration batches, the address LUT already attains $3.80\%$ reduction versus
-$4.47\%$ at 512 batches. Residual-adapter accuracy changes
-remain checkpoint- and stage-dependent. We further train a $T=1$ CIFAR-100 baseline to
-$77.76\%$ top-1 accuracy. On CIFAR-100, the address LUT improves top-1 accuracy
-by $0.163$ points on average and outperforms token/channel and same-capacity
-shuffled-address controls, but global-mean smoothing is stronger at $+0.323$
-points. At unit residual scale, decomposing the adapter into a global component
-and a zero-mean address residual yields $+0.197$ points versus $-0.170$ for its
-matched shuffled control. However, a residual-scale sweep does not preserve
-this separation and no aligned setting surpasses global smoothing. These
-results establish stable, address-specific Q/K response structure, while
-showing that it does not translate into a stable classification advantage. The
-supported claim is therefore address-specific response reconstruction rather than
-checkpoint-stable accuracy gains, energy or latency improvements, or a
-production full-LUT wrapper.
+Spiking Transformers replace dense floating-point attention with event-driven
+operations, but it remains unclear whether their binary query--key states form
+reliable lookup-table (LUT) addresses. We study this question in QKFormer with
+a staged, negative-controlled audit that separates address feasibility,
+held-out response reconstruction, support-aware fallback, and downstream
+adapter utility. Q/K-addressed prototypes reduce held-out response MSE relative
+to a global mean by $3.71\%\pm0.004$ on CIFAR-10 and $4.42\%\pm0.004$ on
+CIFAR-100 across randomized calibration subsets. Coarse token/channel LUTs
+reach only $2.79\%$ and $3.42\%$, while shuffling the address--prototype
+alignment degrades MSE by $17.83\%$ and $15.82\%$, respectively. Across three
+independently trained single-step CIFAR-10 checkpoints, correct-address
+reductions range from $3.76\%$ to $5.94\%$ and exceed token/channel controls in
+every case. To address the dimensionality objection against monolithic Q/K
+tables, we introduce a hierarchical backoff LUT that searches full-address,
+partial-address, token/channel, and global prototypes with explicit support
+thresholds. On CIFAR-100, the hierarchy beats token/channel lookup for every
+calibration seed from 8 to 512 batches and retains the full-address
+reconstruction gain, but its active compact-table footprint remains
+$40.4\%$--$51.1\%$, so we do not claim solved LUT compression. Frozen residual
+adapter probes show that address alignment can beat token/channel and shuffled
+controls, but global smoothing remains a strong classification baseline and
+accuracy shifts are checkpoint- and stage-dependent. Thus QK-LUTFormer
+establishes reproducible, interpretable Q/K lookup-addressability, while
+explicitly ruling out unsupported claims about stable accuracy gains, energy,
+latency, or production full-LUT replacement.
 \end{abstract}

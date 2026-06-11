@@ -35,6 +35,50 @@ prototype values among observed addresses. This stage tests whether the
 fine-grained Q/K address is predictive beyond generic smoothing, positional
 gating, and table capacity.
 
+\subsection{Hierarchical Backoff QK-LUT}
+\label{sec:e5_backoff}
+
+A monolithic LUT over raw Q/K vectors would be vulnerable to dimensionality
+explosion. We therefore separate the audit question from the untenable claim
+that every full Q/K bit pattern should be materialized. For each module, we
+construct a support-aware lookup hierarchy:
+\begin{equation}
+  \begin{aligned}
+  \mathrm{global}
+  &\rightarrow \mathrm{token/channel}
+  \rightarrow {+}\mathrm{Q/gate} \\
+  &\rightarrow {+}\mathrm{K}
+  \rightarrow \mathrm{full\ address}.
+  \end{aligned}
+\end{equation}
+Each level has its own prototype table and count threshold. At validation time,
+lookup starts from the finest full-address table. If the corresponding bucket is
+unseen or below the minimum support count, the prediction backs off to the next
+coarser supported level, and eventually to the global mean. We record the
+selected level for every validation sample, so missed or weakly supported
+addresses cannot silently masquerade as successful full-address lookup.
+
+The hierarchy is evaluated as a reconstruction mechanism rather than as a
+hardware or accuracy claim. The full-address table is treated as an oracle
+upper-bound control, token/channel lookup as the coarsest structured baseline,
+and shuffled full-address lookup as an alignment negative control. We report
+held-out MSE, fallback fractions, active entries, and effective table size.
+This accounting is deliberately conservative: if the hierarchy needs many
+supported entries in the compact address space, we do not count it as solving
+LUT compression even if reconstruction improves.
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig2_address_controls.pdf}
+  \caption{Negative-control protocol for address semantics. Correct-address
+  lookup retrieves the response prototype calibrated for the same Q/K-derived
+  address, whereas the shuffled control preserves table values and capacity but
+  permutes the address--prototype mapping. Coarse token/channel,
+  candidate/background, and global controls test whether reconstruction can be
+  explained without fine Q/K address detail.}
+  \label{fig:address-controls}
+\end{figure*}
+
 \subsection{Forward-Only Replacement Diagnostic}
 \label{sec:e2}
 

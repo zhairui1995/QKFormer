@@ -18,10 +18,13 @@ modules?
 This paper studies that question through QK-LUTFormer. We do not claim a pure
 LUT hardware replacement for the full QKFormer block. Instead, we build a
 diagnostic and adapter pipeline that asks whether Q/K binary addresses explain
-attention-module responses better than non-address controls. The method freezes
-a trained QKFormer backbone, calibrates address-indexed response prototypes,
-and trains only tiny residual LUT adapters under classification, baseline-logit
-distillation, and local response constraints.
+attention-module responses better than non-address controls. To address the
+obvious dimensionality concern of direct full-vector lookup, we additionally
+evaluate a support-aware hierarchical backoff LUT that searches from fine
+Q/K-address prototypes to coarser token/channel prototypes before falling back
+to the global mean. The method freezes a trained QKFormer backbone, calibrates
+response prototypes, and trains only tiny residual LUT adapters under
+classification, baseline-logit distillation, and local response constraints.
 
 Our experiments show a nuanced picture. Forward-only address prototypes can
 slightly improve early-stage replacement, but global smoothing is a strong
@@ -33,11 +36,26 @@ beat shuffled and token/channel controls, while global smoothing can remain
 stronger. This distinction separates evidence for address structure from a
 broader accuracy-gain claim.
 
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig1_audit_overview.pdf}
+  \caption{Overview of the Q/K lookup-addressability audit. Binary Q/K states
+  and token/channel context are packed into deterministic lookup addresses,
+  calibrated against local module responses, and evaluated under four controls:
+  global mean, coarse token/channel lookup, correct Q/K address lookup, and
+  shuffled-address lookup. The audit separates supported response-structure
+  evidence from unsupported downstream and hardware claims.}
+  \label{fig:audit-overview}
+\end{figure*}
+
 Our contributions are:
 \begin{itemize}
   \item We formulate QKFormer Q/K spike vectors as a discrete LUT address
   space and define feasibility diagnostics for coverage, singleton rate, and
   conditional response variance.
+  \item We introduce a support-aware hierarchical backoff QK-LUT audit that
+  makes lookup misses explicit through full-address, partial-address,
+  token/channel, and global fallback levels.
   \item We introduce a frozen-backbone trainable residual LUT adapter that uses
   calibrated Q/K-address prototypes with small trainable correction tables.
   \item We provide a staged ablation study on CIFAR-10 and CIFAR-100, including
@@ -45,6 +63,7 @@ Our contributions are:
   sweeps, independent-checkpoint replication, and T=1 alpha sensitivity
   controls.
   \item We explicitly identify claim boundaries: current results support a
-  structured low-disturbance adapter analysis, not checkpoint-stable accuracy,
-  energy, latency, ImageNet, or full-wrapper claims.
+  structured reconstruction and low-disturbance adapter analysis, not
+  checkpoint-stable accuracy, compact-table compression, energy, latency,
+  ImageNet, or full-wrapper claims.
 \end{itemize}
