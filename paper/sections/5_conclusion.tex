@@ -3,15 +3,16 @@
 
 We studied whether QKFormer's binary Q/K spike vectors form a useful LUT
 address space. Q/K-derived addresses are well occupied on CIFAR-10 and
-CIFAR-100 and improve held-out reconstruction over global averages. Address
-alignment also separates from same-capacity shuffled controls in several
-low-disturbance adapter settings. The negative evidence is equally important:
+CIFAR-100 and improve held-out reconstruction over global averages. On
+CIFAR-100, the fine-grained address LUT consistently exceeds a coarse
+token/channel LUT and strongly separates from a same-capacity shuffled table
+across randomized calibration subsets. The negative evidence is equally important:
 the classification effect changes across checkpoints and stages, and global
 smoothing often matches or exceeds the address LUT. A centered decomposition
 separates aligned from shuffled address residuals but still does not surpass
 global smoothing. A residual-scale sweep further shows that the
 aligned-versus-shuffled classification ordering is not stable. The supported
-result is therefore a structured-address reconstruction story, not a
+result is therefore an address-specific reconstruction story, not a
 checkpoint-stable accuracy improvement or full hardware replacement story.
 Future work should establish reconstruction stability across calibration
 subsets and larger datasets before measuring real LUT-oriented latency and

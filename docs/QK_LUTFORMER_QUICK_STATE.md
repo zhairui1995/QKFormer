@@ -91,6 +91,11 @@ across calibration subsets and full validation.
     0.078496 / 0.075465.
   - Stage1/stage2/stage3 mean address reductions are 10.0388% / 3.9649% /
     1.8476%; mean evaluation address hit rate is 99.9907%.
+  - Reconstruction controls over the same three subsets: token/channel LUT
+    3.4246%, candidate/background 0.0356%, shuffled address -15.8216%.
+  - Address exceeds token/channel by 1.0001 percentage points and beats all
+    controls for every calibration seed and in every stage. This is the
+    strongest current address-specific positive result.
 - CIFAR-100 T=1 stage1 alpha 0.025:
   - address/global/token-channel/shuffled mean Acc@1 deltas are
     +0.1633 / +0.3233 / -0.1333 / -0.0933.
@@ -150,8 +155,8 @@ before falling back to GPU 2. Small diagnostics default to GPU 2.
 
 ## Next Useful Experiments
 
-1. Add token/channel and shuffled-address controls to E1 reconstruction, then
-   repeat the CIFAR-100 randomized-subset test to isolate address semantics.
+1. Repeat the randomized-subset E1 reconstruction controls on CIFAR-10 to
+   establish the address-specific result across both datasets.
 2. Reframe the paper around address structure, occupancy, and response
    reconstruction; treat small Acc@1 changes as secondary negative evidence.
 

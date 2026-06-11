@@ -69,19 +69,21 @@ $3.58\%$ on CIFAR-10 and $4.42\%$ on CIFAR-100. The CIFAR-100 value is the mean
 over three randomized 128-batch calibration subsets evaluated on the complete
 validation split; its standard deviation is only $0.0042$ percentage points.
 The mean reduction is largest in stage1 ($10.04\%$), remains positive in
-stage2 ($3.96\%$), and is $1.85\%$ in stage3, while candidate/background means
-remain nearly identical to the global mean.
+stage2 ($3.96\%$), and is $1.85\%$ in stage3. The address LUT also consistently
+beats the coarse token/channel LUT ($3.42\%$ overall), while shuffled address
+alignment worsens MSE by $15.82\%$. Candidate/background means remain nearly
+identical to the global mean.
 
 \begin{table}[t]
 \centering
 \footnotesize
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{lcccc}
+\begin{tabular}{lccccc}
 \toprule
-Dataset & Global & Cand./back. & Address LUT & Rel. reduction \\
+Dataset & Global & Cand./back. & Token/channel & Address LUT & Rel. reduction \\
 \midrule
-CIFAR-10 & 0.07146 & 0.07144 & \textbf{0.06887} & \textbf{3.58} \\
-CIFAR-100 & 0.07853 & 0.07850 & \textbf{0.07547} & \textbf{4.42} \\
+CIFAR-10 & 0.07146 & 0.07144 & -- & \textbf{0.06887} & \textbf{3.58} \\
+CIFAR-100 & 0.07853 & 0.07850 & 0.07613 & \textbf{0.07547} & \textbf{4.42} \\
 \bottomrule
 \end{tabular}
 }
@@ -91,6 +93,14 @@ percent against the corresponding global mean baseline. CIFAR-100 reports the
 mean over three randomized calibration subsets and full validation.}
 \label{tab:e1_recon}
 \end{table}
+
+For the CIFAR-100 randomized-subset runs, the address, token/channel, and
+candidate/background relative reductions are $4.4247\%$, $3.4246\%$, and
+$0.0356\%$, respectively. The shuffled-address control has the same address
+space and prototype-value distribution but yields $-15.8216\%$. The ordering
+holds for every calibration seed and in all three stages, supporting an
+address-specific reconstruction claim rather than a generic table-capacity
+effect.
 
 \subsection{Forward-Only Replacement Diagnostics}
 \label{sec:e2_results}

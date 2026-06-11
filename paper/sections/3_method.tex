@@ -29,8 +29,11 @@ isolated examples.
 The second diagnostic stage uses split-aware reconstruction. We calibrate
 address-wise response prototypes on training batches and evaluate held-out
 validation reconstruction MSE. We compare address LUT prototypes with global
-mean and candidate/background mean baselines. This stage tests whether the
-address is predictive beyond a single average response.
+mean and candidate/background means, a coarse token/channel LUT that removes
+the Q/K detail bits, and a same-capacity shuffled-address LUT that permutes
+prototype values among observed addresses. This stage tests whether the
+fine-grained Q/K address is predictive beyond generic smoothing, positional
+gating, and table capacity.
 
 \subsection{Forward-Only Replacement Diagnostic}
 \label{sec:e2}

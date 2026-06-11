@@ -5,7 +5,9 @@ lookup-table (LUT) address space. We study this question in QKFormer through a
 staged diagnostic and frozen-backbone adapter pipeline rather than claiming a
 full hardware LUT replacement. Q/K-addressed prototypes reduce held-out
 response MSE relative to a global mean by $3.58\%$ on CIFAR-10 and
-$4.42\%\pm0.004$ across three randomized CIFAR-100 calibration subsets. Across independently
+$4.42\%\pm0.004$ across three randomized CIFAR-100 calibration subsets. On
+CIFAR-100, a coarse token/channel LUT reaches $3.42\%$, while shuffling the
+address--prototype alignment degrades MSE by $15.82\%$. Across independently
 trained single-step ($T=1$) checkpoints, early Q-K attention modules retain
 near-complete address coverage, although residual-adapter accuracy changes are
 checkpoint- and stage-dependent. We further train a $T=1$ CIFAR-100 baseline to
@@ -16,9 +18,9 @@ points. At unit residual scale, decomposing the adapter into a global component
 and a zero-mean address residual yields $+0.197$ points versus $-0.170$ for its
 matched shuffled control. However, a residual-scale sweep does not preserve
 this separation and no aligned setting surpasses global smoothing. These
-results establish measurable Q/K-addressed response structure, while showing
-that it does not translate into a stable classification advantage. The
-supported claim is therefore structured response reconstruction rather than
+results establish stable, address-specific Q/K response structure, while
+showing that it does not translate into a stable classification advantage. The
+supported claim is therefore address-specific response reconstruction rather than
 checkpoint-stable accuracy gains, energy or latency improvements, or a
 production full-LUT wrapper.
 \end{abstract}
