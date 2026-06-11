@@ -245,12 +245,52 @@ class ModulePrototype:
         self.sum_sq = torch.zeros(self.address_space, dtype=torch.float64)
         self.coarse_count = torch.zeros(self.coarse_address_space, dtype=torch.float64)
         self.coarse_sum = torch.zeros(self.coarse_address_space, dtype=torch.float64)
+        self.component_address_spaces = self._make_component_address_spaces(population_bins)
+        self.component_counts = {
+            name: torch.zeros(space, dtype=torch.float64)
+            for name, space in self.component_address_spaces.items()
+        }
+        self.component_sums = {
+            name: torch.zeros(space, dtype=torch.float64)
+            for name, space in self.component_address_spaces.items()
+        }
         self.response = VarianceStats()
         self.candidate = VarianceStats()
         self.background = VarianceStats()
         self._address_mean: Optional[torch.Tensor] = None
         self._coarse_mean: Optional[torch.Tensor] = None
         self._shuffled_address_mean: Optional[torch.Tensor] = None
+        self._component_means: Dict[str, torch.Tensor] = {}
+
+    def _make_component_address_spaces(self, population_bins: int) -> Dict[str, int]:
+        if self.kind == "token_qk":
+            return {
+                "token_channel": self.coarse_address_space,
+                "plus_q_or_gate": self.coarse_address_space * 2,
+                "plus_k": self.address_space,
+            }
+        pop_factor = int(population_bins) ** 2
+        return {
+            "token_channel": self.coarse_address_space,
+            "plus_q_or_gate": self.address_space // (2 * pop_factor),
+            "plus_k": self.address_space // pop_factor,
+        }
+
+    def component_address(self, address: torch.Tensor, component: str) -> torch.Tensor:
+        if component == "token_channel":
+            return address // self.detail_factor
+        if self.kind == "token_qk":
+            if component == "plus_q_or_gate":
+                return address // 2
+            if component == "plus_k":
+                return address
+        else:
+            population_factor = self.detail_factor // 4
+            if component == "plus_q_or_gate":
+                return address // (2 * population_factor)
+            if component == "plus_k":
+                return address // population_factor
+        raise KeyError(f"unknown component address: {component}")
 
     def update(self, address: torch.Tensor, response: torch.Tensor, candidate_mask: torch.Tensor) -> None:
         addr = address.detach().to("cpu", dtype=torch.long)
@@ -266,12 +306,21 @@ class ModulePrototype:
             weights=resp,
             minlength=self.coarse_address_space,
         ).to(torch.float64)
+        for name, space in self.component_address_spaces.items():
+            component_addr = self.component_address(addr, name)
+            self.component_counts[name] += torch.bincount(component_addr, minlength=space).to(torch.float64)
+            self.component_sums[name] += torch.bincount(
+                component_addr,
+                weights=resp,
+                minlength=space,
+            ).to(torch.float64)
         self.response.update_many(resp.tolist())
         self.candidate.update_many(resp[cand].tolist())
         self.background.update_many(resp[~cand].tolist())
         self._address_mean = None
         self._coarse_mean = None
         self._shuffled_address_mean = None
+        self._component_means = {}
 
     @property
     def global_mean(self) -> float:
@@ -302,6 +351,18 @@ class ModulePrototype:
             means[seen] = self.coarse_sum[seen] / self.coarse_count[seen]
             self._coarse_mean = means
         return self._coarse_mean
+
+    def component_mean(self, component: str) -> torch.Tensor:
+        cached = self._component_means.get(component)
+        if cached is not None:
+            return cached
+        counts = self.component_counts[component]
+        sums = self.component_sums[component]
+        means = torch.full_like(sums, fill_value=float(self.global_mean))
+        seen = counts > 0
+        means[seen] = sums[seen] / counts[seen]
+        self._component_means[component] = means
+        return means
 
     @property
     def shuffled_address_mean(self) -> torch.Tensor:
@@ -342,6 +403,7 @@ class ModulePrototype:
             "block": self.block,
             "address_space": self.address_space,
             "token_channel_address_space": self.coarse_address_space,
+            "component_address_spaces": dict(self.component_address_spaces),
             "num_samples": total,
             "unique_addresses": unique,
             "address_coverage": unique / float(self.address_space) if self.address_space else None,
@@ -360,6 +422,13 @@ class ModuleEval:
         self.address_mse = MSEStats()
         self.token_channel_mse = MSEStats()
         self.shuffled_address_mse = MSEStats()
+        self.component_mse = {
+            "token_channel": MSEStats(),
+            "plus_q_or_gate": MSEStats(),
+            "plus_k": MSEStats(),
+            "full_address": self.address_mse,
+            "shuffled_full_address": self.shuffled_address_mse,
+        }
         self.candidate_background_mse = MSEStats()
         self.response = VarianceStats()
         self.address_hits = 0
@@ -382,6 +451,12 @@ class ModuleEval:
         coarse_seen = proto.coarse_count[coarse_addr] >= proto.min_count
         token_channel_pred = proto.coarse_mean[coarse_addr]
         token_channel_pred = torch.where(coarse_seen, token_channel_pred, global_pred)
+        component_predictions = {"token_channel": token_channel_pred}
+        for component in ("plus_q_or_gate", "plus_k"):
+            component_addr = proto.component_address(addr, component)
+            component_seen = proto.component_counts[component][component_addr] >= proto.min_count
+            component_pred = proto.component_mean(component)[component_addr]
+            component_predictions[component] = torch.where(component_seen, component_pred, global_pred)
         shuffled_address_pred = proto.shuffled_address_mean[addr]
         shuffled_address_pred = torch.where(seen, shuffled_address_pred, global_pred)
         cb_values = torch.where(
@@ -394,6 +469,8 @@ class ModuleEval:
         self.address_mse.update(float(torch.sum((resp - address_pred) ** 2).item()), count)
         self.token_channel_mse.update(float(torch.sum((resp - token_channel_pred) ** 2).item()), count)
         self.shuffled_address_mse.update(float(torch.sum((resp - shuffled_address_pred) ** 2).item()), count)
+        for component, pred in component_predictions.items():
+            self.component_mse[component].update(float(torch.sum((resp - pred) ** 2).item()), count)
         self.candidate_background_mse.update(float(torch.sum((resp - cb_values) ** 2).item()), count)
         self.response.update_many(resp.tolist())
         self.address_hits += int(seen.sum().item())
@@ -405,6 +482,19 @@ class ModuleEval:
         token_channel_mse = self.token_channel_mse.mse
         shuffled_address_mse = self.shuffled_address_mse.mse
         cb_mse = self.candidate_background_mse.mse
+        component_values = {
+            "component_token_channel_mse": self.component_mse["token_channel"].mse,
+            "component_plus_q_or_gate_mse": self.component_mse["plus_q_or_gate"].mse,
+            "component_plus_k_mse": self.component_mse["plus_k"].mse,
+            "component_full_address_mse": address_mse,
+            "component_shuffled_full_address_mse": shuffled_address_mse,
+        }
+        component_reductions = {
+            key.replace("_mse", "_relative_mse_reduction"): (
+                (global_mse - value) / global_mse if global_mse > 0 else 0.0
+            )
+            for key, value in component_values.items()
+        }
         return {
             "name": self.prototype.name,
             "kind": self.prototype.kind,
@@ -431,6 +521,8 @@ class ModuleEval:
             "candidate_background_relative_mse_reduction": (
                 (global_mse - cb_mse) / global_mse if global_mse > 0 else 0.0
             ),
+            **component_values,
+            **component_reductions,
         }
 
 
@@ -526,6 +618,18 @@ def group_eval_summary(modules: Iterable[Dict[str, object]], key: str) -> Dict[s
     grouped: Dict[str, list] = {}
     for item in modules:
         grouped.setdefault(str(item[key]), []).append(item)
+    component_keys = [
+        "component_token_channel_mse",
+        "component_plus_q_or_gate_mse",
+        "component_plus_k_mse",
+        "component_full_address_mse",
+        "component_shuffled_full_address_mse",
+        "component_token_channel_relative_mse_reduction",
+        "component_plus_q_or_gate_relative_mse_reduction",
+        "component_plus_k_relative_mse_reduction",
+        "component_full_address_relative_mse_reduction",
+        "component_shuffled_full_address_relative_mse_reduction",
+    ]
     return {
         name: {
             "num_modules": len(items),
@@ -545,6 +649,7 @@ def group_eval_summary(modules: Iterable[Dict[str, object]], key: str) -> Dict[s
             "candidate_background_relative_mse_reduction": _weighted_mean(items, "candidate_background_relative_mse_reduction"),
             "eval_address_hit_rate": _weighted_mean(items, "eval_address_hit_rate"),
             "eval_candidate_fraction": _weighted_mean(items, "eval_candidate_fraction"),
+            **{component_key: _weighted_mean(items, component_key) for component_key in component_keys},
         }
         for name, items in grouped.items()
     }
@@ -559,6 +664,20 @@ def write_module_csv(path: Path, modules: Iterable[Dict[str, object]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+
+
+COMPONENT_RECONSTRUCTION_KEYS = [
+    "component_token_channel_mse",
+    "component_plus_q_or_gate_mse",
+    "component_plus_k_mse",
+    "component_full_address_mse",
+    "component_shuffled_full_address_mse",
+    "component_token_channel_relative_mse_reduction",
+    "component_plus_q_or_gate_relative_mse_reduction",
+    "component_plus_k_relative_mse_reduction",
+    "component_full_address_relative_mse_reduction",
+    "component_shuffled_full_address_relative_mse_reduction",
+]
 
 
 def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
@@ -657,6 +776,10 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         "candidate_background_relative_mse_reduction": _weighted_mean(module_reconstruction, "candidate_background_relative_mse_reduction"),
         "eval_address_hit_rate": _weighted_mean(module_reconstruction, "eval_address_hit_rate"),
         "eval_candidate_fraction": _weighted_mean(module_reconstruction, "eval_candidate_fraction"),
+        **{
+            component_key: _weighted_mean(module_reconstruction, component_key)
+            for component_key in COMPONENT_RECONSTRUCTION_KEYS
+        },
     }
 
     verdict = "PENDING_PHASE_GATE_REVIEW"
