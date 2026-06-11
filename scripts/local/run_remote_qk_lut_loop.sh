@@ -8,7 +8,7 @@ REMOTE="lbz@192.168.70.60"
 REMOTE_ROOT="~/mac_agent/sdr-lutattn-qkformer-lut"
 CONDA_ENV="sdr"
 GIT_REMOTE="origin"
-BRANCH="codex/qkformer-lut-hybrid"
+BRANCH="$(git branch --show-current)"
 RUN_KIND="small"
 GPU_DEFAULT="2"
 SERVER_SCRIPT="scripts/server/run_qkformer_lut_t1_e3_seed_sweep.sh"
@@ -31,7 +31,7 @@ Options:
   --remote-root PATH            Default: ~/mac_agent/sdr-lutattn-qkformer-lut
   --conda-env NAME              Default: sdr
   --git-remote NAME             Server-side Git remote. Default: origin
-  --branch NAME                 Default: codex/qkformer-lut-hybrid
+  --branch NAME                 Default: current local branch
   --kind small|train            small uses --gpu directly; train auto-picks an idle GPU first
   --gpu N                       Default GPU for small jobs and fallback GPU for train jobs
   --server-script PATH          Remote script to run
