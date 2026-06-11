@@ -54,6 +54,7 @@ for seed in "${SEEDS[@]}"; do
   [[ -n "$seed" ]] || continue
   echo "[qk-lut-c100-e1-stability] run_seed=$seed"
   QKFORMER_LUT_E1_SEED="$seed" \
+  QKFORMER_LUT_RESULT_TAG="c100_stability_seed${seed}" \
     bash scripts/server/run_qkformer_lut_e1_recon.sh --gpu "$QKFORMER_LUT_GPU"
 done
 

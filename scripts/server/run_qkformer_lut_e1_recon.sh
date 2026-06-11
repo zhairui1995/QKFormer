@@ -13,7 +13,11 @@ if ! PYTHON_BIN="$(qk_lut_select_python)"; then
 fi
 
 TS="$(date +%Y%m%d_%H%M%S)"
-RESULT_DIR="$ROOT/results/qkformer_lut_e1_recon_${TS}"
+RESULT_TAG="${QKFORMER_LUT_RESULT_TAG:-}"
+if [[ -n "$RESULT_TAG" ]]; then
+  RESULT_TAG="_$(printf '%s' "$RESULT_TAG" | tr -cs 'A-Za-z0-9._-' '_')"
+fi
+RESULT_DIR="$ROOT/results/qkformer_lut_e1_recon_${TS}${RESULT_TAG}"
 LOG_FILE="$RESULT_DIR/train_log.txt"
 CONFIG_FILE="${QKFORMER_LUT_E1_CONFIG:-configs/qkformer_lut_e1_recon.yaml}"
 mkdir -p "$RESULT_DIR"
