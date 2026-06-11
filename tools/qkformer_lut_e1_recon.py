@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import importlib
 import json
 import os
@@ -229,20 +230,27 @@ class MSEStats:
 
 
 class ModulePrototype:
-    def __init__(self, stats: ModuleDiagnostic, min_count: int) -> None:
+    def __init__(self, stats: ModuleDiagnostic, min_count: int, population_bins: int, seed: int) -> None:
         self.name = stats.name
         self.kind = stats.kind
         self.stage = stats.stage
         self.block = stats.block
         self.address_space = int(stats.address_space)
         self.min_count = int(min_count)
+        self.seed = int(seed)
+        self.detail_factor = 4 if stats.kind == "token_qk" else 4 * int(population_bins) ** 2
+        self.coarse_address_space = self.address_space // self.detail_factor
         self.count = torch.zeros(self.address_space, dtype=torch.float64)
         self.sum = torch.zeros(self.address_space, dtype=torch.float64)
         self.sum_sq = torch.zeros(self.address_space, dtype=torch.float64)
+        self.coarse_count = torch.zeros(self.coarse_address_space, dtype=torch.float64)
+        self.coarse_sum = torch.zeros(self.coarse_address_space, dtype=torch.float64)
         self.response = VarianceStats()
         self.candidate = VarianceStats()
         self.background = VarianceStats()
         self._address_mean: Optional[torch.Tensor] = None
+        self._coarse_mean: Optional[torch.Tensor] = None
+        self._shuffled_address_mean: Optional[torch.Tensor] = None
 
     def update(self, address: torch.Tensor, response: torch.Tensor, candidate_mask: torch.Tensor) -> None:
         addr = address.detach().to("cpu", dtype=torch.long)
@@ -251,10 +259,19 @@ class ModulePrototype:
         self.count += torch.bincount(addr, minlength=self.address_space).to(torch.float64)
         self.sum += torch.bincount(addr, weights=resp, minlength=self.address_space).to(torch.float64)
         self.sum_sq += torch.bincount(addr, weights=resp * resp, minlength=self.address_space).to(torch.float64)
+        coarse_addr = addr // self.detail_factor
+        self.coarse_count += torch.bincount(coarse_addr, minlength=self.coarse_address_space).to(torch.float64)
+        self.coarse_sum += torch.bincount(
+            coarse_addr,
+            weights=resp,
+            minlength=self.coarse_address_space,
+        ).to(torch.float64)
         self.response.update_many(resp.tolist())
         self.candidate.update_many(resp[cand].tolist())
         self.background.update_many(resp[~cand].tolist())
         self._address_mean = None
+        self._coarse_mean = None
+        self._shuffled_address_mean = None
 
     @property
     def global_mean(self) -> float:
@@ -276,6 +293,28 @@ class ModulePrototype:
             means[seen] = self.sum[seen] / self.count[seen]
             self._address_mean = means
         return self._address_mean
+
+    @property
+    def coarse_mean(self) -> torch.Tensor:
+        if self._coarse_mean is None:
+            means = torch.full_like(self.coarse_sum, fill_value=float(self.global_mean))
+            seen = self.coarse_count > 0
+            means[seen] = self.coarse_sum[seen] / self.coarse_count[seen]
+            self._coarse_mean = means
+        return self._coarse_mean
+
+    @property
+    def shuffled_address_mean(self) -> torch.Tensor:
+        if self._shuffled_address_mean is None:
+            means = self.address_mean.clone()
+            seen_indices = torch.nonzero(self.count > 0, as_tuple=False).flatten()
+            if seen_indices.numel() > 1:
+                digest = hashlib.sha256(f"{self.name}:{self.seed}".encode("utf-8")).digest()
+                generator = torch.Generator().manual_seed(int.from_bytes(digest[:8], "little"))
+                permutation = torch.randperm(seen_indices.numel(), generator=generator)
+                means[seen_indices] = means[seen_indices[permutation]]
+            self._shuffled_address_mean = means
+        return self._shuffled_address_mean
 
     def summary(self) -> Dict[str, object]:
         seen = self.count > 0
@@ -302,6 +341,7 @@ class ModulePrototype:
             "stage": self.stage,
             "block": self.block,
             "address_space": self.address_space,
+            "token_channel_address_space": self.coarse_address_space,
             "num_samples": total,
             "unique_addresses": unique,
             "address_coverage": unique / float(self.address_space) if self.address_space else None,
@@ -318,6 +358,8 @@ class ModuleEval:
         self.prototype = prototype
         self.global_mse = MSEStats()
         self.address_mse = MSEStats()
+        self.token_channel_mse = MSEStats()
+        self.shuffled_address_mse = MSEStats()
         self.candidate_background_mse = MSEStats()
         self.response = VarianceStats()
         self.address_hits = 0
@@ -336,6 +378,12 @@ class ModuleEval:
         seen = proto.count[addr] >= proto.min_count
         address_pred = proto.address_mean[addr]
         address_pred = torch.where(seen, address_pred, global_pred)
+        coarse_addr = addr // proto.detail_factor
+        coarse_seen = proto.coarse_count[coarse_addr] >= proto.min_count
+        token_channel_pred = proto.coarse_mean[coarse_addr]
+        token_channel_pred = torch.where(coarse_seen, token_channel_pred, global_pred)
+        shuffled_address_pred = proto.shuffled_address_mean[addr]
+        shuffled_address_pred = torch.where(seen, shuffled_address_pred, global_pred)
         cb_values = torch.where(
             cand,
             torch.full_like(resp, fill_value=float(proto.candidate_mean)),
@@ -344,6 +392,8 @@ class ModuleEval:
 
         self.global_mse.update(float(torch.sum((resp - global_pred) ** 2).item()), count)
         self.address_mse.update(float(torch.sum((resp - address_pred) ** 2).item()), count)
+        self.token_channel_mse.update(float(torch.sum((resp - token_channel_pred) ** 2).item()), count)
+        self.shuffled_address_mse.update(float(torch.sum((resp - shuffled_address_pred) ** 2).item()), count)
         self.candidate_background_mse.update(float(torch.sum((resp - cb_values) ** 2).item()), count)
         self.response.update_many(resp.tolist())
         self.address_hits += int(seen.sum().item())
@@ -352,6 +402,8 @@ class ModuleEval:
     def summary(self) -> Dict[str, object]:
         global_mse = self.global_mse.mse
         address_mse = self.address_mse.mse
+        token_channel_mse = self.token_channel_mse.mse
+        shuffled_address_mse = self.shuffled_address_mse.mse
         cb_mse = self.candidate_background_mse.mse
         return {
             "name": self.prototype.name,
@@ -364,9 +416,17 @@ class ModuleEval:
             "eval_candidate_fraction": self.candidates / float(self.global_mse.count) if self.global_mse.count else 0.0,
             "global_mean_mse": global_mse,
             "address_lut_mse": address_mse,
+            "token_channel_lut_mse": token_channel_mse,
+            "shuffled_address_lut_mse": shuffled_address_mse,
             "candidate_background_mse": cb_mse,
             "address_relative_mse_reduction": (
                 (global_mse - address_mse) / global_mse if global_mse > 0 else 0.0
+            ),
+            "token_channel_relative_mse_reduction": (
+                (global_mse - token_channel_mse) / global_mse if global_mse > 0 else 0.0
+            ),
+            "shuffled_address_relative_mse_reduction": (
+                (global_mse - shuffled_address_mse) / global_mse if global_mse > 0 else 0.0
             ),
             "candidate_background_relative_mse_reduction": (
                 (global_mse - cb_mse) / global_mse if global_mse > 0 else 0.0
@@ -375,15 +435,17 @@ class ModuleEval:
 
 
 class PrototypeBank:
-    def __init__(self, min_count: int) -> None:
+    def __init__(self, min_count: int, population_bins: int, seed: int) -> None:
         self.min_count = int(min_count)
+        self.population_bins = int(population_bins)
+        self.seed = int(seed)
         self.prototypes: Dict[str, ModulePrototype] = {}
         self.eval_stats: Dict[str, ModuleEval] = {}
 
     def calibrate(self, stats: ModuleDiagnostic, address: torch.Tensor, response: torch.Tensor, candidate_mask: torch.Tensor) -> None:
         proto = self.prototypes.get(stats.name)
         if proto is None:
-            proto = ModulePrototype(stats, self.min_count)
+            proto = ModulePrototype(stats, self.min_count, self.population_bins, self.seed)
             self.prototypes[stats.name] = proto
         proto.update(address, response, candidate_mask)
 
@@ -470,8 +532,16 @@ def group_eval_summary(modules: Iterable[Dict[str, object]], key: str) -> Dict[s
             "eval_samples": int(sum(int(item.get("eval_samples", 0)) for item in items)),
             "global_mean_mse": _weighted_mean(items, "global_mean_mse"),
             "address_lut_mse": _weighted_mean(items, "address_lut_mse"),
+            "token_channel_lut_mse": _weighted_mean(items, "token_channel_lut_mse"),
+            "shuffled_address_lut_mse": _weighted_mean(items, "shuffled_address_lut_mse"),
             "candidate_background_mse": _weighted_mean(items, "candidate_background_mse"),
             "address_relative_mse_reduction": _weighted_mean(items, "address_relative_mse_reduction"),
+            "token_channel_relative_mse_reduction": _weighted_mean(
+                items, "token_channel_relative_mse_reduction"
+            ),
+            "shuffled_address_relative_mse_reduction": _weighted_mean(
+                items, "shuffled_address_relative_mse_reduction"
+            ),
             "candidate_background_relative_mse_reduction": _weighted_mean(items, "candidate_background_relative_mse_reduction"),
             "eval_address_hit_rate": _weighted_mean(items, "eval_address_hit_rate"),
             "eval_candidate_fraction": _weighted_mean(items, "eval_candidate_fraction"),
@@ -541,7 +611,11 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     calibration_loader, calibration_source = build_loader(calibration_cfg, model_cfg, device)
     evaluation_loader, evaluation_source = build_loader(evaluation_cfg, model_cfg, device)
 
-    bank = PrototypeBank(min_count=int(diag_cfg.get("prototype_min_count", 2)))
+    bank = PrototypeBank(
+        min_count=int(diag_cfg.get("prototype_min_count", 2)),
+        population_bins=int(diag_cfg.get("population_bins", 4)),
+        seed=experiment_seed,
+    )
     print("[qk-lut-e1] calibration_start")
     calibration_batches, calibration_hook_summary = run_pass(
         model,
@@ -570,8 +644,16 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         "eval_samples": int(sum(int(item.get("eval_samples", 0)) for item in module_reconstruction)),
         "global_mean_mse": _weighted_mean(module_reconstruction, "global_mean_mse"),
         "address_lut_mse": _weighted_mean(module_reconstruction, "address_lut_mse"),
+        "token_channel_lut_mse": _weighted_mean(module_reconstruction, "token_channel_lut_mse"),
+        "shuffled_address_lut_mse": _weighted_mean(module_reconstruction, "shuffled_address_lut_mse"),
         "candidate_background_mse": _weighted_mean(module_reconstruction, "candidate_background_mse"),
         "address_relative_mse_reduction": _weighted_mean(module_reconstruction, "address_relative_mse_reduction"),
+        "token_channel_relative_mse_reduction": _weighted_mean(
+            module_reconstruction, "token_channel_relative_mse_reduction"
+        ),
+        "shuffled_address_relative_mse_reduction": _weighted_mean(
+            module_reconstruction, "shuffled_address_relative_mse_reduction"
+        ),
         "candidate_background_relative_mse_reduction": _weighted_mean(module_reconstruction, "candidate_background_relative_mse_reduction"),
         "eval_address_hit_rate": _weighted_mean(module_reconstruction, "eval_address_hit_rate"),
         "eval_candidate_fraction": _weighted_mean(module_reconstruction, "eval_candidate_fraction"),

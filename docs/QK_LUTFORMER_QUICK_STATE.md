@@ -84,12 +84,13 @@ across calibration subsets and full validation.
     variance 0.074674.
   - Stage1/stage2 coverage is approximately 1.0; stage3 coverage is 0.180817.
 - CIFAR-100 T=1 E1 split-aware reconstruction:
-  - Global mean / candidate-background / address LUT MSE are 0.079005 /
-    0.078969 / 0.075965.
-  - Address LUT relative MSE reduction is 4.4004% overall, versus 0.0396% for
-    candidate/background means.
-  - Stage1/stage2 address reductions are 10.3056% / 3.9579%; both have 100%
-    evaluation address hit rate.
+  - Three randomized 128-batch calibration subsets, each evaluated on all 313
+    validation batches, give address reductions 4.4243% / 4.4207% / 4.4292%.
+  - Mean reduction is 4.4247% with standard deviation 0.0042 percentage
+    points; global / candidate-background / address MSE means are 0.078528 /
+    0.078496 / 0.075465.
+  - Stage1/stage2/stage3 mean address reductions are 10.0388% / 3.9649% /
+    1.8476%; mean evaluation address hit rate is 99.9907%.
 - CIFAR-100 T=1 stage1 alpha 0.025:
   - address/global/token-channel/shuffled mean Acc@1 deltas are
     +0.1633 / +0.3233 / -0.1333 / -0.0933.
@@ -149,9 +150,8 @@ before falling back to GPU 2. Small diagnostics default to GPU 2.
 
 ## Next Useful Experiments
 
-1. Run CIFAR-100 E1 with randomized 128-batch calibration subsets and full
-   validation to establish the stability of the cross-dataset reconstruction
-   claim.
+1. Add token/channel and shuffled-address controls to E1 reconstruction, then
+   repeat the CIFAR-100 randomized-subset test to isolate address semantics.
 2. Reframe the paper around address structure, occupancy, and response
    reconstruction; treat small Acc@1 changes as secondary negative evidence.
 

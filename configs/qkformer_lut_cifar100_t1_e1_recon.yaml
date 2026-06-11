@@ -42,4 +42,6 @@ diagnostic:
   baselines:
     - global_mean
     - candidate_background_mean
+    - token_channel_lut
+    - shuffled_address_lut
     - address_lut

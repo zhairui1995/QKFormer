@@ -136,6 +136,8 @@ print(f"[qk-lut-e1] metrics_ok={path}")
 print(f"[qk-lut-e1] verdict={metrics.get('verdict')}")
 print(f"[qk-lut-e1] address_lut_mse={overall.get('address_lut_mse')}")
 print(f"[qk-lut-e1] address_relative_mse_reduction={overall.get('address_relative_mse_reduction')}")
+print(f"[qk-lut-e1] token_channel_lut_mse={overall.get('token_channel_lut_mse')}")
+print(f"[qk-lut-e1] shuffled_address_lut_mse={overall.get('shuffled_address_lut_mse')}")
 PY
 
   echo "[qk-lut-e1] done=$(date -Is)"

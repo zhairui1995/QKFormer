@@ -65,9 +65,12 @@ indicates that responses are more predictable within Q/K-derived buckets.}
 
 Table~\ref{tab:e1_recon} shows held-out response reconstruction. Address LUT
 prototypes reduce MSE relative to the global mean on both datasets, by
-$3.58\%$ on CIFAR-10 and $4.40\%$ on CIFAR-100. On CIFAR-100 the reduction is
-largest in stage1 ($10.31\%$) and remains positive in stage2 ($3.96\%$), while
-candidate/background means remain nearly identical to the global mean.
+$3.58\%$ on CIFAR-10 and $4.42\%$ on CIFAR-100. The CIFAR-100 value is the mean
+over three randomized 128-batch calibration subsets evaluated on the complete
+validation split; its standard deviation is only $0.0042$ percentage points.
+The mean reduction is largest in stage1 ($10.04\%$), remains positive in
+stage2 ($3.96\%$), and is $1.85\%$ in stage3, while candidate/background means
+remain nearly identical to the global mean.
 
 \begin{table}[t]
 \centering
@@ -78,13 +81,14 @@ candidate/background means remain nearly identical to the global mean.
 Dataset & Global & Cand./back. & Address LUT & Rel. reduction \\
 \midrule
 CIFAR-10 & 0.07146 & 0.07144 & \textbf{0.06887} & \textbf{3.58} \\
-CIFAR-100 & 0.07900 & 0.07897 & \textbf{0.07596} & \textbf{4.40} \\
+CIFAR-100 & 0.07853 & 0.07850 & \textbf{0.07547} & \textbf{4.42} \\
 \bottomrule
 \end{tabular}
 }
 \caption{E1 split-aware reconstruction on held-out validation batches. MSE is
 aggregated over the instrumented modules; relative reduction is reported in
-percent against the corresponding global mean baseline.}
+percent against the corresponding global mean baseline. CIFAR-100 reports the
+mean over three randomized calibration subsets and full validation.}
 \label{tab:e1_recon}
 \end{table}
 

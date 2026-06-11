@@ -44,6 +44,8 @@ diagnostic:
   baselines:
     - global_mean
     - candidate_background_mean
+    - token_channel_lut
+    - shuffled_address_lut
     - address_lut
   ccs_reference:
     coarse_context_conditional_variance: 0.0047152074
