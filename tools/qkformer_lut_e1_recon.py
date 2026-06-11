@@ -230,7 +230,15 @@ class MSEStats:
 
 
 class ModulePrototype:
-    def __init__(self, stats: ModuleDiagnostic, min_count: int, population_bins: int, seed: int) -> None:
+    def __init__(
+        self,
+        stats: ModuleDiagnostic,
+        min_count: int,
+        population_bins: int,
+        seed: int,
+        hierarchy_budget_fraction: Optional[float] = None,
+        hierarchy_budget_policy: str = "token_then_specific",
+    ) -> None:
         self.name = stats.name
         self.kind = stats.kind
         self.stage = stats.stage
@@ -238,6 +246,10 @@ class ModulePrototype:
         self.address_space = int(stats.address_space)
         self.min_count = int(min_count)
         self.seed = int(seed)
+        self.hierarchy_budget_fraction = (
+            None if hierarchy_budget_fraction is None else float(hierarchy_budget_fraction)
+        )
+        self.hierarchy_budget_policy = str(hierarchy_budget_policy)
         self.detail_factor = 4 if stats.kind == "token_qk" else 4 * int(population_bins) ** 2
         self.coarse_address_space = self.address_space // self.detail_factor
         self.count = torch.zeros(self.address_space, dtype=torch.float64)
@@ -261,6 +273,7 @@ class ModulePrototype:
         self._coarse_mean: Optional[torch.Tensor] = None
         self._shuffled_address_mean: Optional[torch.Tensor] = None
         self._component_means: Dict[str, torch.Tensor] = {}
+        self._hierarchy_support_masks: Optional[Dict[str, torch.Tensor]] = None
 
     def _make_component_address_spaces(self, population_bins: int) -> Dict[str, int]:
         if self.kind == "token_qk":
@@ -321,6 +334,7 @@ class ModulePrototype:
         self._coarse_mean = None
         self._shuffled_address_mean = None
         self._component_means = {}
+        self._hierarchy_support_masks = None
 
     @property
     def global_mean(self) -> float:
@@ -377,6 +391,74 @@ class ModulePrototype:
             self._shuffled_address_mean = means
         return self._shuffled_address_mean
 
+    def raw_support_mask(self, level: str) -> torch.Tensor:
+        if level == "full":
+            return self.count >= self.min_count
+        if level in self.component_counts:
+            return self.component_counts[level] >= self.min_count
+        raise KeyError(f"unknown hierarchy level: {level}")
+
+    def _top_count_mask(self, counts: torch.Tensor, support: torch.Tensor, limit: int) -> torch.Tensor:
+        mask = torch.zeros_like(support, dtype=torch.bool)
+        if limit <= 0:
+            return mask
+        indices = torch.nonzero(support, as_tuple=False).flatten()
+        if indices.numel() <= limit:
+            mask[indices] = True
+            return mask
+        values = counts[indices]
+        order = torch.argsort(values, descending=True, stable=True)[:limit]
+        mask[indices[order]] = True
+        return mask
+
+    def _build_hierarchy_support_masks(self) -> Dict[str, torch.Tensor]:
+        raw_masks = {
+            "full": self.raw_support_mask("full").clone(),
+            "plus_k": self.raw_support_mask("plus_k").clone(),
+            "plus_q_or_gate": self.raw_support_mask("plus_q_or_gate").clone(),
+            "token_channel": self.raw_support_mask("token_channel").clone(),
+        }
+        if self.hierarchy_budget_fraction is None or self.hierarchy_budget_fraction <= 0:
+            return raw_masks
+
+        budget = int(self.address_space * self.hierarchy_budget_fraction)
+        budget = max(1, budget) - 1  # reserve the explicit global fallback entry
+        budget = max(0, budget)
+        counts = {
+            "full": self.count,
+            "plus_k": self.component_counts["plus_k"],
+            "plus_q_or_gate": self.component_counts["plus_q_or_gate"],
+            "token_channel": self.component_counts["token_channel"],
+        }
+        selected = {name: torch.zeros_like(mask, dtype=torch.bool) for name, mask in raw_masks.items()}
+        if self.hierarchy_budget_policy == "specific_then_token":
+            order = ("full", "plus_k", "plus_q_or_gate", "token_channel")
+        elif self.hierarchy_budget_policy == "global_top_count":
+            candidates = []
+            for level, mask in raw_masks.items():
+                for index in torch.nonzero(mask, as_tuple=False).flatten().tolist():
+                    candidates.append((float(counts[level][index].item()), level, int(index)))
+            candidates.sort(key=lambda item: item[0], reverse=True)
+            for _count, level, index in candidates[:budget]:
+                selected[level][index] = True
+            return selected
+        else:
+            order = ("token_channel", "full", "plus_k", "plus_q_or_gate")
+
+        remaining = budget
+        for level in order:
+            chosen = self._top_count_mask(counts[level], raw_masks[level], remaining)
+            selected[level] = chosen
+            remaining -= int(chosen.sum().item())
+            if remaining <= 0:
+                break
+        return selected
+
+    def hierarchy_support_mask(self, level: str) -> torch.Tensor:
+        if self._hierarchy_support_masks is None:
+            self._hierarchy_support_masks = self._build_hierarchy_support_masks()
+        return self._hierarchy_support_masks[level]
+
     def summary(self) -> Dict[str, object]:
         seen = self.count > 0
         counts = self.count[seen].tolist()
@@ -416,14 +498,10 @@ class ModulePrototype:
 
     def supported_entry_counts(self) -> Dict[str, int]:
         return {
-            "full": int((self.count >= self.min_count).sum().item()),
-            "plus_k": int((self.component_counts["plus_k"] >= self.min_count).sum().item()),
-            "plus_q_or_gate": int(
-                (self.component_counts["plus_q_or_gate"] >= self.min_count).sum().item()
-            ),
-            "token_channel": int(
-                (self.component_counts["token_channel"] >= self.min_count).sum().item()
-            ),
+            "full": int(self.hierarchy_support_mask("full").sum().item()),
+            "plus_k": int(self.hierarchy_support_mask("plus_k").sum().item()),
+            "plus_q_or_gate": int(self.hierarchy_support_mask("plus_q_or_gate").sum().item()),
+            "token_channel": int(self.hierarchy_support_mask("token_channel").sum().item()),
             "global": 1,
         }
 
@@ -481,32 +559,42 @@ class ModuleEval:
             component_pred = proto.component_mean(component)[component_addr]
             component_predictions[component] = torch.where(component_seen, component_pred, global_pred)
             component_seen_masks[component] = component_seen
+        hierarchy_seen = {
+            "full": proto.hierarchy_support_mask("full")[addr],
+            "plus_k": proto.hierarchy_support_mask("plus_k")[proto.component_address(addr, "plus_k")],
+            "plus_q_or_gate": proto.hierarchy_support_mask("plus_q_or_gate")[
+                proto.component_address(addr, "plus_q_or_gate")
+            ],
+            "token_channel": proto.hierarchy_support_mask("token_channel")[coarse_addr],
+        }
         hierarchy_pred = global_pred.clone()
         selected_level = torch.full_like(addr, fill_value=4)
-        hierarchy_pred = torch.where(coarse_seen, token_channel_pred, hierarchy_pred)
-        selected_level = torch.where(coarse_seen, torch.full_like(selected_level, 3), selected_level)
+        hierarchy_pred = torch.where(hierarchy_seen["token_channel"], token_channel_pred, hierarchy_pred)
+        selected_level = torch.where(
+            hierarchy_seen["token_channel"], torch.full_like(selected_level, 3), selected_level
+        )
         hierarchy_pred = torch.where(
-            component_seen_masks["plus_q_or_gate"],
+            hierarchy_seen["plus_q_or_gate"],
             component_predictions["plus_q_or_gate"],
             hierarchy_pred,
         )
         selected_level = torch.where(
-            component_seen_masks["plus_q_or_gate"],
+            hierarchy_seen["plus_q_or_gate"],
             torch.full_like(selected_level, 2),
             selected_level,
         )
         hierarchy_pred = torch.where(
-            component_seen_masks["plus_k"],
+            hierarchy_seen["plus_k"],
             component_predictions["plus_k"],
             hierarchy_pred,
         )
         selected_level = torch.where(
-            component_seen_masks["plus_k"],
+            hierarchy_seen["plus_k"],
             torch.full_like(selected_level, 1),
             selected_level,
         )
-        hierarchy_pred = torch.where(seen, proto.address_mean[addr], hierarchy_pred)
-        selected_level = torch.where(seen, torch.zeros_like(selected_level), selected_level)
+        hierarchy_pred = torch.where(hierarchy_seen["full"], proto.address_mean[addr], hierarchy_pred)
+        selected_level = torch.where(hierarchy_seen["full"], torch.zeros_like(selected_level), selected_level)
         shuffled_address_pred = proto.shuffled_address_mean[addr]
         shuffled_address_pred = torch.where(seen, shuffled_address_pred, global_pred)
         cb_values = torch.where(
@@ -629,23 +717,41 @@ class ModuleEval:
                 else 0.0
             ),
             "hierarchical_supported_entry_counts": supported_entries,
+            "hierarchy_budget_fraction": self.prototype.hierarchy_budget_fraction,
+            "hierarchy_budget_policy": self.prototype.hierarchy_budget_policy,
             **component_values,
             **component_reductions,
         }
 
 
 class PrototypeBank:
-    def __init__(self, min_count: int, population_bins: int, seed: int) -> None:
+    def __init__(
+        self,
+        min_count: int,
+        population_bins: int,
+        seed: int,
+        hierarchy_budget_fraction: Optional[float] = None,
+        hierarchy_budget_policy: str = "token_then_specific",
+    ) -> None:
         self.min_count = int(min_count)
         self.population_bins = int(population_bins)
         self.seed = int(seed)
+        self.hierarchy_budget_fraction = hierarchy_budget_fraction
+        self.hierarchy_budget_policy = hierarchy_budget_policy
         self.prototypes: Dict[str, ModulePrototype] = {}
         self.eval_stats: Dict[str, ModuleEval] = {}
 
     def calibrate(self, stats: ModuleDiagnostic, address: torch.Tensor, response: torch.Tensor, candidate_mask: torch.Tensor) -> None:
         proto = self.prototypes.get(stats.name)
         if proto is None:
-            proto = ModulePrototype(stats, self.min_count, self.population_bins, self.seed)
+            proto = ModulePrototype(
+                stats,
+                self.min_count,
+                self.population_bins,
+                self.seed,
+                hierarchy_budget_fraction=self.hierarchy_budget_fraction,
+                hierarchy_budget_policy=self.hierarchy_budget_policy,
+            )
             self.prototypes[stats.name] = proto
         proto.update(address, response, candidate_mask)
 
@@ -864,6 +970,12 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     env_min_count = os.environ.get("QKFORMER_LUT_E1_MIN_COUNT")
     if env_min_count is not None:
         diag_cfg["prototype_min_count"] = int(env_min_count)
+    env_hierarchy_budget_fraction = os.environ.get("QKFORMER_LUT_E1_HIERARCHY_BUDGET_FRACTION")
+    if env_hierarchy_budget_fraction is not None:
+        diag_cfg["hierarchy_budget_fraction"] = float(env_hierarchy_budget_fraction)
+    env_hierarchy_budget_policy = os.environ.get("QKFORMER_LUT_E1_HIERARCHY_BUDGET_POLICY")
+    if env_hierarchy_budget_policy:
+        diag_cfg["hierarchy_budget_policy"] = env_hierarchy_budget_policy
     env_calibration_shuffle = os.environ.get("QKFORMER_LUT_E1_CALIB_SHUFFLE")
     if env_calibration_shuffle is not None:
         calibration_cfg["shuffle"] = env_calibration_shuffle.lower() in {"1", "true", "yes", "on"}
@@ -882,6 +994,12 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         min_count=int(diag_cfg.get("prototype_min_count", 2)),
         population_bins=int(diag_cfg.get("population_bins", 4)),
         seed=experiment_seed,
+        hierarchy_budget_fraction=(
+            float(diag_cfg["hierarchy_budget_fraction"])
+            if diag_cfg.get("hierarchy_budget_fraction") is not None
+            else None
+        ),
+        hierarchy_budget_policy=str(diag_cfg.get("hierarchy_budget_policy", "token_then_specific")),
     )
     print("[qk-lut-e1] calibration_start")
     calibration_batches, calibration_hook_summary = run_pass(

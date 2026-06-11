@@ -15,7 +15,7 @@ def _pct(value: float | None) -> float | None:
 
 
 def _load_rows(paths: Iterable[Path]) -> List[Dict[str, Any]]:
-    pattern = re.compile(r"_e6_budget_calib(\d+)_seed(\d+)_min(\d+)$")
+    pattern = re.compile(r"_e6(?:_budget|_budgetfrac)_calib(\d+)_seed(\d+)_min(\d+)(?:_budget([0-9p]+))?$")
     rows: List[Dict[str, Any]] = []
     for path in paths:
         match = pattern.search(path.parent.name)
@@ -26,6 +26,10 @@ def _load_rows(paths: Iterable[Path]) -> List[Dict[str, Any]]:
         calib_batches = int(match.group(1))
         seed = int(match.group(2))
         min_count = int(match.group(3))
+        budget_token = match.group(4)
+        budget_fraction = None
+        if budget_token:
+            budget_fraction = float(budget_token.replace("p", "."))
         fallback_keys = [
             "fallback_fraction_full",
             "fallback_fraction_plus_k",
@@ -43,6 +47,7 @@ def _load_rows(paths: Iterable[Path]) -> List[Dict[str, Any]]:
             "calibration_batches": calib_batches,
             "calibration_seed": seed,
             "min_count": min_count,
+            "budget_fraction": budget_fraction,
             "eval_samples": int(overall["eval_samples"]),
             "global_mean_mse": float(overall["global_mean_mse"]),
             "token_channel_mse": float(overall["component_token_channel_mse"]),
@@ -83,7 +88,15 @@ def _load_rows(paths: Iterable[Path]) -> List[Dict[str, Any]]:
             and row["uses_25pct_entries"]
         )
         rows.append(row)
-    return sorted(rows, key=lambda row: (row["calibration_seed"], row["calibration_batches"], row["min_count"]))
+    return sorted(
+        rows,
+        key=lambda row: (
+            row["calibration_seed"],
+            row["calibration_batches"],
+            row["min_count"],
+            -1.0 if row["budget_fraction"] is None else float(row["budget_fraction"]),
+        ),
+    )
 
 
 def _write_csv(path: Path, rows: List[Dict[str, Any]]) -> None:
@@ -126,16 +139,17 @@ def _markdown(report: Dict[str, Any]) -> str:
         "",
         f"**Decision:** `{report['decision']}`",
         "",
-        "| Seed | Calib | Min count | Hier. red. | Token red. | Compression | Full fb | Global fb | Pass |",
-        "|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+        "| Seed | Calib | Min count | Budget | Hier. red. | Token red. | Compression | Full fb | Global fb | Pass |",
+        "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for row in report["best_rows"]:
         lines.append(
-            "| {seed} | {calib} | {min_count} | {hier:.4f}% | {token:.4f}% | "
+            "| {seed} | {calib} | {min_count} | {budget} | {hier:.4f}% | {token:.4f}% | "
             "{comp:.4f} | {full_fb:.4f} | {global_fb:.4f} | {passed} |".format(
                 seed=row["calibration_seed"],
                 calib=row["calibration_batches"],
                 min_count=row["min_count"],
+                budget="-" if row["budget_fraction"] is None else f"{row['budget_fraction']:.2f}",
                 hier=row["hierarchical_backoff_reduction_pct"],
                 token=row["token_channel_reduction_pct"],
                 comp=row["hierarchical_supported_compression"],
@@ -171,18 +185,21 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    rows = _load_rows(args.results_root.glob("qkformer_lut_e1_recon_*_e6_budget_calib*_seed*_min*/metrics.json"))
+    rows = _load_rows(args.results_root.glob("qkformer_lut_e1_recon_*_e6_budget*_calib*_seed*_min*/metrics.json"))
     best_rows = _best_rows(rows)
     sizes = sorted({int(row["calibration_batches"]) for row in rows})
     seeds = sorted({int(row["calibration_seed"]) for row in rows})
     min_counts = sorted({int(row["min_count"]) for row in rows})
+    budget_fractions = sorted(
+        {float(row["budget_fraction"]) for row in rows if row["budget_fraction"] is not None}
+    )
     expected_sizes = {8, 32, 128, 512}
     expected_seeds = {42, 43, 44}
     groups = {(int(row["calibration_seed"]), int(row["calibration_batches"])) for row in rows}
     expected_groups = {(seed, size) for seed in expected_seeds for size in expected_sizes}
     checks = {
         "has_expected_groups": expected_groups.issubset(groups),
-        "has_budget_sweep": len(min_counts) >= 3,
+        "has_budget_sweep": len(min_counts) >= 3 or len(budget_fractions) >= 1,
         "fallback_distribution_valid_all": bool(rows) and all(row["fallback_distribution_valid"] for row in rows),
         "shuffled_worse_than_hierarchy_all": bool(rows) and all(row["shuffled_worse_than_hierarchy"] for row in rows),
         "budget_pass_each_expected_group": expected_groups.issubset(
@@ -216,6 +233,7 @@ def main() -> None:
         "calibration_sizes": sizes,
         "calibration_seeds": seeds,
         "min_counts": min_counts,
+        "budget_fractions": budget_fractions,
         "rows": rows,
         "best_rows": best_rows,
         "interpretation": interpretation,
