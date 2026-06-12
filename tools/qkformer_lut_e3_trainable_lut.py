@@ -636,15 +636,17 @@ def _append_per_sample_rows(
     baseline_logits: torch.Tensor,
     replacement_logits: torch.Tensor,
 ) -> int:
-    base_logits = baseline_logits.detach().float()
-    repl_logits = replacement_logits.detach().float()
+    baseline_native = baseline_logits.detach()
+    replacement_native = replacement_logits.detach()
+    base_logits = baseline_native.float()
+    repl_logits = replacement_native.float()
     labels = targets.detach().long()
     base_ce = F.cross_entropy(base_logits, labels, reduction="none")
     repl_ce = F.cross_entropy(repl_logits, labels, reduction="none")
     # Match the project's aggregate accuracy helper exactly, including its
     # deterministic topk tie behavior under AMP evaluation.
-    base_pred = base_logits.topk(1, dim=1, largest=True, sorted=True).indices.squeeze(1)
-    repl_pred = repl_logits.topk(1, dim=1, largest=True, sorted=True).indices.squeeze(1)
+    base_pred = baseline_native.topk(1, dim=1, largest=True, sorted=True).indices.squeeze(1)
+    repl_pred = replacement_native.topk(1, dim=1, largest=True, sorted=True).indices.squeeze(1)
     base_margin = _true_class_margin(base_logits, labels)
     repl_margin = _true_class_margin(repl_logits, labels)
     base_conf = F.softmax(base_logits, dim=1).max(dim=1).values
