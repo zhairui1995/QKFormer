@@ -4,12 +4,14 @@
 \paragraph{Spiking Transformers.}
 Spiking Transformers combine the sequence modeling capacity of Transformers
 with the event-driven computation of SNNs. Spikformer introduced spike-form
-self-attention as a practical design for directly trained spiking
-Transformers~\cite{zhou2023spikformer}. QKFormer further improves this line
-with hierarchical structure and spike-form Q-K attention based on binary
-token/channel vectors~\cite{zhou2024qkformer}. Our work is not a replacement
-for QKFormer; it studies whether QKFormer's existing binary Q/K patterns form a
-useful LUT address space.
+self-attention for directly trained spiking Transformers~\cite{zhou2023spikformer}.
+Spike-driven Transformer removes floating-point multiplication from spike-form
+attention~\cite{yao2023spikedriven}, and SpikingResformer combines spiking
+attention with a multistage convolutional hierarchy~\cite{shi2024spikingresformer}.
+QKFormer further develops this line with hierarchical spike-form Q-K attention
+based on binary token/channel vectors~\cite{zhou2024qkformer}. Our work is not a
+replacement for these architectures; it asks whether QKFormer's existing
+binary states form useful, auditable lookup addresses.
 
 \paragraph{Transformer-to-SNN conversion.}
 ANN-to-SNN conversion has been successful for convolutional networks, but
@@ -21,11 +23,22 @@ paper begins from a spiking Transformer whose attention already exposes binary
 Q/K structure, and asks whether that structure can index auditable lookup
 prototypes and controlled downstream probes.
 
-\paragraph{Lookup-style neural computation.}
-Lookup tables have long been attractive for replacing repeated computation with
-discrete indexing. For attention, however, naive table lookup can lose
-input-dependent context. Our diagnostic results reflect this: forward-only
-prototype tables are not enough when global smoothing controls perform nearly
-as well. We therefore treat LUTs first as auditable reconstruction objects, and
-only secondarily as constrained downstream probes rather than full forward-only
-replacements.
+\paragraph{Lookup and compositional memory.}
+Learned lookup has been used to replace arithmetic with centroid-indexed table
+access in MADDNESS and LUT-NN~\cite{blalock2021maddness,tang2023lutnn}, while
+Product-Key Memory factorizes a large key space into compositional
+subkeys~\cite{lample2019large}. Product quantization decomposes a vector space
+into a Cartesian product of lower-dimensional codebooks, while additive
+quantization reconstructs vectors as sums of codewords from multiple
+codebooks~\cite{jegou2011product,babenko2014additive}. LookupFFN and MemoryFormer study table-based
+replacements for Transformer feed-forward
+computation~\cite{zeng2023lookupffn,wang2024memoryformer}. Our setting differs in both target and
+claim: we audit binary states already present inside spike-form Q-K attention
+and reconstruct local module responses rather than replacing dense ANN layers.
+The subspace QK-LUT is closest in spirit to compositional memory and
+multi-codebook quantization, but it partitions an existing discrete address by
+QKFormer semantics and stores conditional response residuals rather than
+quantizing input vectors. It is also evaluated against same-entry shuffled
+controls. Because lookup can still lose input-dependent context, we treat
+downstream replacement as a separate gate rather than infer it from
+reconstruction alone.

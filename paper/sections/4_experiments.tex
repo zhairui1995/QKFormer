@@ -6,9 +6,9 @@
 
 We evaluate the QKFormer CIFAR architecture~\cite{zhou2024qkformer} on CIFAR-10
 and CIFAR-100. CIFAR-10 includes one $T=4$ checkpoint and three independently
-trained $T=1$ checkpoints. CIFAR-100 uses a $T=1$ checkpoint trained from
-scratch. All E3 experiments freeze the backbone and train only adapter
-parameters.
+trained $T=1$ checkpoints. CIFAR-100 includes independently trained $T=1$ and
+$T=4$ checkpoints. Adapter-gate experiments freeze the backbone and train only
+the small lookup probe.
 
 \begin{table}[t]
 \centering
@@ -23,6 +23,7 @@ QKFormer CIFAR-10 & 1 & 95.20 & 94.64 \\
 QKFormer CIFAR-10 seed 43 & 1 & 95.04 & 94.76 \\
 QKFormer CIFAR-10 seed 44 & 1 & 95.08 & 94.54 \\
 QKFormer CIFAR-100 seed 42 & 1 & 77.76 & 77.40 \\
+QKFormer CIFAR-100 seed 42 & 4 & 81.23 & 81.16 \\
 \bottomrule
 \end{tabular}
 }
@@ -52,6 +53,7 @@ $T=1$ & 0.5805 & 0.0794 & 0.0549 \\
 $T=1$ seed 43 & 0.5789 & 0.0822 & 0.0498 \\
 $T=1$ seed 44 & 0.5840 & 0.0805 & 0.0529 \\
 CIFAR-100 $T=1$ & 0.5900 & 0.0768 & 0.0747 \\
+CIFAR-100 $T=4$ & 0.6128 & 0.0790 & 0.0894 \\
 \bottomrule
 \end{tabular}
 }
@@ -74,6 +76,9 @@ stage2 ($3.96\%$), and is $1.85\%$ in stage3. The address LUT also consistently
 beats the coarse token/channel LUT ($3.42\%$ overall), while shuffled address
 alignment worsens MSE by $15.82\%$. Candidate/background means remain nearly
 identical to the global mean.
+The independently trained CIFAR-100 $T=4$ checkpoint preserves the same
+ordering: address lookup reduces MSE by $2.84\%$, compared with $2.24\%$ for
+token/channel lookup, while shuffled alignment degrades it by $13.74\%$.
 
 \begin{table}[t]
 \centering
@@ -85,13 +90,15 @@ Dataset & Global & Cand./back. & Token/channel & Address LUT & Rel. reduction \\
 \midrule
 CIFAR-10 & 0.07129 & 0.07127 & 0.06926 & \textbf{0.06861} & \textbf{3.71} \\
 CIFAR-100 & 0.07853 & 0.07850 & 0.07613 & \textbf{0.07547} & \textbf{4.42} \\
+CIFAR-100 $T=4$ & 0.09314 & 0.09312 & 0.09120 & \textbf{0.09072} & \textbf{2.84} \\
 \bottomrule
 \end{tabular}
 }
 \caption{E1 split-aware reconstruction on held-out validation batches. MSE is
 aggregated over the instrumented modules; relative reduction is reported in
-percent against the corresponding global mean baseline. Both datasets report
-the mean over three randomized calibration subsets and full validation.}
+percent against the corresponding global mean baseline. The first two rows
+report means over three randomized calibration subsets and full validation;
+the CIFAR-100 $T=4$ row is the registered 128-batch calibration run.}
 \label{tab:e1_recon}
 \end{table}
 
@@ -140,10 +147,11 @@ protocol and full validation.}
 \end{table}
 
 Table~\ref{tab:e1_calibration} measures calibration data efficiency on
-CIFAR-100. Eight batches already recover $3.80\%$ relative MSE reduction,
-approximately $85\%$ of the $4.47\%$ obtained with 512 batches. Address LUT
-remains above token/channel at every calibration size, and validation address
-hit rate exceeds $99.79\%$ even at the smallest setting.
+CIFAR-100 over calibration seeds 42--44. Eight batches already recover
+$3.78\%$ relative MSE reduction, approximately $85\%$ of the $4.48\%$ obtained
+with 512 batches. Address LUT remains above token/channel for every size and
+seed, and mean validation address hit rate exceeds $99.79\%$ even at the
+smallest setting.
 
 \begin{table}[t]
 \centering
@@ -152,15 +160,16 @@ hit rate exceeds $99.79\%$ even at the smallest setting.
 \toprule
 Calib. batches & Address & Token/channel & Hit rate \\
 \midrule
-8 & 3.8001 & 3.3315 & 99.7952 \\
-32 & 4.2756 & 3.4084 & 99.9557 \\
-128 & 4.4243 & 3.4253 & 99.9908 \\
-512 & 4.4674 & 3.4274 & 99.9981 \\
+8 & 3.7840 & 3.3258 & 99.7982 \\
+32 & 4.2671 & 3.4027 & 99.9558 \\
+128 & 4.4247 & 3.4246 & 99.9907 \\
+512 & 4.4752 & 3.4386 & 99.9981 \\
 \bottomrule
 \end{tabular}
-\caption{CIFAR-100 E1 calibration-size sweep. Address and token/channel values
-are relative MSE reductions in percent; hit rate is the percentage of
-validation samples whose address has sufficient calibration support.}
+\caption{CIFAR-100 E1 calibration-size sweep, averaged over calibration seeds
+42--44. Address and token/channel values are relative MSE reductions in
+percent; hit rate is the percentage of validation samples whose address has
+sufficient calibration support.}
 \label{tab:e1_calibration}
 \end{table}
 
@@ -170,8 +179,8 @@ validation samples whose address has sufficient calibration support.}
   \caption{CIFAR-100 calibration-size sweep for E1 reconstruction. (a)
   Correct Q/K addresses remain above token/channel lookup from 8 to 512
   calibration batches. (b) The validation address hit rate is high even at 8
-  batches and saturates with more calibration data. This sweep is calibration
-  seed 42 only and should not be interpreted as final cross-seed robustness.}
+  batches and saturates with more calibration data. Curves show means over
+  calibration seeds 42--44; error bars show population standard deviations.}
   \label{fig:calibration-sweep}
 \end{figure}
 
@@ -246,165 +255,75 @@ Calib. & Token/ch. & TC+Q & TC+QK & TC+Q entries & TC+QK entries \\
 }
 \caption{E7 subspace-decoupled reconstruction on CIFAR-100 $T=1$. Values are
 mean relative MSE reductions in percent over calibration seeds 42--44. Entry
-fractions are supported subspace entries divided by the compact full-address
-space. Both TC+Q and TC+QK pass all shuffled-subspace controls.}
+fractions are supported scalar subtable entries divided by supported compact
+full-address entries; they are entry-count proxies, not measured hardware
+storage. Both TC+Q and TC+QK pass all shuffled-subspace controls.}
 \label{tab:e7_subspace}
 \end{table}
 
-\subsection{Forward-Only Replacement Diagnostics}
-\label{sec:e2_results}
-
-Forward-only replacement is useful diagnostically but not sufficient as a final
-method. Stage1-only replacement is slightly positive on full validation, while
-stage2 and combined stage1+stage2 replacement are negative. Further control
-sweeps show that global smoothing nearly matches address LUT in T=4 settings,
-so the forward-only path alone does not establish an address-specific claim.
-
-\begin{table}[t]
-\centering
-\footnotesize
-\begin{tabular}{lcc}
-\toprule
-Targets & Baseline Acc@1 & Replacement Acc@1 \\
-\midrule
-Stage1 only & 95.73 & \textbf{95.88} \\
-Stage2 only & 95.73 & 95.59 \\
-Stage1+Stage2 & 95.73 & 95.54 \\
-\bottomrule
-\end{tabular}
-\caption{E2 full-validation forward-only replacement. Accuracy is in percent.
-The result motivates using trainable residual adapters rather than pure
-prototype replacement.}
-\label{tab:e2_stage}
-\end{table}
-
-\subsection{Trainable Residual LUT Adapter}
+\subsection{Downstream Accuracy Gate}
 \label{sec:e3_results}
 
-The conservative E3 adapter uses fixed $\alpha$, two training epochs, 128
-calibration batches, 128 training batches, and full validation. An alpha
-sensitivity sweep on the seed-43 checkpoint identifies $\alpha=0.025$ as a
-local low-disturbance setting. We then hold this setting fixed across an
-additional checkpoint, stage2, and CIFAR-100.
+Reconstruction alone does not establish a useful classifier. We therefore
+evaluate a registered CIFAR-100 $T=4$ gate on the best 81.23\% QKFormer
+checkpoint. The gate fixes stage1, $\alpha=0.025$, two adapter epochs, 128
+calibration and training batches, three adapter seeds, and the upstream AMP
+full-validation loader. The frozen backbone is kept in evaluation mode, and an
+$\alpha=0$ identity preflight must reproduce the checkpoint before any adapter
+comparison is admitted. We compare address, global, token/channel, and
+same-capacity shuffled-address probes. Detailed forward-only E2 diagnostics are
+reported in the supplementary material because they motivate this gate but do
+not support the central reconstruction claim.
 
-\begin{table*}[t]
-\centering
-\footnotesize
-\begin{tabular}{lccccc}
-\toprule
-Mode & $\alpha$ & Seed 42 & Seed 43 & Seed 44 & Mean Acc@1 delta \\
-\midrule
-Address LUT & 0.025 & +0.14 & +0.16 & +0.12 & \textbf{+0.1400} \\
-Global mean & 0.025 & -0.12 & +0.03 & +0.21 & +0.0400 \\
-Token-channel LUT & 0.025 & +0.13 & -0.12 & -0.01 & +0.0000 \\
-Shuffled address LUT & 0.025 & -0.09 & -0.18 & -0.04 & -0.1033 \\
-\midrule
-Address LUT & 0.050 & -0.02 & -0.16 & -0.07 & -0.0833 \\
-Global mean & 0.050 & +0.02 & -0.24 & +0.03 & -0.0633 \\
-Token-channel LUT & 0.050 & +0.04 & -0.05 & -0.11 & -0.0400 \\
-\midrule
-Address LUT & 0.100 & +0.15 & -0.43 & -0.04 & -0.1067 \\
-Global mean & 0.100 & -0.05 & -0.17 & +0.01 & -0.0700 \\
-Token-channel LUT & 0.100 & -0.17 & -0.17 & +0.08 & -0.0867 \\
-\bottomrule
-\end{tabular}
-\caption{T=1 E3 alpha sensitivity on the seed-43 checkpoint. Values are
-replacement minus baseline top-1 accuracy deltas in percent. The address LUT
-has a local low-disturbance window at $\alpha=0.025$, while larger residual
-weights become negative and seed-dependent. Table~\ref{tab:e3_generalization}
-tests whether this behavior generalizes.}
-\label{tab:e3_t1_multiseed}
-\end{table*}
-
-\begin{table*}[t]
-\centering
-\footnotesize
-\begin{tabular}{lccccc}
-\toprule
-Setting & Address & Global & Token/channel & Shuffled & Address $-$ shuffled \\
-\midrule
-CIFAR-10 seed 43, stage1 & +0.1400 & +0.0400 & +0.0000 & -0.1033 & +0.2433 \\
-CIFAR-10 seed 44, stage1 & -0.0167 & +0.0000 & -0.0800 & -0.0833 & +0.0666 \\
-CIFAR-10 seed 43, stage2 & +0.0567 & +0.1067 & -0.1733 & +0.0200 & +0.0367 \\
-CIFAR-10 seed 44, stage2 & -0.1033 & +0.1133 & +0.0367 & -0.0233 & -0.0800 \\
-CIFAR-100 seed 42, stage1 & +0.1633 & +0.3233 & -0.1333 & -0.0933 & +0.2566 \\
-\bottomrule
-\end{tabular}
-\caption{Generalization of the $T=1$, $\alpha=0.025$ adapter. Each entry is
-the mean Acc@1 delta over three adapter seeds. Address alignment is meaningful
-in several settings relative to shuffled and token/channel controls, but it is
-not checkpoint-stable and global smoothing is often stronger.}
-\label{tab:e3_generalization}
-\end{table*}
-
-To isolate address information from generic smoothing, we decompose the LUT
-target into a trainable global scalar and a zero-mean address table. On
-CIFAR-100 this centered address residual improves the mean Acc@1 delta relative
-to a matched centered-shuffled table by $0.3667$ points at unit residual scale
-(Table~\ref{tab:e3_centered}). It still trails global mean in both accuracy and
-loss, so the result isolates address alignment rather than establishing a new
-best classifier.
+Table~\ref{tab:t4_accuracy_gate} reports the centered residual decomposition,
+which is the strongest registered address-aware variant. The paired backbone
+reevaluation is $81.21\%$ Acc@1 (the training log reports a best checkpoint
+value of $81.23\%$). The aligned LUT reaches $81.35\%$, $81.56\%$, and
+$80.75\%$ across adapter seeds, for a mean of $81.22\%$. Thus its best run
+exceeds the saved QKFormer result, but the effect is not seed-stable. The
+same-capacity shuffled control averages $81.02\%$, while global smoothing
+averages $81.15\%$.
 
 \begin{table}[t]
 \centering
 \footnotesize
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{lcc}
+\begin{tabular}{lccccc}
 \toprule
-Mode & Mean Acc@1 delta & Mean loss delta \\
+Mode & Seed 42 & Seed 43 & Seed 44 & Mean & Oracle gain \\
 \midrule
-Global mean & +0.3233 & -0.006822 \\
-Address LUT & +0.1633 & -0.001600 \\
-Shuffled address LUT & -0.0933 & +0.003595 \\
-Global + centered address & +0.1967 & +0.002959 \\
-Global + centered shuffled & -0.1700 & +0.000421 \\
+Paired QKFormer & 81.21 & 81.21 & 81.21 & 81.21 & -- \\
+Global mean & 81.16 & 81.21 & 81.08 & 81.15 & 3.21 \\
+Global + centered address & 81.35 & \textbf{81.56} & 80.75 & 81.22 & 3.37 \\
+Global + centered shuffled & 81.25 & 80.95 & 80.87 & 81.02 & 3.33 \\
 \bottomrule
 \end{tabular}
 }
-\caption{CIFAR-100 stage1 decomposition at $T=1$ and $\alpha=0.025$.
-Address alignment separates strongly from the matched shuffled control, while
-global smoothing remains the strongest classification and loss baseline.}
-\label{tab:e3_centered}
+\caption{Registered CIFAR-100 $T=4$ downstream gate. Entries are Acc@1 in
+percent. ``Oracle gain'' is a label-informed per-sample upper bound that uses
+the residual only when it corrects a baseline error; it is diagnostic, not a
+deployable result. The aligned oracle exceeds the shuffled oracle by only
+$0.04$ points.}
+\label{tab:t4_accuracy_gate}
 \end{table}
 
-We next sweep the centered residual scale while keeping the global component,
-$\alpha$, training budget, and matched shuffled control fixed. As shown in
-Table~\ref{tab:e3_scale}, the aligned residual never exceeds the global-mean
-control. Its alignment gap is positive at scales 0.1 and 0.5 but reverses at
-0.25, where the shuffled control is also more stable across adapter seeds. The
-unit-scale separation is therefore not robust to residual scale, and we stop
-accuracy-oriented adapter tuning at this gate.
-
-\begin{table}[t]
-\centering
-\footnotesize
-\resizebox{\columnwidth}{!}{%
-\begin{tabular}{lccc}
-\toprule
-Residual scale & Aligned delta & Shuffled delta & Alignment gap \\
-\midrule
-0.10 & +0.0333 & -0.0767 & +0.1100 \\
-0.25 & +0.1233 & +0.2600 & -0.1367 \\
-0.50 & +0.0767 & +0.0033 & +0.0733 \\
-1.00 & +0.1967 & -0.1700 & +0.3667 \\
-\midrule
-Global mean & \multicolumn{3}{c}{+0.3233} \\
-\bottomrule
-\end{tabular}
-}
-\caption{CIFAR-100 centered address-residual scale sweep. Values are mean
-Acc@1 deltas over three adapter seeds. The alignment gap is aligned minus the
-same-capacity shuffled control.}
-\label{tab:e3_scale}
-\end{table}
+The oracle analysis explains why further post-hoc adapter tuning is not
+warranted. Although an accuracy oracle can recover $3.37$ points with the
+aligned residual, shuffled and global controls recover $3.33$ and $3.21$
+points. Hence most oracle headroom is generic sample selection rather than
+Q/K-address-specific routing. We classify the downstream result as
+\emph{conditional}: it shows a reproducible aligned--shuffled mean separation
+and a strong single run, but not a stable accuracy improvement or a justified
+learned gate.
 
 \subsection{Current Claim Boundary}
 \label{sec:claim_boundary}
 
 These experiments support the claim that Q/K binary addresses contain
-measurable response structure and can support low-disturbance residual LUT
-adapters. They do not support a checkpoint-stable address-specific accuracy
-gain: global smoothing is a strong baseline, wins every CIFAR-100 residual-scale
-setting, and the aligned-versus-shuffled ordering is not scale-stable. They
-also do not support claims about hardware speed, energy reduction, ImageNet
+measurable response structure and that semantic subspace tables can retain most
+of this structure under a fixed entry-count budget. Reconstruction does not by
+itself establish downstream utility, and only protocol-v4 runs that preserve
+the frozen backbone state and reproduce the upstream evaluation protocol are
+admitted to the accuracy gate. The evidence does not support claims about
+stable classification improvement, hardware speed, energy reduction, ImageNet
 accuracy, or a production full-LUT QKFormer wrapper.

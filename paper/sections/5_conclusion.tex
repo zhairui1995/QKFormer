@@ -1,8 +1,8 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-We studied whether QKFormer's binary Q/K spike vectors form a useful LUT
-address space. Q/K-derived addresses are well occupied on CIFAR-10 and
+We studied whether compact local states derived from QKFormer's binary Q/K
+spikes form a useful LUT address space. Q/K-derived addresses are well occupied on CIFAR-10 and
 CIFAR-100 and improve held-out reconstruction over global averages. On
 CIFAR-10 and CIFAR-100, the fine-grained address LUT consistently exceeds a
 coarse token/channel LUT and strongly separates from a same-capacity shuffled
@@ -18,13 +18,13 @@ token/channel lookup with only $8.83\%$ supported entries, and adding K remains
 below the $25\%$ entry-budget gate while preserving most full-address
 reconstruction gain.
 
-The negative evidence is equally important: the classification effect changes
-across checkpoints and stages, and global smoothing often matches or exceeds
-the address LUT. A centered decomposition separates aligned from shuffled
-address residuals but still does not surpass global smoothing. A residual-scale
-sweep further shows that the aligned-versus-shuffled classification ordering is
-not stable. The supported result is therefore an address-specific,
-interpretable and compact reconstruction story, not a checkpoint-stable
-accuracy improvement or full hardware replacement story. Future work should
-test larger datasets and real hardware or simulator measurements before
-claiming LUT-oriented latency or energy benefits.
+The negative evidence is equally important: on CIFAR-100 $T=4$, an aligned
+centered residual reaches a best single-run Acc@1 of $81.56\%$ but averages
+$81.22\%$ across three adapter seeds, essentially matching the paired
+$81.21\%$ backbone. Its accuracy-oracle gain exceeds the shuffled control by
+only $0.04$ points. The local reconstruction ordering therefore does not
+automatically induce a stable classification ordering. The supported result is
+therefore an address-specific, interpretable and compact reconstruction story,
+not a checkpoint-stable accuracy improvement or full hardware replacement
+story. Future work should test larger datasets and real hardware or simulator
+measurements before claiming LUT-oriented latency or energy benefits.

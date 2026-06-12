@@ -1,6 +1,6 @@
 # QK-LUTFormer Figure Plan
 
-Status date: 2026-06-11
+Status date: 2026-06-12
 
 Paper identity: `GO-AUDIT`, a structured Q/K lookup-addressability audit.
 Figures must support address structure and claim boundaries, not a residual
@@ -158,23 +158,19 @@ Outputs:
 - `paper/figures/data/fig4_calibration_sweep_data.csv`
 - `paper/figures/data/fig4_calibration_sweep_data.json`
 
-Data sources:
-
-- `results/qkformer_lut_e1_recon_20260611_152044_c100_calib8_controls/metrics.json`
-- `results/qkformer_lut_e1_recon_20260611_152045_c100_calib32_controls/metrics.json`
-- `results/qkformer_lut_e1_recon_20260611_145102_c100_stability_seed42/metrics.json`
-- `results/qkformer_lut_e1_recon_20260611_152046_c100_calib512_controls/metrics.json`
+Data sources: calibration seeds 42--44 at 8, 32, 128, and 512 batches. The
+exact twelve result JSON paths are recorded in
+`figures/data/fig4_calibration_sweep_data.csv`.
 
 Claim supported:
 
-- On CIFAR-100 calibration seed 42, address reconstruction remains above
-  token/channel reconstruction from 8 to 512 calibration batches.
+- Across CIFAR-100 calibration seeds 42--44, address reconstruction remains
+  above token/channel reconstruction from 8 to 512 calibration batches.
 - Validation hit rate is already high with 8 calibration batches and approaches
   saturation as calibration grows.
 
 Claims not supported:
 
-- Cross-seed calibration-size robustness until seeds 43/44 finish.
 - Any measured memory, latency, energy, or hardware efficiency claim.
 
 Caption draft:
@@ -182,8 +178,8 @@ Caption draft:
 `CIFAR-100 calibration-size sweep for E1 reconstruction. (a) Correct Q/K
 addresses remain above token/channel lookup from 8 to 512 calibration batches.
 (b) The validation address hit rate is high even at 8 batches and saturates
-with more calibration data. This sweep is calibration seed 42 only and should
-not be interpreted as final cross-seed robustness.`
+with more calibration data. Curves show means over calibration seeds 42--44;
+error bars show population standard deviations.`
 
 LaTeX snippet:
 
@@ -194,8 +190,8 @@ LaTeX snippet:
   \caption{CIFAR-100 calibration-size sweep for E1 reconstruction. (a)
   Correct Q/K addresses remain above token/channel lookup from 8 to 512
   calibration batches. (b) The validation address hit rate is high even at 8
-  batches and saturates with more calibration data. This sweep is calibration
-  seed 42 only and should not be interpreted as final cross-seed robustness.}
+  batches and saturates with more calibration data. Curves show means over
+  calibration seeds 42--44; error bars show population standard deviations.}
   \label{fig:calibration-sweep}
 \end{figure}
 ```

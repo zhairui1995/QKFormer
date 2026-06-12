@@ -4,18 +4,29 @@
 \subsection{Q/K Address Construction}
 \label{sec:qk_address}
 
-We target the QKFormer attention modules and hook their binary Q/K spike
-vectors and token/channel gating signals. For each module, we convert the
-observed binary Q and K spike vectors into a compact integer address. Let
-$\mathbf{q}_{i},\mathbf{k}_{i}\in\{0,1\}^{d}$ denote spike vectors associated
-with a token or channel position. We define an address
+We target QKFormer attention modules and hook their binary Q/K spikes and
+token/channel gating signals. Crucially, we do \emph{not} use an entire
+$d$-dimensional Q/K vector as one $2^{2d}$ address. Each scalar module response
+is indexed by a compact local state. For Token-QK attention, the address is
 \begin{equation}
-  a_i = \operatorname{pack}(\mathbf{q}_i,\mathbf{k}_i,\mathbf{g}_i),
+ a^{\mathrm{TQK}}=(h,b_t(i),b_c(j),g_q(h,i),k(h,j,i)),
 \end{equation}
-where $\mathbf{g}_i$ denotes the observed token/channel gate code and
-$\operatorname{pack}(\cdot)$ is deterministic bit packing. The address is used
-only as a diagnostic and adapter index; the original QKFormer backbone remains
-unchanged.
+where $h$ is the head, $b_t$ and $b_c$ are token and within-head channel bins,
+$g_q$ is the binary Q-derived token gate, and $k$ is the corresponding K spike.
+For spike-form self-attention, we use
+\begin{equation}
+\begin{aligned}
+ a^{\mathrm{SSA}}=(&h,b_t(i),b_c(j),q_{hij},k_{hij},\\
+ &b_p(\lVert\mathbf q_{hi}\rVert_0),
+ b_p(\lVert\mathbf k_{hi}\rVert_0)),
+\end{aligned}
+\end{equation}
+which adds local Q/K bits and quantized population counts. With eight token
+bins, eight channel bins, four population bins, and eight heads, these spaces
+contain 2,048 and 32,768 possible addresses, respectively. Throughout the
+paper, ``full address'' means all fields of this compact construction, not a
+raw full-vector bit pattern. The address is used only as a diagnostic or probe
+index; the original QKFormer backbone is unchanged.
 
 \subsection{Feasibility Diagnostics}
 \label{sec:e0e1}
@@ -39,8 +50,9 @@ gating, and table capacity.
 \label{sec:e5_backoff}
 
 A monolithic LUT over raw Q/K vectors would be vulnerable to dimensionality
-explosion. We therefore separate the audit question from the untenable claim
-that every full Q/K bit pattern should be materialized. For each module, we
+explosion. The compact address above already removes that exponential
+dependence; we further test whether even this bounded space can be stored more
+economically. For each module, we
 construct a support-aware lookup hierarchy:
 \begin{equation}
   \begin{aligned}
@@ -59,7 +71,7 @@ selected level for every validation sample, so missed or weakly supported
 addresses cannot silently masquerade as successful full-address lookup.
 
 The hierarchy is evaluated as a reconstruction mechanism rather than as a
-hardware or accuracy claim. The full-address table is treated as an oracle
+hardware or accuracy claim. The compact full-address table is treated as an oracle
 upper-bound control, token/channel lookup as the coarsest structured baseline,
 and shuffled full-address lookup as an alignment negative control. We report
 held-out MSE, fallback fractions, active entries, and effective table size.
@@ -84,10 +96,25 @@ subspace LUT predicts
 where each $R_s$ stores a zero-mean residual prototype compiled from calibration
 responses and omitted when its support count is below threshold. We evaluate
 two settings: $\mathcal{S}=\{\mathrm{tc},\mathrm{q}\}$ and
-$\mathcal{S}=\{\mathrm{tc},\mathrm{q},\mathrm{k}\}$. This changes the memory
-growth from a product over all address fields to a sum over low-dimensional
-sub-address tables, while a shuffled-subspace control preserves the same
-residual values but breaks their address alignment.
+$\mathcal{S}=\{\mathrm{tc},\mathrm{q},\mathrm{k}\}$. This changes nominal table
+growth from a product over compact address fields to a sum over low-dimensional
+sub-address tables. If $\mathcal{G}_s$ is the address domain of subtable $s$,
+the monolithic Cartesian table has nominal entry count
+$\prod_s |\mathcal{G}_s|$, whereas the additive decomposition uses
+$\sum_s |\mathcal{G}_s|$. For $M$ balanced binary subspaces over $D$ bits,
+this changes exponential growth from $2^D$ to $M2^{D/M}$. A
+shuffled-subspace control preserves the same residual values and entry count
+but breaks their address alignment.
+
+Our compression budget is an \emph{entry-count budget}. We count supported
+scalar prototype entries across all component tables and normalize by the
+number of supported entries in the compact full-address table. Under the fixed
+scalar precision used here, this count is proportional to trainable parameter
+count and idealized prototype storage, but it is not a measurement of packed
+bytes, SRAM footprint, latency, or energy. The $25\%$ gate therefore asks
+whether subspace decomposition preserves reconstruction with at most one
+quarter as many supported scalar entries; hardware claims require a separate
+implementation-level evaluation.
 
 \begin{figure*}[t]
   \centering
@@ -133,13 +160,11 @@ frozen baseline logits, and local MSE to the baseline module response:
 \end{equation}
 This is a probe rather than a claimed production method: the backbone is
 frozen, the adapter is small, and every address result is compared to global,
-token/channel, and shuffled-address controls. Our conservative setting trains
-for two epochs over 128 training batches and evaluates on the full validation
-split. We sweep $\alpha\in\{0.025,0.05,0.1\}$ and use $\alpha=0.025$ for
-low-disturbance checkpoint, stage, and dataset controls.
-
-We compare \emph{address LUT}, \emph{global mean}, and a weaker
-\emph{token-channel LUT}. A same-capacity \emph{shuffled address LUT} preserves
-the table-value distribution while breaking address alignment. We additionally
-test a global-plus-centered-address decomposition whose zero-mean address table
-asks whether address-specific residuals add value beyond global smoothing.
+token/channel, and shuffled-address controls. The registered gate fixes
+$\alpha=0.025$, stage1, two training epochs, 128 calibration batches, and 128
+adapter-training batches before evaluation. The backbone remains in evaluation
+mode throughout adapter optimization so that BatchNorm statistics cannot drift.
+For CIFAR-100 $T=4$, full-validation evaluation reuses the upstream QKFormer
+AMP and data-loader protocol. The same-capacity \emph{shuffled address LUT}
+preserves table values while breaking address alignment; the global and
+token/channel controls test generic smoothing and coarse state, respectively.

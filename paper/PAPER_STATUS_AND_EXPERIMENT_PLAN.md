@@ -1,6 +1,6 @@
 # QK-LUTFormer Paper Status And Experiment Plan
 
-Status date: 2026-06-11
+Status date: 2026-06-12
 
 ## Current Editorial Decision
 
@@ -54,10 +54,13 @@ Paper meaning:
 
 | Calibration batches | Correct address | Token/channel | Validation hit rate |
 |---:|---:|---:|---:|
-| 8 | 3.8001% | 3.3315% | 99.7952% |
-| 32 | 4.2756% | 3.4084% | 99.9557% |
-| 128 | 4.4243% | 3.4253% | 99.9908% |
-| 512 | 4.4674% | 3.4274% | 99.9981% |
+| 8 | 3.7840% | 3.3258% | 99.7982% |
+| 32 | 4.2671% | 3.4027% | 99.9558% |
+| 128 | 4.4247% | 3.4246% | 99.9907% |
+| 512 | 4.4752% | 3.4386% | 99.9981% |
+
+Values are means over calibration seeds 42--44; the full validation split is
+used for every run.
 
 Paper meaning:
 
@@ -69,17 +72,29 @@ Paper meaning:
 
 ### E3 / Downstream Utility
 
-E3 remains a limits result.
+All E3 accuracy runs produced before protocol version 2 are excluded from
+scientific evidence. The adapter module had registered the frozen backbone as
+a child module, so calling `adapter.train()` also switched backbone BatchNorm
+layers to training mode and changed their running statistics. Protocol versions
+2--3 fix the backbone mode but do not reproduce the upstream AMP/timm validation
+loader, so they remain engineering diagnostics only.
 
-- Address LUT can beat token/channel and shuffled controls in some settings.
-- Global smoothing is often stronger for classification and loss.
-- Aligned-vs-shuffled ordering is not scale-stable.
+The admissible downstream evidence is the completed, pre-registered CIFAR-100 $T=4$
+protocol-v4 gate: frozen backbone in evaluation mode, an $\alpha=0$ identity
+preflight, upstream AMP/timm full validation, fixed stage1, fixed
+$\alpha=0.025$, two epochs, 128 calibration/training batches, and seeds
+42--44.
 
-Paper meaning:
+- Paired QKFormer reevaluation: 81.21% Acc@1; saved checkpoint best: 81.23%.
+- Global + centered address: 81.35 / 81.56 / 80.75, mean 81.22%.
+- Matched centered shuffled: 81.25 / 80.95 / 80.87, mean 81.02%.
+- Global mean: 81.16 / 81.21 / 81.08, mean 81.15%.
+- Accuracy-oracle gains: aligned 3.37, shuffled 3.33, global 3.21 points.
 
-- `Partially Supported`: address structure can be used in low-disturbance
-  adapter probes.
-- `Do Not Claim`: stable top-1 improvement or method superiority.
+Paper meaning: the best aligned run exceeds the saved baseline, and aligned
+lookup has a positive mean separation from shuffled. However, the three-seed
+mean does not exceed 81.23%, and the aligned oracle exceeds shuffled by only
+0.04 points. This is a `CONDITIONAL` limits result, not stable method gain.
 
 ### E4 / Factorized Method Track
 
@@ -146,7 +161,7 @@ Paper meaning:
 
 The current `main.tex` title is:
 
-**QK-LUTFormer: Auditing Hierarchical Lookup Addresses in Spiking Q-K Attention**
+**QK-LUTFormer: Compact and Auditable Lookup Addresses for Spiking Q-K Attention**
 
 This is acceptable for the audit track: it keeps the QK-LUTFormer brand while
 avoiding a production-wrapper or stable-accuracy promise. The abstract and
@@ -161,9 +176,9 @@ implementation details and return machine-readable summaries.
 
 Goal: make the calibration-efficiency claim reviewer-proof.
 
-Current status: calibration-size sweep is only on CIFAR-100 calibration seed 42.
+Current status: **completed and passed** across calibration seeds 42--44.
 
-Run:
+Completed protocol:
 
 - CIFAR-100 T=1.
 - Calibration sizes: 8, 32, 512.
@@ -178,11 +193,8 @@ Acceptance:
 - Shuffled address remains worse than global.
 - Eight-batch setting remains meaningfully positive.
 
-Paper use:
-
-- If pass: keep calibration-size table as a main or appendix robustness result.
-- If fail: report seed-42 calibration-size sweep as secondary only; do not claim
-  calibration efficiency.
+Paper use: retain the mean/std curve in the main paper as calibration-efficiency
+evidence for reconstruction only.
 
 ### Priority 2: Component Ablation For Address Semantics
 
@@ -250,6 +262,8 @@ Paper use:
 
 ### Priority 4: CIFAR-100 T=4 Accuracy-Oriented Validation
 
+Status: **completed; conditional/limits result.**
+
 Goal: obtain a fair T=4 CIFAR-100 baseline and test whether a pre-registered
 LUT variant can improve it while preserving interpretability.
 
@@ -261,12 +275,10 @@ Run:
 - Keep global, token/channel, and shuffled controls adjacent to any reported
   address result.
 
-Paper use:
-
-- If address LUT beats the T=4 baseline and controls under the gate, report as
-  downstream utility evidence.
-- If not, keep as appendix/limits evidence and do not weaken the reconstruction
-  claim with seed shopping.
+Paper use: retain one concise main-paper table because the gate is the honest
+downstream test of the reconstruction claim. Put per-sample oracle bins and old
+exploratory sweeps in the appendix. Do not weaken the reconstruction claim with
+seed shopping.
 
 ### Priority 5: Do Not Run More Unregistered Accuracy Tuning
 

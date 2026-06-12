@@ -10,6 +10,14 @@ history are needed.
 reconstruction; `NO-GO` for a stable address-specific accuracy-gain claim with
 the current adapter.
 
+The registered CIFAR-100 T=4 downstream gate is complete. A centered aligned
+address residual reaches a best single run of 81.56% Acc@1, above the saved
+81.23% QKFormer checkpoint, but its three-seed mean is 81.22% and one seed falls
+to 80.75%. A label-informed accuracy oracle gains 3.37 points for aligned
+lookup versus 3.33 for shuffled lookup and 3.21 for global smoothing. This is a
+`CONDITIONAL-ORACLE` diagnostic, not evidence for a stable or address-specific
+accuracy method.
+
 The CIFAR-10 T=1 conservative E3 adapter sweep on the first checkpoint was
 positive for Q/K address LUT. An independent T=1 checkpoint repeat showed that
 alpha 0.1 does not replicate as a stable positive setting. A follow-up alpha
@@ -144,6 +152,16 @@ CIFAR-100 T=4 validation.
   - This is the main response to the reviewer's dimensional-explosion concern:
     do not store a monolithic full Q/K table; compose smaller aligned subtables
     and audit them against shuffled controls.
+- CIFAR-100 T=4 registered downstream gate:
+  - Paired baseline is 81.21% Acc@1; the training checkpoint best is 81.23%.
+  - Global + centered address seeds 42/43/44 reach 81.35% / 81.56% / 80.75%,
+    mean 81.22%.
+  - Matched centered shuffled reaches 81.25% / 80.95% / 80.87%, mean 81.02%.
+  - Global mean reaches 81.16% / 81.21% / 81.08%, mean 81.15%.
+  - Accuracy-oracle gains are 3.37 / 3.33 / 3.21 points for aligned / shuffled /
+    global. The aligned-shuffled oracle gap is only 0.04 points.
+  - Interpretation: best-run improvement and mean aligned-shuffled separation
+    are real observations, but stable accuracy and selective-gating claims fail.
 - CIFAR-100 T=1 stage1 alpha 0.025:
   - address/global/token-channel/shuffled mean Acc@1 deltas are
     +0.1633 / +0.3233 / -0.1333 / -0.0933.
@@ -203,15 +221,14 @@ before falling back to GPU 2. Small diagnostics default to GPU 2.
 
 ## Next Useful Experiments
 
-1. Finish CIFAR-100 T=4 training, then run the pre-registered T=4 E0/E1/E3
-   posttrain LUT workflow on the best checkpoint with global, token/channel,
-   and shuffled controls adjacent to address LUT.
-2. Convert the E0/E1/E5/E7 evidence into publication figures:
+1. Convert the E0/E1/E5/E7 evidence into publication figures:
    coverage/conditional variance, control MSE reduction, calibration-size
    curves, fallback distribution, and subspace entry-budget curves.
-3. Keep the main paper around address structure, occupancy, response
+2. Keep the main paper around address structure, occupancy, response
    reconstruction, and compact subspace lookup; treat small Acc@1 changes as
-   secondary or appendix evidence unless the T=4 gate passes.
+   a registered limits result.
+3. If pursuing accuracy further, require a new method-level hypothesis and a
+   fresh pre-registration; do not continue alpha/stage/seed shopping.
 
 ## Claim Boundary
 

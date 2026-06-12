@@ -18,10 +18,11 @@ K subtables. On CIFAR-100, the compact token/channel+Q/gate subspace LUT beats
 token/channel lookup for all calibration seeds from 8 to 512 batches using only
 $8.83\%$ of full-address supported entries; adding the K subtable uses about
 $20.2\%$ entries and retains $93.6\%$--$105.9\%$ of the full-address
-reconstruction gain. Frozen residual adapter probes show that address alignment
-can beat token/channel and shuffled controls, but global smoothing remains a
-strong classification baseline and accuracy shifts are checkpoint- and
-stage-dependent. Thus QK-LUTFormer establishes reproducible, interpretable Q/K
-lookup-addressability while explicitly ruling out unsupported claims about
-stable accuracy gains, energy, latency, or production full-LUT replacement.
+reconstruction gain. On a registered CIFAR-100 $T=4$ downstream gate, the best
+aligned run reaches $81.56\%$ versus the $81.23\%$ saved QKFormer checkpoint,
+but its three-seed mean is $81.22\%$ and a selective oracle barely separates
+from shuffled lookup. Thus QK-LUTFormer establishes reproducible,
+interpretable Q/K lookup-addressability while explicitly ruling out unsupported
+claims about stable accuracy gains, energy, latency, or production full-LUT
+replacement.
 \end{abstract}

@@ -28,15 +28,14 @@ residual LUT adapter probes with classification, baseline-logit distillation,
 and local response constraints; these probes test whether the reconstruction
 signal transfers to accuracy, rather than defining the main claim.
 
-Our experiments show a nuanced picture. Forward-only address prototypes can
-slightly improve early-stage replacement, but global smoothing is a strong
-control. A $T=1$ stress setting removes temporal averaging and exposes useful
-address alignment on one checkpoint, including a negative same-capacity
-shuffled control. Additional checkpoints, stages, and CIFAR-100 show that the
-classification effect is not universally address-specific: address LUTs often
-beat shuffled and token/channel controls, while global smoothing can remain
-stronger. This distinction separates evidence for address structure from a
-broader accuracy-gain claim.
+Our experiments show a clear separation between local response structure and
+downstream classification. Correct compact addresses consistently reconstruct
+held-out responses better than token/channel and shuffled controls across
+datasets, checkpoints, time steps, and calibration budgets. Support-aware
+backoff makes misses observable, while subspace decomposition preserves most of
+the full-address gain below a fixed entry budget. Classification is evaluated
+through a separate frozen-backbone gate, so local reconstruction is never
+silently promoted into an accuracy claim.
 
 \begin{figure*}[t]
   \centering
@@ -52,21 +51,14 @@ broader accuracy-gain claim.
 
 Our contributions are:
 \begin{itemize}
-  \item We formulate QKFormer Q/K spike vectors as a discrete LUT address
-  space and define feasibility diagnostics for coverage, singleton rate, and
-  conditional response variance.
-  \item We introduce support-aware and subspace-decoupled QK-LUT audits that
-  make lookup misses explicit while testing whether compact sub-address
-  subtables can preserve full-address reconstruction.
-  \item We use frozen-backbone residual LUT adapter probes to test whether
-  calibrated Q/K-address prototypes transfer to downstream utility under
-  strict global, token/channel, and shuffled-address controls.
-  \item We provide a staged ablation study on CIFAR-10 and CIFAR-100, including
-  reconstruction diagnostics, forward-only replacement, stage/calibration/blend
-  sweeps, independent-checkpoint replication, and T=1 alpha sensitivity
-  controls.
-  \item We explicitly identify claim boundaries: current results support a
-  structured reconstruction and low-disturbance adapter analysis, not
-  checkpoint-stable accuracy, energy, latency, ImageNet, or full-wrapper
-  claims.
+  \item We define code-faithful compact Q/K addresses for QKFormer and a
+  negative-controlled audit of occupancy, conditional variance, and held-out
+  response reconstruction. The audit replicates across CIFAR-10/CIFAR-100,
+  time steps, calibration seeds, and independent checkpoints.
+  \item We introduce support-aware hierarchical backoff and a
+  subspace-decoupled QK-LUT. The latter replaces product-size lookup with a sum
+  of semantic subtables and passes a predeclared 25\% supported-entry gate.
+  \item We separate reconstruction from downstream utility through a registered
+  frozen-backbone accuracy gate with global, token/channel, and shuffled
+  controls, and explicitly bound claims that are not supported by that gate.
 \end{itemize}

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import csv
 import json
+import statistics
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Tuple
 
@@ -31,12 +32,28 @@ FIG3_RUNS = [
     ("C100 seed44", "cifar100", "calib44", ROOT / "results/qkformer_lut_e1_recon_20260611_145104_c100_stability_seed44/metrics.json"),
 ]
 
-FIG4_RUNS = [
-    (8, ROOT / "results/qkformer_lut_e1_recon_20260611_152044_c100_calib8_controls/metrics.json"),
-    (32, ROOT / "results/qkformer_lut_e1_recon_20260611_152045_c100_calib32_controls/metrics.json"),
-    (128, ROOT / "results/qkformer_lut_e1_recon_20260611_145102_c100_stability_seed42/metrics.json"),
-    (512, ROOT / "results/qkformer_lut_e1_recon_20260611_152046_c100_calib512_controls/metrics.json"),
-]
+FIG4_RUNS = {
+    8: [
+        ROOT / "results/qkformer_lut_e1_recon_20260611_152044_c100_calib8_controls/metrics.json",
+        ROOT / "results/qkformer_lut_e1_recon_20260611_175354_c100_calib8_seed43_controls/metrics.json",
+        ROOT / "results/qkformer_lut_e1_recon_20260611_180128_c100_calib8_seed44_controls/metrics.json",
+    ],
+    32: [
+        ROOT / "results/qkformer_lut_e1_recon_20260611_152045_c100_calib32_controls/metrics.json",
+        ROOT / "results/qkformer_lut_e1_recon_20260611_175354_c100_calib32_seed43_controls/metrics.json",
+        ROOT / "results/qkformer_lut_e1_recon_20260611_180128_c100_calib32_seed44_controls/metrics.json",
+    ],
+    128: [
+        ROOT / "results/qkformer_lut_e1_recon_20260611_145102_c100_stability_seed42/metrics.json",
+        ROOT / "results/qkformer_lut_e1_recon_20260611_145103_c100_stability_seed43/metrics.json",
+        ROOT / "results/qkformer_lut_e1_recon_20260611_145104_c100_stability_seed44/metrics.json",
+    ],
+    512: [
+        ROOT / "results/qkformer_lut_e1_recon_20260611_152046_c100_calib512_controls/metrics.json",
+        ROOT / "results/qkformer_lut_e1_recon_20260611_175354_c100_calib512_seed43_controls/metrics.json",
+        ROOT / "results/qkformer_lut_e1_recon_20260611_180128_c100_calib512_seed44_controls/metrics.json",
+    ],
+}
 
 PALETTE = {
     "address": "#0072B2",
@@ -126,7 +143,7 @@ def panel_label(ax, label, x=0.01, y=0.98):
 
 def save_csv(path: Path, rows: Iterable[Dict[str, Any]], fieldnames: List[str]) -> None:
     with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore", lineterminator="\n")
         writer.writeheader()
         for row in rows:
             writer.writerow(row)
@@ -289,9 +306,32 @@ def collect_fig3_data() -> List[Dict[str, Any]]:
 
 def collect_fig4_data() -> List[Dict[str, Any]]:
     rows = []
-    for size, path in FIG4_RUNS:
-        row = read_e1_row(f"{size} batches", "cifar100", f"calib{size}", path)
-        row["calibration_size"] = size
+    for size, paths in FIG4_RUNS.items():
+        seed_rows = [read_e1_row(f"{size} batches", "cifar100", f"calib{size}", path) for path in paths]
+        row = {
+            "label": f"{size} batches",
+            "dataset": "cifar100",
+            "split_id": f"calib{size}",
+            "calibration_size": size,
+            "calibration_seed": "42,43,44",
+            "num_seeds": len(seed_rows),
+            "evaluation_batches": 0,
+            "source_metrics": ";".join(r["source_metrics"] for r in seed_rows),
+        }
+        for key in (
+            "address_reduction_pct",
+            "token_channel_reduction_pct",
+            "shuffled_reduction_pct",
+            "candidate_background_reduction_pct",
+            "hit_rate_pct",
+            "global_mse",
+            "address_mse",
+            "token_channel_mse",
+            "shuffled_mse",
+        ):
+            values = [float(r[key]) for r in seed_rows]
+            row[key] = statistics.mean(values)
+            row[f"{key}_std"] = statistics.pstdev(values)
         rows.append(row)
     rows.sort(key=lambda r: int(r["calibration_size"]))
     return rows
@@ -341,10 +381,13 @@ def figure4_calibration_sweep(rows: List[Dict[str, Any]]) -> None:
     address = [r["address_reduction_pct"] for r in rows]
     token = [r["token_channel_reduction_pct"] for r in rows]
     hit = [r["hit_rate_pct"] for r in rows]
+    address_std = [r["address_reduction_pct_std"] for r in rows]
+    token_std = [r["token_channel_reduction_pct_std"] for r in rows]
+    hit_std = [r["hit_rate_pct_std"] for r in rows]
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7.2, 2.55), gridspec_kw={"width_ratios": [1.35, 1.0]})
-    ax1.plot(sizes, address, marker="o", color=PALETTE["address"], lw=1.4, label="Correct Q/K address")
-    ax1.plot(sizes, token, marker="s", color=PALETTE["token"], lw=1.4, label="Token/channel")
+    ax1.errorbar(sizes, address, yerr=address_std, marker="o", color=PALETTE["address"], lw=1.4, capsize=2, label="Correct Q/K address")
+    ax1.errorbar(sizes, token, yerr=token_std, marker="s", color=PALETTE["token"], lw=1.4, capsize=2, label="Token/channel")
     ax1.fill_between(sizes, token, address, color=PALETTE["address"], alpha=0.10, linewidth=0)
     ax1.set_xscale("log", base=2)
     ax1.set_xticks(sizes)
@@ -358,7 +401,7 @@ def figure4_calibration_sweep(rows: List[Dict[str, Any]]) -> None:
     ax1.annotate("8 batches recover\n~85% of 512-batch gain", xy=(8, address[0]), xytext=(10, address[0] + 0.33),
                  arrowprops={"arrowstyle": "-", "lw": 0.6, "color": "#555555"}, fontsize=6.8)
 
-    ax2.plot(sizes, hit, marker="o", color=PALETTE["green"], lw=1.4)
+    ax2.errorbar(sizes, hit, yerr=hit_std, marker="o", color=PALETTE["green"], lw=1.4, capsize=2)
     ax2.set_xscale("log", base=2)
     ax2.set_xticks(sizes)
     ax2.get_xaxis().set_major_formatter(mpl.ticker.ScalarFormatter())
@@ -367,7 +410,7 @@ def figure4_calibration_sweep(rows: List[Dict[str, Any]]) -> None:
     ax2.set_ylim(min(hit) - 0.08, 100.01)
     ax2.grid(True, axis="both", alpha=0.9)
     panel_label(ax2, "(b)", x=0.0, y=1.04)
-    ax2.text(0.02, 0.08, "CIFAR-100 seed 42 only", transform=ax2.transAxes, fontsize=7)
+    ax2.text(0.02, 0.08, "Mean over calibration seeds 42--44", transform=ax2.transAxes, fontsize=7)
 
     fig.suptitle("CIFAR-100 calibration-size sweep: correct address remains above coarse control", y=1.04, fontsize=9)
     fig.savefig(FIG_DIR / "fig4_calibration_sweep.pdf", bbox_inches="tight")
@@ -382,9 +425,11 @@ def write_data_snapshots(fig3_rows: List[Dict[str, Any]], fig4_rows: List[Dict[s
         "global_mse", "address_mse", "token_channel_mse", "shuffled_mse", "source_metrics",
     ]
     fig4_fields = [
-        "calibration_size", "dataset", "calibration_seed", "evaluation_batches",
-        "address_reduction_pct", "token_channel_reduction_pct", "shuffled_reduction_pct",
-        "candidate_background_reduction_pct", "hit_rate_pct", "global_mse",
+        "calibration_size", "dataset", "calibration_seed", "num_seeds", "evaluation_batches",
+        "address_reduction_pct", "address_reduction_pct_std",
+        "token_channel_reduction_pct", "token_channel_reduction_pct_std",
+        "shuffled_reduction_pct", "candidate_background_reduction_pct",
+        "hit_rate_pct", "hit_rate_pct_std", "global_mse",
         "address_mse", "token_channel_mse", "shuffled_mse", "source_metrics",
     ]
     save_csv(DATA_DIR / "fig3_e1_reconstruction_data.csv", fig3_rows, fig3_fields)
