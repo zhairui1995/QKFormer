@@ -59,12 +59,14 @@ export QKFORMER_LUT_E3_EPOCHS="${QKFORMER_LUT_C100_T4_E3_EPOCHS:-2}"
 export QKFORMER_LUT_E3_CALIB_BATCHES="${QKFORMER_LUT_C100_T4_E3_CALIB_BATCHES:-128}"
 export QKFORMER_LUT_E3_TRAIN_BATCHES="${QKFORMER_LUT_C100_T4_E3_TRAIN_BATCHES:-128}"
 export QKFORMER_LUT_E3_EVAL_BATCHES="${QKFORMER_LUT_C100_T4_E3_EVAL_BATCHES:-0}"
+export QKFORMER_LUT_E3_EVAL_BATCH_SIZE="${QKFORMER_LUT_C100_T4_E3_EVAL_BATCH_SIZE:-64}"
 
 echo "[qk-lut-c100-t4-after-train] checkpoint=$QKFORMER_LUT_CKPT"
 echo "[qk-lut-c100-t4-after-train] gpu=$QKFORMER_LUT_GPU"
 echo "[qk-lut-c100-t4-after-train] e1_calib_batches=$QKFORMER_LUT_E1_CALIB_BATCHES"
 echo "[qk-lut-c100-t4-after-train] e3_modes=$QKFORMER_LUT_E3_MODE_SWEEP"
 echo "[qk-lut-c100-t4-after-train] e3_seeds=$QKFORMER_LUT_E3_SEED_SWEEP"
+echo "[qk-lut-c100-t4-after-train] e3_eval_batch_size=$QKFORMER_LUT_E3_EVAL_BATCH_SIZE"
 
 bash scripts/server/run_qkformer_lut_e0_diag.sh --gpu "$QKFORMER_LUT_GPU"
 QKFORMER_LUT_RESULT_TAG=cifar100_t4_e1_calib${QKFORMER_LUT_E1_CALIB_BATCHES}_seed${QKFORMER_LUT_E1_SEED} \

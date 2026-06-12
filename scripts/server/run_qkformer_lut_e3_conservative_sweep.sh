@@ -35,6 +35,7 @@ echo "[qk-lut-e3-conservative-sweep] lambda_local_mse=$QKFORMER_LUT_E3_LAMBDA_LO
 echo "[qk-lut-e3-conservative-sweep] calib_batches=$QKFORMER_LUT_E3_CALIB_BATCHES"
 echo "[qk-lut-e3-conservative-sweep] train_batches=$QKFORMER_LUT_E3_TRAIN_BATCHES"
 echo "[qk-lut-e3-conservative-sweep] eval_batches=$QKFORMER_LUT_E3_EVAL_BATCHES"
+echo "[qk-lut-e3-conservative-sweep] eval_batch_size=${QKFORMER_LUT_E3_EVAL_BATCH_SIZE:-config default}"
 
 IFS=',' read -r -a MODE_GROUPS <<< "$MODE_SWEEP"
 IFS=',' read -r -a SEED_GROUPS <<< "$SEED_SWEEP"

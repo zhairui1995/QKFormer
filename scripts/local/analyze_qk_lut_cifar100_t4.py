@@ -53,6 +53,18 @@ def _parse_summary_csv(path: Path) -> Dict[str, Any]:
     return {"best": best, "num_rows": len(rows)}
 
 
+def _parse_train_log(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    pattern = re.compile(r"Best metric:\s*([0-9.]+)\s*\(epoch\s*(\d+)\)")
+    best = None
+    for match in pattern.finditer(path.read_text(encoding="utf-8", errors="replace")):
+        candidate = {"top1": float(match.group(1)), "epoch": int(match.group(2))}
+        if best is None or candidate["top1"] > best["top1"]:
+            best = candidate
+    return {"best": best, "source": str(path)} if best else {}
+
+
 def _checkpoint_path(metrics: Dict[str, Any]) -> str:
     ckpt = metrics.get("model", {}).get("checkpoint", {})
     return str(ckpt.get("path") or "")
@@ -64,7 +76,8 @@ def _matches_c100_t4(metrics: Dict[str, Any], train_dir: Optional[Path]) -> bool
         return False
     if train_dir is None:
         return True
-    return _checkpoint_path(metrics).startswith(str(train_dir.resolve()))
+    checkpoint_parts = Path(_checkpoint_path(metrics)).parts
+    return train_dir.name in checkpoint_parts
 
 
 def _latest_e1(results_root: Path, train_dir: Optional[Path]) -> Optional[Dict[str, Any]]:
@@ -99,6 +112,9 @@ def _e3_rows(results_root: Path, train_dir: Optional[Path]) -> List[Dict[str, An
         metrics = _load_json(path)
         if not _matches_c100_t4(metrics, train_dir):
             continue
+        protocol = metrics.get("protocol", {})
+        if int(protocol.get("version", 0)) < 2:
+            continue
         cls = metrics.get("classification", {})
         adapter = metrics.get("adapter_summary", {})
         delta = cls.get("delta", {})
@@ -120,6 +136,8 @@ def _e3_rows(results_root: Path, train_dir: Optional[Path]) -> List[Dict[str, An
                 "logit_mse": cls.get("logit_mse"),
                 "kl_to_baseline": cls.get("kl_to_baseline"),
                 "local_mse": metrics.get("local_reconstruction", {}).get("mse"),
+                "protocol_version": protocol.get("version"),
+                "evaluation_batch_size": protocol.get("evaluation_batch_size"),
             }
         )
     return sorted(rows, key=lambda row: (str(row["mode"]), str(row["seed"]), row["result_dir"]))
@@ -155,6 +173,7 @@ def _summarize_e3(rows: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 def _write_csv(path: Path, rows: List[Dict[str, Any]]) -> None:
     if not rows:
+        path.unlink(missing_ok=True)
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     keys = list(rows[0].keys())
@@ -172,6 +191,8 @@ def _markdown(report: Dict[str, Any]) -> str:
         "",
         f"- Train dir: `{report.get('train_dir')}`",
         f"- Baseline best Acc@1: `{report.get('baseline_best_top1')}`",
+        f"- Corrected-protocol baseline spread: `{report['checks'].get('baseline_spread')}`",
+        f"- Address adapter beats training best: `{report['checks'].get('address_beats_training_best')}`",
         "",
         "## E1 Reconstruction",
     ]
@@ -224,6 +245,8 @@ def main() -> None:
     summary_csv_value = str(train_manifest.get("summary_csv") or "") if train_manifest else ""
     summary_csv = Path(summary_csv_value) if summary_csv_value else None
     train_summary = _parse_summary_csv(summary_csv) if summary_csv and summary_csv.is_file() else {}
+    if not train_summary:
+        train_summary = _parse_train_log(train_dir / "train_log.txt") if train_dir else {}
     baseline_best = (train_summary.get("best") or {}).get("top1")
 
     e1 = _latest_e1(args.results_root, train_dir)
@@ -234,11 +257,31 @@ def main() -> None:
     controls = [by_mode.get(name) for name in ("global_mean", "token_channel_lut", "shuffled_address_lut")]
     controls = [row for row in controls if row is not None]
 
+    baseline_values = [
+        float(row["baseline_top1"])
+        for row in e3_rows
+        if row.get("baseline_top1") is not None
+    ]
+    baseline_spread = max(baseline_values) - min(baseline_values) if baseline_values else None
+    protocol_valid = bool(e3_rows) and baseline_spread is not None and baseline_spread <= 0.01
+
     e1_supported = bool(e1) and e1["address_reduction_pct"] > e1["token_channel_reduction_pct"]
     accuracy_supported = bool(address) and address["mean_delta_top1"] > 0 and all(
         address["mean_delta_top1"] > row["mean_delta_top1"] for row in controls
     )
-    decision = "PASS" if e1_supported and accuracy_supported else "PARTIAL" if e1_supported else "FAIL"
+    address_replacements = [
+        float(row["replacement_top1"])
+        for row in e3_rows
+        if row.get("mode") == "address_lut" and row.get("replacement_top1") is not None
+    ]
+    beats_training_best = bool(address_replacements) and baseline_best is not None and max(address_replacements) > float(baseline_best)
+    decision = (
+        "PASS"
+        if e1_supported and protocol_valid and accuracy_supported and beats_training_best
+        else "PARTIAL"
+        if e1_supported
+        else "FAIL"
+    )
     interpretation = {
         "PASS": (
             "T=4 CIFAR-100 supports both address-specific reconstruction and a positive "
@@ -266,6 +309,9 @@ def main() -> None:
             "has_t4_train": train_dir is not None,
             "e1_address_beats_token": e1_supported,
             "address_adapter_beats_controls": accuracy_supported,
+            "protocol_valid": protocol_valid,
+            "baseline_spread": baseline_spread,
+            "address_beats_training_best": beats_training_best,
         },
         "interpretation": interpretation,
     }

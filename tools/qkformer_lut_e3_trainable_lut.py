@@ -344,7 +344,9 @@ class TrainableLUTAdapter(nn.Module):
         mode_seed: int,
     ) -> None:
         super().__init__()
-        self.model = model
+        # Keep the frozen backbone outside this module tree. Registering it as a
+        # child would let adapter.train() silently switch BatchNorm layers back
+        # to training mode and mutate the baseline running statistics.
         self.targets = set(target_modules)
         self.token_bins = int(token_bins)
         self.channel_bins = int(channel_bins)
@@ -524,6 +526,9 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
     env_eval_batches = os.environ.get("QKFORMER_LUT_E3_EVAL_BATCHES")
     if env_eval_batches:
         data_cfg["evaluation"]["num_batches"] = int(env_eval_batches)
+    env_eval_batch_size = os.environ.get("QKFORMER_LUT_E3_EVAL_BATCH_SIZE")
+    if env_eval_batch_size:
+        data_cfg["evaluation"]["batch_size"] = int(env_eval_batch_size)
     return {
         "QKFORMER_LUT_CKPT": env_checkpoint,
         "QKFORMER_LUT_TIME_STEP": env_time_step,
@@ -543,12 +548,15 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
         "QKFORMER_LUT_E3_CALIB_BATCHES": env_calib_batches,
         "QKFORMER_LUT_E3_TRAIN_BATCHES": env_train_batches,
         "QKFORMER_LUT_E3_EVAL_BATCHES": env_eval_batches,
+        "QKFORMER_LUT_E3_EVAL_BATCH_SIZE": env_eval_batch_size,
     }
 
 
 def train_one_epoch(model, adapter, loader, data_cfg, train_cfg, optimizer, device) -> Dict[str, float]:
     model.eval()
     adapter.train()
+    if model.training:
+        raise RuntimeError("adapter.train() must not switch the frozen backbone to training mode")
     loss_m = AverageMeter()
     ce_m = AverageMeter()
     kl_m = AverageMeter()
@@ -667,13 +675,14 @@ def evaluate(model, adapter, loader, data_cfg, device) -> Dict[str, object]:
 def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     root = Path(__file__).resolve().parents[1]
     cfg = load_config(config_path)
-    set_seed(int(cfg["experiment"].get("seed", 42)))
     model_cfg = dict(cfg["model"])
     data_cfg = {key: dict(value) for key, value in dict(cfg["data"]).items()}
     diag_cfg = dict(cfg["diagnostic"])
     adapter_cfg = dict(cfg["adapter"])
     train_cfg = dict(cfg["train"])
     env_overrides = apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg)
+    run_seed = int(os.environ.get("QKFORMER_LUT_E3_SEED", cfg["experiment"].get("seed", 42)))
+    set_seed(run_seed)
 
     device_name = str(diag_cfg.get("device", "cuda"))
     if device_name == "cuda" and not torch.cuda.is_available():
@@ -733,7 +742,7 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     evaluation = evaluate(model, adapter, evaluation_loader, data_cfg["evaluation"], device)
     adapter.close()
     metrics = {
-        "experiment": cfg["experiment"],
+        "experiment": {**cfg["experiment"], "seed": run_seed},
         "model": {
             "family": model_cfg["family"],
             "time_step": model_cfg["time_step"],
@@ -750,6 +759,11 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         "diagnostic_config": diag_cfg,
         "adapter_config": adapter_cfg,
         "train_config": train_cfg,
+        "protocol": {
+            "version": 2,
+            "frozen_backbone_kept_in_eval_mode": True,
+            "evaluation_batch_size": int(data_cfg["evaluation"]["batch_size"]),
+        },
         "env_overrides": env_overrides,
         "adapter_summary": adapter.summary(),
         "calibration_prototypes": bank.summary(),
