@@ -533,6 +533,9 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
     env_eval_amp = env_bool("QKFORMER_LUT_E3_EVAL_AMP")
     if env_eval_amp is not None:
         data_cfg["evaluation"]["amp"] = env_eval_amp
+    env_eval_loader = os.environ.get("QKFORMER_LUT_E3_EVAL_LOADER")
+    if env_eval_loader:
+        data_cfg["evaluation"]["backend"] = env_eval_loader
     return {
         "QKFORMER_LUT_CKPT": env_checkpoint,
         "QKFORMER_LUT_TIME_STEP": env_time_step,
@@ -554,6 +557,7 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
         "QKFORMER_LUT_E3_EVAL_BATCHES": env_eval_batches,
         "QKFORMER_LUT_E3_EVAL_BATCH_SIZE": env_eval_batch_size,
         "QKFORMER_LUT_E3_EVAL_AMP": os.environ.get("QKFORMER_LUT_E3_EVAL_AMP"),
+        "QKFORMER_LUT_E3_EVAL_LOADER": env_eval_loader,
     }
 
 
@@ -773,10 +777,11 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         "adapter_config": adapter_cfg,
         "train_config": train_cfg,
         "protocol": {
-            "version": 3,
+            "version": 4,
             "frozen_backbone_kept_in_eval_mode": True,
             "evaluation_batch_size": int(data_cfg["evaluation"]["batch_size"]),
             "evaluation_amp": bool(data_cfg["evaluation"].get("amp", False)),
+            "evaluation_loader": str(data_cfg["evaluation"].get("backend", "torchvision")),
         },
         "env_overrides": env_overrides,
         "adapter_summary": adapter.summary(),

@@ -174,8 +174,53 @@ def make_cifar100_loader(
     )
 
 
+def make_timm_cifar_loader(
+    mode: str,
+    data_dir: str,
+    split: str,
+    batch_size: int,
+    workers: int,
+    device: torch.device,
+):
+    if split == "train":
+        raise ValueError("the timm-compatible loader is reserved for deterministic evaluation")
+    from timm.data import create_dataset, create_loader
+
+    dataset_name = "torch/cifar100" if mode == "cifar100" else "torch/cifar10"
+    dataset = create_dataset(
+        dataset_name,
+        root=str(Path(data_dir).expanduser()),
+        split="validation",
+        is_training=False,
+        batch_size=batch_size,
+    )
+    return create_loader(
+        dataset,
+        input_size=(3, 32, 32),
+        batch_size=batch_size,
+        is_training=False,
+        use_prefetcher=device.type == "cuda",
+        interpolation="bicubic",
+        mean=(0.4914, 0.4822, 0.4465),
+        std=(0.2470, 0.2435, 0.2616),
+        num_workers=workers,
+        distributed=False,
+        crop_pct=1.0,
+        pin_memory=False,
+    )
+
+
 def build_loader(cfg: Dict[str, object], device: torch.device):
     mode = str(cfg.get("mode", "cifar10"))
+    if str(cfg.get("backend", "torchvision")) == "timm":
+        return make_timm_cifar_loader(
+            mode=mode,
+            data_dir=str(cfg["data_dir"]),
+            split=str(cfg.get("split", "validation")),
+            batch_size=int(cfg["batch_size"]),
+            workers=int(cfg.get("workers", 4)),
+            device=device,
+        )
     loaders = {
         "cifar10": make_cifar10_loader,
         "cifar100": make_cifar100_loader,

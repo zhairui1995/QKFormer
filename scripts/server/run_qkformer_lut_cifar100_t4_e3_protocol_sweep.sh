@@ -52,12 +52,14 @@ export QKFORMER_LUT_E3_TRAIN_BATCHES=128
 export QKFORMER_LUT_E3_EVAL_BATCHES=0
 export QKFORMER_LUT_E3_EVAL_BATCH_SIZE=64
 export QKFORMER_LUT_E3_EVAL_AMP=1
+export QKFORMER_LUT_E3_EVAL_LOADER=timm
 
 echo "[qk-lut-c100-t4-e3-protocol] checkpoint=$QKFORMER_LUT_CKPT"
 echo "[qk-lut-c100-t4-e3-protocol] gpu=$QKFORMER_LUT_GPU"
-echo "[qk-lut-c100-t4-e3-protocol] protocol_version=3"
+echo "[qk-lut-c100-t4-e3-protocol] protocol_version=4"
 echo "[qk-lut-c100-t4-e3-protocol] eval_batch_size=$QKFORMER_LUT_E3_EVAL_BATCH_SIZE"
 echo "[qk-lut-c100-t4-e3-protocol] eval_amp=$QKFORMER_LUT_E3_EVAL_AMP"
+echo "[qk-lut-c100-t4-e3-protocol] eval_loader=$QKFORMER_LUT_E3_EVAL_LOADER"
 
 echo "[qk-lut-c100-t4-e3-protocol] identity_preflight_start"
 QKFORMER_LUT_E3_MODE=address_lut \

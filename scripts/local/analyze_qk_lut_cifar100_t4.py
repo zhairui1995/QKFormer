@@ -113,7 +113,9 @@ def _e3_rows(results_root: Path, train_dir: Optional[Path]) -> List[Dict[str, An
         if not _matches_c100_t4(metrics, train_dir):
             continue
         protocol = metrics.get("protocol", {})
-        if int(protocol.get("version", 0)) < 3 or not bool(protocol.get("evaluation_amp", False)):
+        if int(protocol.get("version", 0)) < 4 or not bool(protocol.get("evaluation_amp", False)):
+            continue
+        if protocol.get("evaluation_loader") != "timm":
             continue
         adapter = metrics.get("adapter_summary", {})
         train_config = metrics.get("train_config", {})
@@ -144,6 +146,7 @@ def _e3_rows(results_root: Path, train_dir: Optional[Path]) -> List[Dict[str, An
                 "protocol_version": protocol.get("version"),
                 "evaluation_batch_size": protocol.get("evaluation_batch_size"),
                 "evaluation_amp": protocol.get("evaluation_amp"),
+                "evaluation_loader": protocol.get("evaluation_loader"),
             }
         )
     return sorted(rows, key=lambda row: (str(row["mode"]), str(row["seed"]), row["result_dir"]))
