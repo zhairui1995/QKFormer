@@ -273,6 +273,8 @@ class ModulePrototype:
         self._coarse_mean: Optional[torch.Tensor] = None
         self._shuffled_address_mean: Optional[torch.Tensor] = None
         self._component_means: Dict[str, torch.Tensor] = {}
+        self._component_residual_means: Dict[Tuple[str, float], torch.Tensor] = {}
+        self._shuffled_component_residual_means: Dict[Tuple[str, float], torch.Tensor] = {}
         self._hierarchy_support_masks: Optional[Dict[str, torch.Tensor]] = None
 
     def _make_component_address_spaces(self, population_bins: int) -> Dict[str, int]:
@@ -334,6 +336,8 @@ class ModulePrototype:
         self._coarse_mean = None
         self._shuffled_address_mean = None
         self._component_means = {}
+        self._component_residual_means = {}
+        self._shuffled_component_residual_means = {}
         self._hierarchy_support_masks = None
 
     @property
@@ -377,6 +381,37 @@ class ModulePrototype:
         means[seen] = sums[seen] / counts[seen]
         self._component_means[component] = means
         return means
+
+    def component_residual_mean(self, component: str, beta: float = 0.0) -> torch.Tensor:
+        cache_key = (component, float(beta))
+        cached = self._component_residual_means.get(cache_key)
+        if cached is not None:
+            return cached
+        counts = self.component_counts[component]
+        sums = self.component_sums[component]
+        residuals = torch.zeros_like(sums)
+        seen = counts > 0
+        denominator = counts[seen] + float(beta)
+        residuals[seen] = (sums[seen] - counts[seen] * float(self.global_mean)) / denominator
+        self._component_residual_means[cache_key] = residuals
+        return residuals
+
+    def shuffled_component_residual_mean(self, component: str, beta: float = 0.0) -> torch.Tensor:
+        cache_key = (component, float(beta))
+        cached = self._shuffled_component_residual_means.get(cache_key)
+        if cached is not None:
+            return cached
+        residuals = self.component_residual_mean(component, beta=beta).clone()
+        seen_indices = torch.nonzero(self.component_counts[component] > 0, as_tuple=False).flatten()
+        if seen_indices.numel() > 1:
+            digest = hashlib.sha256(
+                f"{self.name}:{component}:subspace:{self.seed}".encode("utf-8")
+            ).digest()
+            generator = torch.Generator().manual_seed(int.from_bytes(digest[:8], "little"))
+            permutation = torch.randperm(seen_indices.numel(), generator=generator)
+            residuals[seen_indices] = residuals[seen_indices[permutation]]
+        self._shuffled_component_residual_means[cache_key] = residuals
+        return residuals
 
     @property
     def shuffled_address_mean(self) -> torch.Tensor:
@@ -529,6 +564,10 @@ class ModuleEval:
         self.token_channel_mse = MSEStats()
         self.shuffled_address_mse = MSEStats()
         self.hierarchical_backoff_mse = MSEStats()
+        self.subspace_tc_q_mse = MSEStats()
+        self.subspace_tc_qk_mse = MSEStats()
+        self.shuffled_subspace_tc_q_mse = MSEStats()
+        self.shuffled_subspace_tc_qk_mse = MSEStats()
         self.component_mse = {
             "token_channel": MSEStats(),
             "plus_q_or_gate": MSEStats(),
@@ -548,6 +587,30 @@ class ModuleEval:
             "global": 0,
         }
         self.candidates = 0
+
+    def _subspace_prediction(
+        self,
+        addr: torch.Tensor,
+        global_pred: torch.Tensor,
+        components: Tuple[str, ...],
+        shuffled: bool = False,
+    ) -> torch.Tensor:
+        proto = self.prototype
+        pred = global_pred.clone()
+        weight = 1.0 / float(len(components)) if components else 0.0
+        for component in components:
+            component_addr = proto.component_address(addr, component)
+            supported = proto.component_counts[component][component_addr] >= proto.min_count
+            if shuffled:
+                residuals = proto.shuffled_component_residual_mean(component)
+            else:
+                residuals = proto.component_residual_mean(component)
+            pred = pred + torch.where(
+                supported,
+                residuals[component_addr] * weight,
+                torch.zeros_like(pred),
+            )
+        return pred
 
     def update(self, address: torch.Tensor, response: torch.Tensor, candidate_mask: torch.Tensor) -> None:
         proto = self.prototype
@@ -610,6 +673,32 @@ class ModuleEval:
         )
         hierarchy_pred = torch.where(hierarchy_seen["full"], proto.address_mean[addr], hierarchy_pred)
         selected_level = torch.where(hierarchy_seen["full"], torch.zeros_like(selected_level), selected_level)
+        subspace_tc_q_components = ("token_channel", "plus_q_or_gate")
+        subspace_tc_qk_components = ("token_channel", "plus_q_or_gate", "plus_k")
+        subspace_tc_q_pred = self._subspace_prediction(
+            addr,
+            global_pred,
+            subspace_tc_q_components,
+            shuffled=False,
+        )
+        subspace_tc_qk_pred = self._subspace_prediction(
+            addr,
+            global_pred,
+            subspace_tc_qk_components,
+            shuffled=False,
+        )
+        shuffled_subspace_tc_q_pred = self._subspace_prediction(
+            addr,
+            global_pred,
+            subspace_tc_q_components,
+            shuffled=True,
+        )
+        shuffled_subspace_tc_qk_pred = self._subspace_prediction(
+            addr,
+            global_pred,
+            subspace_tc_qk_components,
+            shuffled=True,
+        )
         shuffled_address_pred = proto.shuffled_address_mean[addr]
         shuffled_address_pred = torch.where(seen, shuffled_address_pred, global_pred)
         cb_values = torch.where(
@@ -623,6 +712,14 @@ class ModuleEval:
         self.token_channel_mse.update(float(torch.sum((resp - token_channel_pred) ** 2).item()), count)
         self.shuffled_address_mse.update(float(torch.sum((resp - shuffled_address_pred) ** 2).item()), count)
         self.hierarchical_backoff_mse.update(float(torch.sum((resp - hierarchy_pred) ** 2).item()), count)
+        self.subspace_tc_q_mse.update(float(torch.sum((resp - subspace_tc_q_pred) ** 2).item()), count)
+        self.subspace_tc_qk_mse.update(float(torch.sum((resp - subspace_tc_qk_pred) ** 2).item()), count)
+        self.shuffled_subspace_tc_q_mse.update(
+            float(torch.sum((resp - shuffled_subspace_tc_q_pred) ** 2).item()), count
+        )
+        self.shuffled_subspace_tc_qk_mse.update(
+            float(torch.sum((resp - shuffled_subspace_tc_qk_pred) ** 2).item()), count
+        )
         for component, pred in component_predictions.items():
             self.component_mse[component].update(float(torch.sum((resp - pred) ** 2).item()), count)
         self.candidate_background_mse.update(float(torch.sum((resp - cb_values) ** 2).item()), count)
@@ -645,6 +742,10 @@ class ModuleEval:
         token_channel_mse = self.token_channel_mse.mse
         shuffled_address_mse = self.shuffled_address_mse.mse
         hierarchical_backoff_mse = self.hierarchical_backoff_mse.mse
+        subspace_tc_q_mse = self.subspace_tc_q_mse.mse
+        subspace_tc_qk_mse = self.subspace_tc_qk_mse.mse
+        shuffled_subspace_tc_q_mse = self.shuffled_subspace_tc_q_mse.mse
+        shuffled_subspace_tc_qk_mse = self.shuffled_subspace_tc_qk_mse.mse
         cb_mse = self.candidate_background_mse.mse
         supported_entries = self.prototype.supported_entry_counts()
         hierarchical_supported_entries = int(sum(supported_entries.values()))
@@ -654,6 +755,24 @@ class ModuleEval:
             + self.prototype.component_address_spaces["plus_q_or_gate"]
             + self.prototype.component_address_spaces["token_channel"]
             + 1
+        )
+        subspace_tc_q_entries = int(
+            (self.prototype.component_counts["token_channel"] >= self.prototype.min_count).sum().item()
+            + (self.prototype.component_counts["plus_q_or_gate"] >= self.prototype.min_count).sum().item()
+            + 1
+        )
+        subspace_tc_qk_entries = int(
+            subspace_tc_q_entries
+            + (self.prototype.component_counts["plus_k"] >= self.prototype.min_count).sum().item()
+        )
+        subspace_tc_q_nominal_entries = int(
+            self.prototype.component_address_spaces["token_channel"]
+            + self.prototype.component_address_spaces["plus_q_or_gate"]
+            + 1
+        )
+        subspace_tc_qk_nominal_entries = int(
+            subspace_tc_q_nominal_entries
+            + self.prototype.component_address_spaces["plus_k"]
         )
         total = float(self.global_mse.count) if self.global_mse.count else 0.0
         component_values = {
@@ -686,6 +805,10 @@ class ModuleEval:
             "token_channel_lut_mse": token_channel_mse,
             "shuffled_address_lut_mse": shuffled_address_mse,
             "hierarchical_backoff_mse": hierarchical_backoff_mse,
+            "subspace_tc_q_mse": subspace_tc_q_mse,
+            "subspace_tc_qk_mse": subspace_tc_qk_mse,
+            "shuffled_subspace_tc_q_mse": shuffled_subspace_tc_q_mse,
+            "shuffled_subspace_tc_qk_mse": shuffled_subspace_tc_qk_mse,
             "candidate_background_mse": cb_mse,
             "address_relative_mse_reduction": (
                 (global_mse - address_mse) / global_mse if global_mse > 0 else 0.0
@@ -698,6 +821,18 @@ class ModuleEval:
             ),
             "hierarchical_backoff_relative_mse_reduction": (
                 (global_mse - hierarchical_backoff_mse) / global_mse if global_mse > 0 else 0.0
+            ),
+            "subspace_tc_q_relative_mse_reduction": (
+                (global_mse - subspace_tc_q_mse) / global_mse if global_mse > 0 else 0.0
+            ),
+            "subspace_tc_qk_relative_mse_reduction": (
+                (global_mse - subspace_tc_qk_mse) / global_mse if global_mse > 0 else 0.0
+            ),
+            "shuffled_subspace_tc_q_relative_mse_reduction": (
+                (global_mse - shuffled_subspace_tc_q_mse) / global_mse if global_mse > 0 else 0.0
+            ),
+            "shuffled_subspace_tc_qk_relative_mse_reduction": (
+                (global_mse - shuffled_subspace_tc_qk_mse) / global_mse if global_mse > 0 else 0.0
             ),
             "candidate_background_relative_mse_reduction": (
                 (global_mse - cb_mse) / global_mse if global_mse > 0 else 0.0
@@ -734,6 +869,30 @@ class ModuleEval:
             "hierarchical_supported_entry_counts": supported_entries,
             "hierarchy_budget_fraction": self.prototype.hierarchy_budget_fraction,
             "hierarchy_budget_policy": self.prototype.hierarchy_budget_policy,
+            "subspace_tc_q_supported_entries": subspace_tc_q_entries,
+            "subspace_tc_qk_supported_entries": subspace_tc_qk_entries,
+            "subspace_tc_q_nominal_entries": subspace_tc_q_nominal_entries,
+            "subspace_tc_qk_nominal_entries": subspace_tc_qk_nominal_entries,
+            "subspace_tc_q_supported_compression": (
+                subspace_tc_q_entries / float(self.prototype.address_space)
+                if self.prototype.address_space
+                else 0.0
+            ),
+            "subspace_tc_qk_supported_compression": (
+                subspace_tc_qk_entries / float(self.prototype.address_space)
+                if self.prototype.address_space
+                else 0.0
+            ),
+            "subspace_tc_q_nominal_compression": (
+                subspace_tc_q_nominal_entries / float(self.prototype.address_space)
+                if self.prototype.address_space
+                else 0.0
+            ),
+            "subspace_tc_qk_nominal_compression": (
+                subspace_tc_qk_nominal_entries / float(self.prototype.address_space)
+                if self.prototype.address_space
+                else 0.0
+            ),
             **component_values,
             **component_reductions,
         }
@@ -875,6 +1034,20 @@ def group_eval_summary(modules: Iterable[Dict[str, object]], key: str) -> Dict[s
         "hierarchical_supported_compression",
         "hierarchical_nominal_compression",
     ]
+    subspace_weighted_keys = [
+        "subspace_tc_q_mse",
+        "subspace_tc_qk_mse",
+        "shuffled_subspace_tc_q_mse",
+        "shuffled_subspace_tc_qk_mse",
+        "subspace_tc_q_relative_mse_reduction",
+        "subspace_tc_qk_relative_mse_reduction",
+        "shuffled_subspace_tc_q_relative_mse_reduction",
+        "shuffled_subspace_tc_qk_relative_mse_reduction",
+        "subspace_tc_q_supported_compression",
+        "subspace_tc_qk_supported_compression",
+        "subspace_tc_q_nominal_compression",
+        "subspace_tc_qk_nominal_compression",
+    ]
     return {
         name: {
             "num_modules": len(items),
@@ -898,10 +1071,18 @@ def group_eval_summary(modules: Iterable[Dict[str, object]], key: str) -> Dict[s
             "hierarchical_nominal_entries": _sum_int(items, "hierarchical_nominal_entries"),
             "monolithic_full_address_entries": _sum_int(items, "monolithic_full_address_entries"),
             "full_address_supported_entries": _sum_int(items, "full_address_supported_entries"),
+            "subspace_tc_q_supported_entries": _sum_int(items, "subspace_tc_q_supported_entries"),
+            "subspace_tc_qk_supported_entries": _sum_int(items, "subspace_tc_qk_supported_entries"),
+            "subspace_tc_q_nominal_entries": _sum_int(items, "subspace_tc_q_nominal_entries"),
+            "subspace_tc_qk_nominal_entries": _sum_int(items, "subspace_tc_qk_nominal_entries"),
             **{component_key: _weighted_mean(items, component_key) for component_key in component_keys},
             **{
                 hierarchical_key: _weighted_mean(items, hierarchical_key)
                 for hierarchical_key in hierarchical_weighted_keys
+            },
+            **{
+                subspace_key: _weighted_mean(items, subspace_key)
+                for subspace_key in subspace_weighted_keys
             },
         }
         for name, items in grouped.items()
@@ -943,6 +1124,21 @@ HIERARCHICAL_RECONSTRUCTION_KEYS = [
     "fallback_fraction_global",
     "hierarchical_supported_compression",
     "hierarchical_nominal_compression",
+]
+
+SUBSPACE_RECONSTRUCTION_KEYS = [
+    "subspace_tc_q_mse",
+    "subspace_tc_qk_mse",
+    "shuffled_subspace_tc_q_mse",
+    "shuffled_subspace_tc_qk_mse",
+    "subspace_tc_q_relative_mse_reduction",
+    "subspace_tc_qk_relative_mse_reduction",
+    "shuffled_subspace_tc_q_relative_mse_reduction",
+    "shuffled_subspace_tc_qk_relative_mse_reduction",
+    "subspace_tc_q_supported_compression",
+    "subspace_tc_qk_supported_compression",
+    "subspace_tc_q_nominal_compression",
+    "subspace_tc_qk_nominal_compression",
 ]
 
 
@@ -1044,6 +1240,10 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     hierarchical_nominal_entries = _sum_int(module_reconstruction, "hierarchical_nominal_entries")
     monolithic_full_address_entries = _sum_int(module_reconstruction, "monolithic_full_address_entries")
     full_address_supported_entries = _sum_int(module_reconstruction, "full_address_supported_entries")
+    subspace_tc_q_supported_entries = _sum_int(module_reconstruction, "subspace_tc_q_supported_entries")
+    subspace_tc_qk_supported_entries = _sum_int(module_reconstruction, "subspace_tc_qk_supported_entries")
+    subspace_tc_q_nominal_entries = _sum_int(module_reconstruction, "subspace_tc_q_nominal_entries")
+    subspace_tc_qk_nominal_entries = _sum_int(module_reconstruction, "subspace_tc_qk_nominal_entries")
     overall = {
         "eval_samples": int(sum(int(item.get("eval_samples", 0)) for item in module_reconstruction)),
         "global_mean_mse": _weighted_mean(module_reconstruction, "global_mean_mse"),
@@ -1065,6 +1265,10 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         "hierarchical_nominal_entries": hierarchical_nominal_entries,
         "monolithic_full_address_entries": monolithic_full_address_entries,
         "full_address_supported_entries": full_address_supported_entries,
+        "subspace_tc_q_supported_entries": subspace_tc_q_supported_entries,
+        "subspace_tc_qk_supported_entries": subspace_tc_qk_supported_entries,
+        "subspace_tc_q_nominal_entries": subspace_tc_q_nominal_entries,
+        "subspace_tc_qk_nominal_entries": subspace_tc_qk_nominal_entries,
         "hierarchical_supported_compression": (
             hierarchical_supported_entries / float(monolithic_full_address_entries)
             if monolithic_full_address_entries > 0
@@ -1072,6 +1276,26 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         ),
         "hierarchical_nominal_compression": (
             hierarchical_nominal_entries / float(monolithic_full_address_entries)
+            if monolithic_full_address_entries > 0
+            else 0.0
+        ),
+        "subspace_tc_q_supported_compression": (
+            subspace_tc_q_supported_entries / float(monolithic_full_address_entries)
+            if monolithic_full_address_entries > 0
+            else 0.0
+        ),
+        "subspace_tc_qk_supported_compression": (
+            subspace_tc_qk_supported_entries / float(monolithic_full_address_entries)
+            if monolithic_full_address_entries > 0
+            else 0.0
+        ),
+        "subspace_tc_q_nominal_compression": (
+            subspace_tc_q_nominal_entries / float(monolithic_full_address_entries)
+            if monolithic_full_address_entries > 0
+            else 0.0
+        ),
+        "subspace_tc_qk_nominal_compression": (
+            subspace_tc_qk_nominal_entries / float(monolithic_full_address_entries)
             if monolithic_full_address_entries > 0
             else 0.0
         ),
@@ -1083,6 +1307,17 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
             hierarchical_key: _weighted_mean(module_reconstruction, hierarchical_key)
             for hierarchical_key in HIERARCHICAL_RECONSTRUCTION_KEYS
             if hierarchical_key not in {"hierarchical_supported_compression", "hierarchical_nominal_compression"}
+        },
+        **{
+            subspace_key: _weighted_mean(module_reconstruction, subspace_key)
+            for subspace_key in SUBSPACE_RECONSTRUCTION_KEYS
+            if subspace_key
+            not in {
+                "subspace_tc_q_supported_compression",
+                "subspace_tc_qk_supported_compression",
+                "subspace_tc_q_nominal_compression",
+                "subspace_tc_qk_nominal_compression",
+            }
         },
     }
 
