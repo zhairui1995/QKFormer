@@ -206,21 +206,22 @@ class TrainableLUTModule(nn.Module):
         self, address: torch.Tensor, response: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         components = self.split_address(address.to(device=response.device))
-        residuals = []
         packed_index = torch.zeros_like(address, device=response.device, dtype=torch.long)
-        for name, size in zip(self.component_names, self.component_sizes):
+        residual = torch.zeros_like(response)
+        if self.mode == "factorized_gated_lut":
+            weights = torch.softmax(self.component_gate_logits, dim=0).to(response.dtype) * len(self.component_names)
+        else:
+            weights = None
+        for component_idx, (name, size) in enumerate(zip(self.component_names, self.component_sizes)):
             index = components[name].to(device=response.device)
             if self.mode == "factorized_shuffled_lut":
                 index = self._component_permutation(name, size, response.device)[index]
             table = self.component_tables[name].to(device=response.device, dtype=response.dtype)
-            residuals.append(table[index])
+            term = table[index]
+            if weights is not None:
+                term = term * weights[component_idx]
+            residual = residual + term
             packed_index = packed_index * size + index
-        stacked = torch.stack(residuals, dim=0)
-        if self.mode == "factorized_gated_lut":
-            weights = torch.softmax(self.component_gate_logits, dim=0).to(response.dtype) * len(self.component_names)
-            residual = torch.sum(stacked * weights.reshape((-1,) + (1,) * address.ndim), dim=0)
-        else:
-            residual = torch.sum(stacked, dim=0)
         global_value = self.global_table.to(device=response.device, dtype=response.dtype)[0]
         return global_value + residual, packed_index
 
