@@ -50,6 +50,7 @@ def load_runs(results_root: Path) -> list[dict[str, Any]]:
         model = metrics.get("model", {})
         protocol = metrics.get("protocol", {})
         adapter = metrics.get("adapter_summary", {})
+        adapter_config = metrics.get("adapter_config", {})
         train = metrics.get("train_config", {})
         mode = adapter.get("mode")
         if model.get("family") != "cifar100" or str(model.get("time_step")) != "4":
@@ -58,7 +59,7 @@ def load_runs(results_root: Path) -> list[dict[str, Any]]:
             continue
         if not protocol.get("evaluation_amp") or protocol.get("evaluation_loader") != "timm":
             continue
-        if abs(float(adapter.get("alpha", -1)) - 0.025) > 1e-9 or int(train.get("epochs", -1)) != 2:
+        if abs(float(adapter_config.get("alpha_init", -1)) - 0.025) > 1e-9 or int(train.get("epochs", -1)) != 2:
             continue
         classification = metrics.get("classification", {})
         baseline = classification.get("baseline", {})

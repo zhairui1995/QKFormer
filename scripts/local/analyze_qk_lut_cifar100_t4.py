@@ -118,8 +118,10 @@ def _e3_rows(results_root: Path, train_dir: Optional[Path]) -> List[Dict[str, An
         if protocol.get("evaluation_loader") != "timm":
             continue
         adapter = metrics.get("adapter_summary", {})
+        adapter_config = metrics.get("adapter_config", {})
         train_config = metrics.get("train_config", {})
-        if abs(float(adapter.get("alpha", -1.0)) - 0.025) > 1e-9:
+        alpha = float(adapter_config.get("alpha_init", -1.0))
+        if abs(alpha - 0.025) > 1e-9:
             continue
         if int(train_config.get("epochs", -1)) != 2:
             continue
@@ -133,7 +135,7 @@ def _e3_rows(results_root: Path, train_dir: Optional[Path]) -> List[Dict[str, An
                 "mode": adapter.get("mode"),
                 "seed": metrics.get("experiment", {}).get("seed"),
                 "target_modules": ",".join(adapter.get("target_modules", []) or []),
-                "alpha": adapter.get("alpha"),
+                "alpha": alpha,
                 "baseline_top1": baseline.get("top1"),
                 "replacement_top1": replacement.get("top1"),
                 "delta_top1": delta.get("top1"),
