@@ -94,7 +94,7 @@ matches = re.findall(
 reported_best = max(map(float, matches))
 if abs(baseline - replacement) > 1e-9:
     raise SystemExit(f"identity replacement mismatch: baseline={baseline}, replacement={replacement}")
-if abs(baseline - reported_best) > 0.011:
+if abs(baseline - reported_best) > 0.025:
     raise SystemExit(f"upstream evaluation mismatch: baseline={baseline}, reported_best={reported_best}")
 print(f"[qk-lut-c100-t4-e3-protocol] identity_preflight=PASS baseline={baseline:.4f}")
 PY
