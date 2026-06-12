@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import math
@@ -537,6 +538,9 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
     env_eval_loader = os.environ.get("QKFORMER_LUT_E3_EVAL_LOADER")
     if env_eval_loader:
         data_cfg["evaluation"]["backend"] = env_eval_loader
+    env_save_per_sample = env_bool("QKFORMER_LUT_E3_SAVE_PER_SAMPLE")
+    if env_save_per_sample is not None:
+        data_cfg["evaluation"]["save_per_sample"] = env_save_per_sample
     return {
         "QKFORMER_LUT_CKPT": env_checkpoint,
         "QKFORMER_LUT_TIME_STEP": env_time_step,
@@ -559,6 +563,7 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
         "QKFORMER_LUT_E3_EVAL_BATCH_SIZE": env_eval_batch_size,
         "QKFORMER_LUT_E3_EVAL_AMP": os.environ.get("QKFORMER_LUT_E3_EVAL_AMP"),
         "QKFORMER_LUT_E3_EVAL_LOADER": env_eval_loader,
+        "QKFORMER_LUT_E3_SAVE_PER_SAMPLE": os.environ.get("QKFORMER_LUT_E3_SAVE_PER_SAMPLE"),
     }
 
 
@@ -616,7 +621,77 @@ def train_one_epoch(model, adapter, loader, data_cfg, train_cfg, optimizer, devi
     return {"loss": loss_m.mean, "ce": ce_m.mean, "kl": kl_m.mean, "local_mse": local_m.mean, "top1": top1_m.mean}
 
 
-def evaluate(model, adapter, loader, data_cfg, device) -> Dict[str, object]:
+def _true_class_margin(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    target_logits = logits.gather(1, targets.view(-1, 1)).squeeze(1)
+    masked = logits.clone()
+    masked.scatter_(1, targets.view(-1, 1), float("-inf"))
+    max_other = masked.max(dim=1).values
+    return target_logits - max_other
+
+
+def _append_per_sample_rows(
+    rows: List[Dict[str, object]],
+    sample_offset: int,
+    targets: torch.Tensor,
+    baseline_logits: torch.Tensor,
+    replacement_logits: torch.Tensor,
+) -> int:
+    base_logits = baseline_logits.detach().float()
+    repl_logits = replacement_logits.detach().float()
+    labels = targets.detach().long()
+    base_ce = F.cross_entropy(base_logits, labels, reduction="none")
+    repl_ce = F.cross_entropy(repl_logits, labels, reduction="none")
+    base_pred = base_logits.argmax(dim=1)
+    repl_pred = repl_logits.argmax(dim=1)
+    base_margin = _true_class_margin(base_logits, labels)
+    repl_margin = _true_class_margin(repl_logits, labels)
+    base_conf = F.softmax(base_logits, dim=1).max(dim=1).values
+    repl_conf = F.softmax(repl_logits, dim=1).max(dim=1).values
+
+    labels_cpu = labels.cpu()
+    for idx in range(int(labels.numel())):
+        rows.append(
+            {
+                "sample_index": sample_offset + idx,
+                "target": int(labels_cpu[idx].item()),
+                "baseline_top1": int(base_pred[idx].cpu().item()),
+                "replacement_top1": int(repl_pred[idx].cpu().item()),
+                "baseline_correct": int(base_pred[idx].cpu().item() == labels_cpu[idx].item()),
+                "replacement_correct": int(repl_pred[idx].cpu().item() == labels_cpu[idx].item()),
+                "baseline_ce": float(base_ce[idx].cpu().item()),
+                "replacement_ce": float(repl_ce[idx].cpu().item()),
+                "baseline_margin": float(base_margin[idx].cpu().item()),
+                "replacement_margin": float(repl_margin[idx].cpu().item()),
+                "baseline_confidence": float(base_conf[idx].cpu().item()),
+                "replacement_confidence": float(repl_conf[idx].cpu().item()),
+            }
+        )
+    return sample_offset + int(labels.numel())
+
+
+def _write_per_sample_csv(path: Path, rows: List[Dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fieldnames = [
+        "sample_index",
+        "target",
+        "baseline_top1",
+        "replacement_top1",
+        "baseline_correct",
+        "replacement_correct",
+        "baseline_ce",
+        "replacement_ce",
+        "baseline_margin",
+        "replacement_margin",
+        "baseline_confidence",
+        "replacement_confidence",
+    ]
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def evaluate(model, adapter, loader, data_cfg, device, per_sample_path: Optional[Path] = None) -> Dict[str, object]:
     model.eval()
     adapter.eval()
     loss_fn = nn.CrossEntropyLoss().to(device)
@@ -630,6 +705,8 @@ def evaluate(model, adapter, loader, data_cfg, device) -> Dict[str, object]:
     kl_m = AverageMeter()
     local_m = AverageMeter()
     max_batches = int(data_cfg["num_batches"])
+    per_sample_rows: List[Dict[str, object]] = []
+    sample_offset = 0
     use_amp = bool(data_cfg.get("amp", False)) and device.type == "cuda"
     amp_context = (
         lambda: torch.autocast(device_type="cuda", dtype=torch.float16)
@@ -671,8 +748,16 @@ def evaluate(model, adapter, loader, data_cfg, device) -> Dict[str, object]:
             logit_mse.update(float(torch.mean((replacement_logits - baseline_logits) ** 2).item()), batch_size)
             kl_m.update(float(kl.item()), batch_size)
             local_m.update(float(local.item()), batch_size)
+            if per_sample_path is not None:
+                sample_offset = _append_per_sample_rows(
+                    per_sample_rows,
+                    sample_offset,
+                    targets,
+                    baseline_logits,
+                    replacement_logits,
+                )
     adapter.enabled = False
-    return {
+    result = {
         "baseline": {"loss": base_loss.mean, "top1": base_top1.mean, "top5": base_top5.mean},
         "replacement": {
             "loss": repl_loss.mean,
@@ -688,6 +773,14 @@ def evaluate(model, adapter, loader, data_cfg, device) -> Dict[str, object]:
             "top5": repl_top5.mean - base_top5.mean,
         },
     }
+    if per_sample_path is not None:
+        _write_per_sample_csv(per_sample_path, per_sample_rows)
+        result["per_sample"] = {
+            "path": str(per_sample_path),
+            "num_samples": len(per_sample_rows),
+            "schema": "sample_index,target,baseline_top1,replacement_top1,baseline_correct,replacement_correct,baseline_ce,replacement_ce,baseline_margin,replacement_margin,baseline_confidence,replacement_confidence",
+        }
+    return result
 
 
 def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
@@ -756,8 +849,13 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
             f"local_mse={metrics['local_mse']:.6f} top1={metrics['top1']:.4f}"
         )
 
+    output_dir.mkdir(parents=True, exist_ok=True)
+    per_sample_path = None
+    if bool(data_cfg["evaluation"].get("save_per_sample", False)):
+        per_sample_path = output_dir / "per_sample_predictions.csv"
+        print(f"[qk-lut-e3] per_sample_path={per_sample_path}")
     print("[qk-lut-e3] evaluation_start")
-    evaluation = evaluate(model, adapter, evaluation_loader, data_cfg["evaluation"], device)
+    evaluation = evaluate(model, adapter, evaluation_loader, data_cfg["evaluation"], device, per_sample_path)
     adapter.close()
     metrics = {
         "experiment": {**cfg["experiment"], "seed": run_seed},
@@ -792,7 +890,6 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         "classification": evaluation,
         "verdict": "PENDING_PHASE_GATE_REVIEW" if checkpoint_info["loaded"] else "PENDING_REAL_DATA_CHECKPOINT",
     }
-    output_dir.mkdir(parents=True, exist_ok=True)
     metrics_path = output_dir / "metrics.json"
     with metrics_path.open("w", encoding="utf-8") as handle:
         json.dump(metrics, handle, indent=2, sort_keys=True)
