@@ -49,7 +49,7 @@ export QKFORMER_LUT_E3_SEED_SWEEP="${QKFORMER_LUT_E3_SEED_SWEEP:-42,43,44}"
 export QKFORMER_LUT_E3_EPOCHS="${QKFORMER_LUT_E3_EPOCHS:-2}"
 export QKFORMER_LUT_E3_CALIB_BATCHES="${QKFORMER_LUT_E3_CALIB_BATCHES:-128}"
 export QKFORMER_LUT_E3_TRAIN_BATCHES="${QKFORMER_LUT_E3_TRAIN_BATCHES:-128}"
-export QKFORMER_LUT_E3_EVAL_BATCHES=0
+export QKFORMER_LUT_E3_EVAL_BATCHES="${QKFORMER_LUT_E3_EVAL_BATCHES:-0}"
 export QKFORMER_LUT_E3_EVAL_BATCH_SIZE="${QKFORMER_LUT_E3_EVAL_BATCH_SIZE:-64}"
 export QKFORMER_LUT_E3_EVAL_AMP=1
 export QKFORMER_LUT_E3_EVAL_LOADER=timm
@@ -63,6 +63,7 @@ echo "[qk-lut-c100-t4-oracle] seeds=$QKFORMER_LUT_E3_SEED_SWEEP"
 echo "[qk-lut-c100-t4-oracle] alpha=$QKFORMER_LUT_E3_ALPHA_INIT"
 echo "[qk-lut-c100-t4-oracle] calib_batches=$QKFORMER_LUT_E3_CALIB_BATCHES"
 echo "[qk-lut-c100-t4-oracle] train_batches=$QKFORMER_LUT_E3_TRAIN_BATCHES"
+echo "[qk-lut-c100-t4-oracle] eval_batches=$QKFORMER_LUT_E3_EVAL_BATCHES"
 echo "[qk-lut-c100-t4-oracle] save_per_sample=$QKFORMER_LUT_E3_SAVE_PER_SAMPLE"
 
 bash scripts/server/run_qkformer_lut_e3_conservative_sweep.sh --gpu "$QKFORMER_LUT_GPU"
