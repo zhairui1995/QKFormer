@@ -113,10 +113,15 @@ def _e3_rows(results_root: Path, train_dir: Optional[Path]) -> List[Dict[str, An
         if not _matches_c100_t4(metrics, train_dir):
             continue
         protocol = metrics.get("protocol", {})
-        if int(protocol.get("version", 0)) < 2:
+        if int(protocol.get("version", 0)) < 3 or not bool(protocol.get("evaluation_amp", False)):
+            continue
+        adapter = metrics.get("adapter_summary", {})
+        train_config = metrics.get("train_config", {})
+        if abs(float(adapter.get("alpha", -1.0)) - 0.025) > 1e-9:
+            continue
+        if int(train_config.get("epochs", -1)) != 2:
             continue
         cls = metrics.get("classification", {})
-        adapter = metrics.get("adapter_summary", {})
         delta = cls.get("delta", {})
         baseline = cls.get("baseline", {})
         replacement = cls.get("replacement", {})
@@ -138,6 +143,7 @@ def _e3_rows(results_root: Path, train_dir: Optional[Path]) -> List[Dict[str, An
                 "local_mse": metrics.get("local_reconstruction", {}).get("mse"),
                 "protocol_version": protocol.get("version"),
                 "evaluation_batch_size": protocol.get("evaluation_batch_size"),
+                "evaluation_amp": protocol.get("evaluation_amp"),
             }
         )
     return sorted(rows, key=lambda row: (str(row["mode"]), str(row["seed"]), row["result_dir"]))

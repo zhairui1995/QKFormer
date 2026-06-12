@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import os
+from contextlib import nullcontext
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -529,6 +530,9 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
     env_eval_batch_size = os.environ.get("QKFORMER_LUT_E3_EVAL_BATCH_SIZE")
     if env_eval_batch_size:
         data_cfg["evaluation"]["batch_size"] = int(env_eval_batch_size)
+    env_eval_amp = env_bool("QKFORMER_LUT_E3_EVAL_AMP")
+    if env_eval_amp is not None:
+        data_cfg["evaluation"]["amp"] = env_eval_amp
     return {
         "QKFORMER_LUT_CKPT": env_checkpoint,
         "QKFORMER_LUT_TIME_STEP": env_time_step,
@@ -549,6 +553,7 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
         "QKFORMER_LUT_E3_TRAIN_BATCHES": env_train_batches,
         "QKFORMER_LUT_E3_EVAL_BATCHES": env_eval_batches,
         "QKFORMER_LUT_E3_EVAL_BATCH_SIZE": env_eval_batch_size,
+        "QKFORMER_LUT_E3_EVAL_AMP": os.environ.get("QKFORMER_LUT_E3_EVAL_AMP"),
     }
 
 
@@ -620,6 +625,12 @@ def evaluate(model, adapter, loader, data_cfg, device) -> Dict[str, object]:
     kl_m = AverageMeter()
     local_m = AverageMeter()
     max_batches = int(data_cfg["num_batches"])
+    use_amp = bool(data_cfg.get("amp", False)) and device.type == "cuda"
+    amp_context = (
+        lambda: torch.autocast(device_type="cuda", dtype=torch.float16)
+        if use_amp
+        else nullcontext()
+    )
     with torch.no_grad():
         for batch_idx, (images, targets) in enumerate(loader):
             if max_batches > 0 and batch_idx >= max_batches:
@@ -629,16 +640,18 @@ def evaluate(model, adapter, loader, data_cfg, device) -> Dict[str, object]:
             batch_size = int(targets.numel())
             adapter.enabled = False
             reset_model_state(model)
-            baseline_logits = model(images)
-            b_loss = loss_fn(baseline_logits, targets)
+            with amp_context():
+                baseline_logits = model(images)
+                b_loss = loss_fn(baseline_logits, targets)
             b_top1, b_top5 = accuracy(baseline_logits, targets)
             reset_model_state(model)
 
             adapter.clear_step()
             adapter.enabled = True
             reset_model_state(model)
-            replacement_logits = model(images)
-            r_loss = loss_fn(replacement_logits, targets)
+            with amp_context():
+                replacement_logits = model(images)
+                r_loss = loss_fn(replacement_logits, targets)
             r_top1, r_top5 = accuracy(replacement_logits, targets)
             local = adapter.local_mse_loss(device)
             kl = F.kl_div(F.log_softmax(replacement_logits, dim=1), F.softmax(baseline_logits, dim=1), reduction="batchmean")
@@ -760,9 +773,10 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         "adapter_config": adapter_cfg,
         "train_config": train_cfg,
         "protocol": {
-            "version": 2,
+            "version": 3,
             "frozen_backbone_kept_in_eval_mode": True,
             "evaluation_batch_size": int(data_cfg["evaluation"]["batch_size"]),
+            "evaluation_amp": bool(data_cfg["evaluation"].get("amp", False)),
         },
         "env_overrides": env_overrides,
         "adapter_summary": adapter.summary(),
