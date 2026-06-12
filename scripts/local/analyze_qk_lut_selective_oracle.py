@@ -240,6 +240,22 @@ def _collect_runs(
             continue
         rows = _read_rows(path)
         summary = _summarize_rows(rows, margin_eps)
+        classification = metrics.get("classification", {})
+        aggregate_baseline = classification.get("baseline", {}).get("top1")
+        aggregate_replacement = classification.get("replacement", {}).get("top1")
+        aggregate_delta = classification.get("delta", {}).get("top1")
+        summary["per_sample_baseline_acc"] = summary.get("baseline_acc")
+        summary["per_sample_replacement_acc"] = summary.get("replacement_acc")
+        if aggregate_baseline is not None:
+            summary["baseline_acc"] = float(aggregate_baseline)
+        if aggregate_replacement is not None:
+            summary["replacement_acc"] = float(aggregate_replacement)
+        if aggregate_delta is not None:
+            summary["replacement_delta_acc"] = float(aggregate_delta)
+        if aggregate_baseline is not None and summary.get("oracle_accuracy_gain") is not None:
+            summary["oracle_accuracy_acc"] = float(aggregate_baseline) + float(
+                summary["oracle_accuracy_gain"]
+            )
         runs.append(
             {
                 "result_dir": str(metrics_path.parent),
