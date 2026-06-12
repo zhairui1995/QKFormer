@@ -6,8 +6,9 @@ history are needed.
 
 ## Current Verdict
 
-`CONDITIONAL GO` for structured addresses and constrained adaptation; `NO-GO`
-for a stable address-specific accuracy-gain claim with the current adapter.
+`GO-AUDIT` for structured Q/K lookup addressability and compact
+reconstruction; `NO-GO` for a stable address-specific accuracy-gain claim with
+the current adapter.
 
 The CIFAR-10 T=1 conservative E3 adapter sweep on the first checkpoint was
 positive for Q/K address LUT. An independent T=1 checkpoint repeat showed that
@@ -19,11 +20,13 @@ checkpoint.
 CIFAR-100 broadens the evidence: T=1 QKFormer reaches 77.76% Acc@1 and its
 stage1 address LUT beats shuffled and token/channel controls, but global-mean
 smoothing remains stronger. Split-aware reconstruction nevertheless shows a
-clean cross-dataset signal, and a centered residual separates aligned from
-shuffled addresses at unit scale. A residual-scale sweep does not preserve
-that separation and never exceeds global smoothing. Accuracy-oriented adapter
-tuning is therefore stopped; the next gate tests E1 reconstruction stability
-across calibration subsets and full validation.
+clean cross-dataset signal. E5 makes lookup misses explicit with hierarchical
+backoff, but does not satisfy the compact-table budget. E7 then provides the
+current positive compression story: subspace-decoupled residual LUTs beat
+token/channel and shuffled-subspace controls across CIFAR-100 calibration
+sizes/seeds while staying below the 25% supported-entry budget. Accuracy-
+oriented adapter tuning is therefore stopped unless tied to the pre-registered
+CIFAR-100 T=4 validation.
 
 ## Key Evidence
 
@@ -112,12 +115,35 @@ across calibration subsets and full validation.
   - This establishes the positive E1 claim across datasets, time steps,
     calibration subsets, stages, and independent training checkpoints.
 - CIFAR-100 E1 calibration-size sweep:
-  - Address reductions at 8/32/128/512 batches are 3.8001% / 4.2756% /
-    4.4243% / 4.4674%; token/channel is 3.3315% / 3.4084% / 3.4253% /
-    3.4274%.
-  - Address leads at every size. Eight batches recover about 85% of the
-    512-batch address gain, with 99.7952% validation address hit rate.
+  - Across calibration seeds 42/43/44, address leads token/channel at every
+    tested size. The mean address reductions at 8/32/128/512 batches are
+    about 3.7840% / 4.2671% / 4.4247% / 4.4752%, versus token/channel means
+    3.3258% / 3.4027% / 3.4246% / 3.4386%.
+  - Eight batches recover most of the 512-batch address gain with high
+    validation hit rate.
   - This supports calibration data efficiency, not hardware latency or energy.
+- E5 hierarchical backoff on CIFAR-100 T=1:
+  - From 8 batches onward, support-aware hierarchical backoff beats
+    token/channel for every seed and preserves full-address reconstruction
+    gain.
+  - Fallback behavior is explicit and measurable, so table misses are no longer
+    hidden.
+  - Effective supported entries remain about 40.4% to 51.1% of the compact
+    full-address space, so E5 is a `PARTIAL` compactness result.
+- E7 subspace-decoupled compact LUT on CIFAR-100 T=1:
+  - `TC+Q/G` beats token/channel and shuffled-subspace controls for every
+    calibration size/seed while using 8.83% of supported full-address entries.
+  - `TC+QK` also beats token/channel and shuffled-subspace controls for every
+    size/seed while using about 20.2% to 20.6% entries.
+  - Mean relative MSE reductions for token/channel, `TC+Q/G`, and `TC+QK` at
+    8/32/128/512 calibration batches are:
+    - 8: 3.3258% / 3.7502% / 4.0088%.
+    - 32: 3.4027% / 3.8463% / 4.1357%.
+    - 128: 3.4246% / 3.8744% / 4.1712%.
+    - 512: 3.4386% / 3.8884% / 4.1866%.
+  - This is the main response to the reviewer's dimensional-explosion concern:
+    do not store a monolithic full Q/K table; compose smaller aligned subtables
+    and audit them against shuffled controls.
 - CIFAR-100 T=1 stage1 alpha 0.025:
   - address/global/token-channel/shuffled mean Acc@1 deltas are
     +0.1633 / +0.3233 / -0.1333 / -0.0933.
@@ -177,22 +203,31 @@ before falling back to GPU 2. Small diagnostics default to GPU 2.
 
 ## Next Useful Experiments
 
-1. Convert the E0/E1 evidence into publication figures: coverage/conditional
-   variance, control MSE reduction, and calibration-size curves.
-2. Reframe the paper around address structure, occupancy, and response
-   reconstruction; treat small Acc@1 changes as secondary negative evidence.
+1. Finish CIFAR-100 T=4 training, then run the pre-registered T=4 E0/E1/E3
+   posttrain LUT workflow on the best checkpoint with global, token/channel,
+   and shuffled controls adjacent to address LUT.
+2. Convert the E0/E1/E5/E7 evidence into publication figures:
+   coverage/conditional variance, control MSE reduction, calibration-size
+   curves, fallback distribution, and subspace entry-budget curves.
+3. Keep the main paper around address structure, occupancy, response
+   reconstruction, and compact subspace lookup; treat small Acc@1 changes as
+   secondary or appendix evidence unless the T=4 gate passes.
 
 ## Claim Boundary
 
 Allowed now: E0/E1 diagnostics support Q/K binary addresses as structured,
-well-occupied LUT indices on CIFAR-10 and CIFAR-100; T=1 E3 supports a
-low-disturbance residual-adapter route whose fidelity benefit is stage- and
-checkpoint-dependent. Seed-43
-stage1 shows address-specific Acc@1 separation, while seed-44 stage1 does not;
-CIFAR-100 shows address alignment is meaningful relative to shuffled and
-token/channel controls, but global smoothing is stronger in Acc@1 and loss.
-The centered residual's aligned-versus-shuffled classification ordering is not
-stable across scales, so the current adapter does not support an accuracy claim.
+well-occupied LUT indices on CIFAR-10 and CIFAR-100. E1 supports
+address-specific reconstruction beyond token/channel and shuffled controls. E5
+supports transparent miss handling through hierarchical backoff but is only
+partially compact. E7 supports compact subspace-decoupled reconstruction under
+an entry-count budget. T=1 E3 supports only a low-disturbance residual-adapter
+probe whose fidelity benefit is stage- and checkpoint-dependent. CIFAR-100
+shows address alignment is meaningful relative to shuffled and token/channel
+controls, but global smoothing is stronger in several Acc@1/loss settings. The
+centered residual's aligned-versus-shuffled classification ordering is not
+stable across scales, so the current adapter does not support an accuracy
+claim.
 
-Not allowed yet: energy gain, latency gain, ImageNet gain, production LUT
-wrapper, or full pure-spike Transformer claims.
+Not allowed yet: stable accuracy gain, energy gain, latency gain, measured SRAM
+or memory compression from the entry-count proxy alone, ImageNet gain,
+production LUT wrapper, or full pure-spike Transformer claims.
