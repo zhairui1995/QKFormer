@@ -641,8 +641,10 @@ def _append_per_sample_rows(
     labels = targets.detach().long()
     base_ce = F.cross_entropy(base_logits, labels, reduction="none")
     repl_ce = F.cross_entropy(repl_logits, labels, reduction="none")
-    base_pred = base_logits.argmax(dim=1)
-    repl_pred = repl_logits.argmax(dim=1)
+    # Match the project's aggregate accuracy helper exactly, including its
+    # deterministic topk tie behavior under AMP evaluation.
+    base_pred = base_logits.topk(1, dim=1, largest=True, sorted=True).indices.squeeze(1)
+    repl_pred = repl_logits.topk(1, dim=1, largest=True, sorted=True).indices.squeeze(1)
     base_margin = _true_class_margin(base_logits, labels)
     repl_margin = _true_class_margin(repl_logits, labels)
     base_conf = F.softmax(base_logits, dim=1).max(dim=1).values

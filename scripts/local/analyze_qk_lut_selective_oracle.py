@@ -151,6 +151,10 @@ def _summarize_rows(rows: List[Dict[str, Any]], margin_eps: float) -> Dict[str, 
     replacement_acc = 100.0 * sum(replacement_correct) / n
     oracle_ce_acc = selected_acc(ce_select)
     oracle_margin_acc = selected_acc(margin_select)
+    accuracy_oracle = [
+        bool(not row["baseline_correct"] and row["replacement_correct"]) for row in rows
+    ]
+    oracle_accuracy_acc = selected_acc(accuracy_oracle)
     return {
         "n": n,
         "baseline_acc": baseline_acc,
@@ -164,6 +168,9 @@ def _summarize_rows(rows: List[Dict[str, Any]], margin_eps: float) -> Dict[str, 
         "oracle_ce_loss": selected_loss(ce_select),
         "oracle_ce_loss_delta": selected_loss(ce_select) - sum(baseline_ce) / n,
         "oracle_ce_selected_pct": 100.0 * sum(ce_select) / n,
+        "oracle_accuracy_acc": oracle_accuracy_acc,
+        "oracle_accuracy_gain": oracle_accuracy_acc - baseline_acc,
+        "oracle_accuracy_selected_pct": 100.0 * sum(accuracy_oracle) / n,
         "oracle_margin_acc": oracle_margin_acc,
         "oracle_margin_gain": oracle_margin_acc - baseline_acc,
         "oracle_margin_loss": selected_loss(margin_select),
@@ -236,6 +243,7 @@ def _collect_runs(
         runs.append(
             {
                 "result_dir": str(metrics_path.parent),
+                "result_mtime": metrics_path.parent.stat().st_mtime,
                 "per_sample_path": str(path),
                 "mode": mode,
                 "seed": metrics.get("experiment", {}).get("seed"),
@@ -249,7 +257,12 @@ def _collect_runs(
                 **summary,
             }
         )
-    return sorted(runs, key=lambda row: (row["mode"], str(row["seed"]), row["result_dir"]))
+    latest: Dict[Tuple[str, str], Dict[str, Any]] = {}
+    for row in runs:
+        key = (str(row["mode"]), str(row["seed"]))
+        if key not in latest or float(row["result_mtime"]) > float(latest[key]["result_mtime"]):
+            latest[key] = row
+    return sorted(latest.values(), key=lambda row: (row["mode"], str(row["seed"])))
 
 
 def _summarize_modes(runs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -265,6 +278,9 @@ def _summarize_modes(runs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         "oracle_ce_gain",
         "oracle_ce_loss_delta",
         "oracle_ce_selected_pct",
+        "oracle_accuracy_acc",
+        "oracle_accuracy_gain",
+        "oracle_accuracy_selected_pct",
         "oracle_margin_acc",
         "oracle_margin_gain",
         "harmful_rate_pct",
@@ -305,11 +321,16 @@ def _decision(summary: List[Dict[str, Any]]) -> Tuple[str, str]:
     by_mode = {row["mode"]: row for row in summary}
     aligned = by_mode.get("global_plus_address_lut") or by_mode.get("address_lut")
     shuffled = by_mode.get("global_plus_shuffled_address_lut") or by_mode.get("shuffled_address_lut")
+    global_control = by_mode.get("global_mean")
     if not aligned:
         return "MISSING", "No aligned address-LUT per-sample run was found."
-    aligned_gain = float(aligned.get("mean_oracle_ce_gain") or 0.0)
-    shuffled_gain = float(shuffled.get("mean_oracle_ce_gain") or 0.0) if shuffled else None
-    gap = aligned_gain - shuffled_gain if shuffled_gain is not None else None
+    aligned_gain = float(aligned.get("mean_oracle_accuracy_gain") or 0.0)
+    shuffled_gain = float(shuffled.get("mean_oracle_accuracy_gain") or 0.0) if shuffled else None
+    global_gain = (
+        float(global_control.get("mean_oracle_accuracy_gain") or 0.0) if global_control else None
+    )
+    control_gains = [gain for gain in (shuffled_gain, global_gain) if gain is not None]
+    gap = aligned_gain - max(control_gains) if control_gains else None
     if aligned_gain >= 0.30 and (gap is None or gap >= 0.10):
         return (
             "ORACLE-GO",
@@ -322,7 +343,7 @@ def _decision(summary: List[Dict[str, Any]]) -> Tuple[str, str]:
         )
     return (
         "NO-GO",
-        "The oracle upper bound is too small to justify more accuracy-oriented adapter training.",
+        "The oracle upper bound is not address-specific: aligned lookup does not separate sufficiently from shuffled and global controls.",
     )
 
 
@@ -337,17 +358,17 @@ def _markdown(report: Dict[str, Any]) -> str:
         "This is an upper-bound diagnostic, not a deployable method result.",
         "",
         "## Mode Summary",
-        "| Mode | n | Replacement ΔAcc@1 | Oracle CE gain | Oracle selected | Harmful | Rescue |",
+        "| Mode | n | Replacement ΔAcc@1 | Accuracy-oracle gain | CE-oracle gain | Harmful | Rescue |",
         "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for row in report.get("mode_summary", []):
         lines.append(
-            "| {mode} | {n} | {rd} | {og} | {sel} | {harm} | {rescue} |".format(
+                "| {mode} | {n} | {rd} | {aog} | {cog} | {harm} | {rescue} |".format(
                 mode=row["mode"],
                 n=row["n"],
                 rd="-" if row.get("mean_replacement_delta_acc") is None else f"{row['mean_replacement_delta_acc']:.4f}",
-                og="-" if row.get("mean_oracle_ce_gain") is None else f"{row['mean_oracle_ce_gain']:.4f}",
-                sel="-" if row.get("mean_oracle_ce_selected_pct") is None else f"{row['mean_oracle_ce_selected_pct']:.2f}%",
+                aog="-" if row.get("mean_oracle_accuracy_gain") is None else f"{row['mean_oracle_accuracy_gain']:.4f}",
+                cog="-" if row.get("mean_oracle_ce_gain") is None else f"{row['mean_oracle_ce_gain']:.4f}",
                 harm="-" if row.get("mean_harmful_rate_pct") is None else f"{row['mean_harmful_rate_pct']:.2f}%",
                 rescue="-" if row.get("mean_rescue_rate_pct") is None else f"{row['mean_rescue_rate_pct']:.2f}%",
             )
