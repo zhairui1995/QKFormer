@@ -35,7 +35,7 @@ prototype values among observed addresses. This stage tests whether the
 fine-grained Q/K address is predictive beyond generic smoothing, positional
 gating, and table capacity.
 
-\subsection{Hierarchical Backoff QK-LUT}
+\subsection{Hierarchical and Subspace-Decoupled QK-LUT}
 \label{sec:e5_backoff}
 
 A monolithic LUT over raw Q/K vectors would be vulnerable to dimensionality
@@ -66,6 +66,28 @@ held-out MSE, fallback fractions, active entries, and effective table size.
 This accounting is deliberately conservative: if the hierarchy needs many
 supported entries in the compact address space, we do not count it as solving
 LUT compression even if reconstruction improves.
+
+The backoff hierarchy answers whether misses can be handled transparently, but
+it still stores multiple increasingly specific address tables. To test a more
+compact alternative, we also factor the response estimator into additive
+subspace residual tables. Let $\mu$ be the global response mean and let
+$\pi_{\mathrm{tc}}(a)$, $\pi_{\mathrm{q}}(a)$, and $\pi_{\mathrm{k}}(a)$ denote
+the token/channel, Q-or-gate, and K-specific sub-address projections. The
+subspace LUT predicts
+\begin{equation}
+  \hat{y}(a)=
+  \mu
+  + \frac{1}{|\mathcal{S}|}
+  \sum_{s\in\mathcal{S}}
+  R_s\!\left[\pi_s(a)\right],
+\end{equation}
+where each $R_s$ stores a zero-mean residual prototype compiled from calibration
+responses and omitted when its support count is below threshold. We evaluate
+two settings: $\mathcal{S}=\{\mathrm{tc},\mathrm{q}\}$ and
+$\mathcal{S}=\{\mathrm{tc},\mathrm{q},\mathrm{k}\}$. This changes the memory
+growth from a product over all address fields to a sum over low-dimensional
+sub-address tables, while a shuffled-subspace control preserves the same
+residual values but breaks their address alignment.
 
 \begin{figure*}[t]
   \centering

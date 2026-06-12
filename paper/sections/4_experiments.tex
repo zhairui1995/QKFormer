@@ -213,18 +213,43 @@ space; lower is better.}
 \label{tab:e5_backoff}
 \end{table}
 
-The gate outcome is therefore \emph{partial}. The method passes the
-reconstruction and interpretability checks: 21/21 runs completed, the hierarchy
-beats token/channel for all calibration sizes $\geq 8$, shuffled lookup is
-always worse, fallback distributions are valid, and the hierarchy retains the
-full-address gain at practical calibration sizes. It fails two stronger method
-claims. First, at 1--4 batches the hierarchy does not consistently match or
-beat the full-address oracle, because the observed full-address buckets already
-cover most validation samples. Second, effective supported entries are
-$40.4\%$--$51.1\%$ of the compact full-address space for sizes $\geq 8$, above
-our $25\%$ compression gate. Thus hierarchical backoff is useful as a scalable
-and auditable reconstruction mechanism, but we do not claim that it solves
-compact-table compression.
+The hierarchical gate outcome is therefore \emph{partial}. The method passes
+the reconstruction and interpretability checks: 21/21 runs completed, the
+hierarchy beats token/channel for all calibration sizes $\geq 8$, shuffled
+lookup is always worse, fallback distributions are valid, and the hierarchy
+retains the full-address gain at practical calibration sizes. It fails the
+compact-table gate because effective supported entries are $40.4\%$--$51.1\%$
+of the compact full-address space for sizes $\geq 8$.
+
+Table~\ref{tab:e7_subspace} then evaluates the subspace-decoupled residual LUT.
+The compact token/channel+Q/gate estimator beats token/channel lookup for every
+calibration size and seed while using only $8.83\%$ supported entries. Adding
+the K subtable remains below the $25\%$ entry budget and retains most of the
+full-address gain. Both subspace variants beat their shuffled-subspace controls
+in every run, showing that the gain depends on aligned Q/K sub-address
+semantics rather than merely on residual table values.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{rccccc}
+\toprule
+Calib. & Token/ch. & TC+Q & TC+QK & TC+Q entries & TC+QK entries \\
+\midrule
+8 & 3.3258 & 3.7502 & 4.0088 & 0.0883 & 0.2020 \\
+32 & 3.4027 & 3.8463 & 4.1357 & 0.0883 & 0.2047 \\
+128 & 3.4246 & 3.8744 & 4.1712 & 0.0883 & 0.2054 \\
+512 & 3.4386 & 3.8884 & 4.1866 & 0.0883 & 0.2057 \\
+\bottomrule
+\end{tabular}
+}
+\caption{E7 subspace-decoupled reconstruction on CIFAR-100 $T=1$. Values are
+mean relative MSE reductions in percent over calibration seeds 42--44. Entry
+fractions are supported subspace entries divided by the compact full-address
+space. Both TC+Q and TC+QK pass all shuffled-subspace controls.}
+\label{tab:e7_subspace}
+\end{table}
 
 \subsection{Forward-Only Replacement Diagnostics}
 \label{sec:e2_results}

@@ -13,6 +13,9 @@ Current paper-side verdict:
   controls across CIFAR-10 checkpoints and CIFAR-100 calibration seeds.
 - `E5 PARTIAL`: hierarchical backoff QK-LUT passes reconstruction and fallback
   interpretability gates but fails the compact-table compression gate.
+- `E7 PASS`: subspace-decoupled residual QK-LUT beats token/channel and
+  shuffled-subspace controls across CIFAR-100 calibration sizes/seeds while
+  staying below the 25% entry-budget gate.
 - `E4 FAIL/PENDING`: factorized LUT modes did not pass the CIFAR-100 pilot and
   have not promoted the paper to a method track.
 
@@ -21,11 +24,12 @@ Current claim boundary:
 - Supported: address-specific held-out response reconstruction, calibration
   data-efficiency evidence on CIFAR-100, explicit fallback accounting, and
   negative controls showing correct address alignment matters.
+- Supported: compact subspace-decoupled reconstruction under a 25% entry-budget
+  gate.
 - Partially supported: hierarchical backoff as a scalable audit mechanism and
   low-disturbance residual adapter utility as a stress test.
-- Not supported: stable accuracy improvement, compact-table compression,
-  energy, latency, ImageNet, measured hardware acceleration, or a full
-  production LUT wrapper.
+- Not supported: stable accuracy improvement, energy, latency, ImageNet,
+  measured hardware acceleration, or a full production LUT wrapper.
 
 See `PAPER_STATUS_AND_EXPERIMENT_PLAN.md` for the latest experiment digest and
 paper-directed next experiment priorities.

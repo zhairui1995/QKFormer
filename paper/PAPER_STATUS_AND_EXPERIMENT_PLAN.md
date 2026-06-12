@@ -25,6 +25,7 @@ This decision incorporates the previous Codex round:
   - `docs/QK_LUTFORMER_E1_GATE_REPORT.md`: `PASS`.
   - `docs/QK_LUTFORMER_E4_GATE_REPORT.md`: `FAIL/PENDING`.
   - `results/qk_lutformer_e5_hierarchical_backoff_report.md`: `PARTIAL`.
+  - `results/qk_lutformer_e7_subspace_report.md`: `PASS`.
 
 ## Latest Experiment Digest
 
@@ -116,6 +117,31 @@ Paper meaning:
 - `Do Not Claim`: it does not yet solve compact-table compression, because
   effective supported entries remain above the 25% gate.
 
+### E7 / Subspace-Decoupled Compact LUT
+
+E7 is the current compact-table positive result. It keeps the reconstruction
+claim but replaces monolithic full-address storage with additive sub-address
+residual subtables.
+
+| Calibration batches | Token/channel | TC+Q/G | TC+Q/K | TC+Q/G entries | TC+Q/K entries |
+|---:|---:|---:|---:|---:|---:|
+| 8 | 3.3258% | 3.7502% | 4.0088% | 0.0883 | 0.2020 |
+| 32 | 3.4027% | 3.8463% | 4.1357% | 0.0883 | 0.2047 |
+| 128 | 3.4246% | 3.8744% | 4.1712% | 0.0883 | 0.2054 |
+| 512 | 3.4386% | 3.8884% | 4.1866% | 0.0883 | 0.2057 |
+
+Paper meaning:
+
+- `Supported`: token/channel+Q/gate subspace residual LUT beats token/channel
+  for every CIFAR-100 calibration size and seed while using only 8.83% of
+  supported full-address entries.
+- `Supported`: token/channel+Q/K subspace LUT remains below the 25% entry
+  budget and retains most full-address reconstruction gain.
+- `Supported`: shuffled-subspace controls fail in every run, so the result is
+  not just residual table capacity.
+- `Do Not Claim`: this is an entry-budget and reconstruction result, not a
+  measured SRAM, latency, energy, or classification-improvement result.
+
 ## Current Manuscript Implications
 
 The current `main.tex` title is:
@@ -124,7 +150,7 @@ The current `main.tex` title is:
 
 This is acceptable for the audit track: it keeps the QK-LUTFormer brand while
 avoiding a production-wrapper or stable-accuracy promise. The abstract and
-experiment section include E1, E5, and the downstream utility limits.
+experiment section now include E1, E5, E7, and the downstream utility limits.
 
 ## Next Experiments For The Server Agent
 
@@ -184,8 +210,12 @@ Paper use:
 
 ### Priority 3: Fixed-Budget / Compressed Hierarchy
 
-Goal: test whether a fixed-entry-budget hierarchy can satisfy the E5
-compression gate without losing address reconstruction. This is the direct
+Status: superseded as the main compression story by E7. E6 fixed-budget
+hierarchical pruning failed the compact gate, while E7 subspace decomposition
+passed it. Keep E6 as appendix/negative evidence if space permits.
+
+Historical goal: test whether a fixed-entry-budget hierarchy can satisfy the E5
+compression gate without losing address reconstruction. This was the direct
 reply to the reviewer concern that full Q/K lookup tables can explode in size.
 
 Current implementation:
@@ -215,9 +245,8 @@ Gate:
 
 Paper use:
 
-- If pass: promote compressed hierarchy to the main method claim.
-- If partial/fail: keep E5 as an audit result and move compression to appendix
-  or future work.
+- Keep E6 as a limits result: pruning the full-address hierarchy is not enough.
+- Promote E7 subspace decomposition as the compact reconstruction result.
 
 ### Priority 4: CIFAR-100 T=4 Accuracy-Oriented Validation
 
@@ -269,12 +298,15 @@ Allowed:
   calibration seeds.
 - Low calibration budgets can preserve much of the C100 reconstruction effect,
 - and E5 shows support-aware fallback can make misses explicit.
+- E7 supports compact subspace-decoupled reconstruction under an entry-count
+  budget.
 
 Not allowed:
 
 - Stable accuracy improvement.
-- Compact-table compression before E6 passes.
+- Measured memory, SRAM, energy, or latency compression from the entry-budget
+  proxy alone.
 - ImageNet generalization.
-- Energy, latency, or hardware acceleration.
+- Hardware acceleration.
 - Full LUT replacement of QKFormer.
 - Method superiority of factorized LUT before E4 gate passes.

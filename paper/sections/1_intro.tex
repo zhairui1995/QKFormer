@@ -20,9 +20,10 @@ LUT hardware replacement for the full QKFormer block. Instead, we build a
 diagnostic and adapter pipeline that asks whether Q/K binary addresses explain
 attention-module responses better than non-address controls. To address the
 obvious dimensionality concern of direct full-vector lookup, we additionally
-evaluate a support-aware hierarchical backoff LUT that searches from fine
-Q/K-address prototypes to coarser token/channel prototypes before falling back
-to the global mean. For downstream utility, we additionally use frozen-backbone
+evaluate two scalable lookup mechanisms: a support-aware hierarchy that makes
+misses explicit, and a subspace-decoupled residual LUT that composes smaller
+token/channel, Q/gate, and K subtables instead of materializing a monolithic
+full-address table. For downstream utility, we additionally use frozen-backbone
 residual LUT adapter probes with classification, baseline-logit distillation,
 and local response constraints; these probes test whether the reconstruction
 signal transfers to accuracy, rather than defining the main claim.
@@ -54,9 +55,9 @@ Our contributions are:
   \item We formulate QKFormer Q/K spike vectors as a discrete LUT address
   space and define feasibility diagnostics for coverage, singleton rate, and
   conditional response variance.
-  \item We introduce a support-aware hierarchical backoff QK-LUT audit that
-  makes lookup misses explicit through full-address, partial-address,
-  token/channel, and global fallback levels.
+  \item We introduce support-aware and subspace-decoupled QK-LUT audits that
+  make lookup misses explicit while testing whether compact sub-address
+  subtables can preserve full-address reconstruction.
   \item We use frozen-backbone residual LUT adapter probes to test whether
   calibrated Q/K-address prototypes transfer to downstream utility under
   strict global, token/channel, and shuffled-address controls.
@@ -66,6 +67,6 @@ Our contributions are:
   controls.
   \item We explicitly identify claim boundaries: current results support a
   structured reconstruction and low-disturbance adapter analysis, not
-  checkpoint-stable accuracy, compact-table compression, energy, latency,
-  ImageNet, or full-wrapper claims.
+  checkpoint-stable accuracy, energy, latency, ImageNet, or full-wrapper
+  claims.
 \end{itemize}

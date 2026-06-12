@@ -12,8 +12,11 @@ from 8 to 512 calibration batches. The hierarchical backoff audit further
 shows how this addressability can be made explicit under support thresholds:
 fallback fractions are measurable, shuffled alignment remains negative, and the
 hierarchy retains full-address reconstruction gains at practical calibration
-sizes. However, the same result also prevents overclaiming, because active
-compact-table entries remain above our compression gate.
+sizes. The subspace-decoupled residual LUT then addresses the compactness
+failure of pure backoff: token/channel+Q/gate subtables improve over
+token/channel lookup with only $8.83\%$ supported entries, and adding K remains
+below the $25\%$ entry-budget gate while preserving most full-address
+reconstruction gain.
 
 The negative evidence is equally important: the classification effect changes
 across checkpoints and stages, and global smoothing often matches or exceeds
@@ -21,7 +24,7 @@ the address LUT. A centered decomposition separates aligned from shuffled
 address residuals but still does not surpass global smoothing. A residual-scale
 sweep further shows that the aligned-versus-shuffled classification ordering is
 not stable. The supported result is therefore an address-specific,
-interpretable reconstruction story, not a checkpoint-stable accuracy
-improvement or full hardware replacement story. Future work should test
-budgeted table pruning, larger datasets, and real hardware or simulator
-measurements before claiming LUT-oriented latency or energy benefits.
+interpretable and compact reconstruction story, not a checkpoint-stable
+accuracy improvement or full hardware replacement story. Future work should
+test larger datasets and real hardware or simulator measurements before
+claiming LUT-oriented latency or energy benefits.

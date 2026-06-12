@@ -12,16 +12,16 @@ alignment degrades MSE by $17.83\%$ and $15.82\%$, respectively. Across three
 independently trained single-step CIFAR-10 checkpoints, correct-address
 reductions range from $3.76\%$ to $5.94\%$ and exceed token/channel controls in
 every case. To address the dimensionality objection against monolithic Q/K
-tables, we introduce a hierarchical backoff LUT that searches full-address,
-partial-address, token/channel, and global prototypes with explicit support
-thresholds. On CIFAR-100, the hierarchy beats token/channel lookup for every
-calibration seed from 8 to 512 batches and retains the full-address
-reconstruction gain, but its active compact-table footprint remains
-$40.4\%$--$51.1\%$, so we do not claim solved LUT compression. Frozen residual
-adapter probes show that address alignment can beat token/channel and shuffled
-controls, but global smoothing remains a strong classification baseline and
-accuracy shifts are checkpoint- and stage-dependent. Thus QK-LUTFormer
-establishes reproducible, interpretable Q/K lookup-addressability, while
-explicitly ruling out unsupported claims about stable accuracy gains, energy,
-latency, or production full-LUT replacement.
+tables, we first audit support-aware hierarchical backoff and then introduce a
+subspace-decoupled residual LUT that composes smaller token/channel, Q/gate, and
+K subtables. On CIFAR-100, the compact token/channel+Q/gate subspace LUT beats
+token/channel lookup for all calibration seeds from 8 to 512 batches using only
+$8.83\%$ of full-address supported entries; adding the K subtable uses about
+$20.2\%$ entries and retains $93.6\%$--$105.9\%$ of the full-address
+reconstruction gain. Frozen residual adapter probes show that address alignment
+can beat token/channel and shuffled controls, but global smoothing remains a
+strong classification baseline and accuracy shifts are checkpoint- and
+stage-dependent. Thus QK-LUTFormer establishes reproducible, interpretable Q/K
+lookup-addressability while explicitly ruling out unsupported claims about
+stable accuracy gains, energy, latency, or production full-LUT replacement.
 \end{abstract}
