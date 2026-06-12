@@ -13,7 +13,15 @@ if ! PYTHON_BIN="$(qk_lut_select_python)"; then
 fi
 
 TS="$(date +%Y%m%d_%H%M%S)"
-RESULT_DIR="$ROOT/results/qkformer_lut_e3_trainable_lut_${TS}"
+RESULT_SUFFIX="${QKFORMER_LUT_E3_RESULT_SUFFIX:-}"
+if [[ -z "$RESULT_SUFFIX" ]]; then
+  MODE_SLUG="${QKFORMER_LUT_E3_MODE:-mode}"
+  SEED_SLUG="${QKFORMER_LUT_E3_SEED:-seed}"
+  GPU_SLUG="${QKFORMER_LUT_GPU:-gpu}"
+  RESULT_SUFFIX="_${MODE_SLUG}_s${SEED_SLUG}_g${GPU_SLUG}_p$$"
+  RESULT_SUFFIX="${RESULT_SUFFIX//[^A-Za-z0-9_.-]/_}"
+fi
+RESULT_DIR="$ROOT/results/qkformer_lut_e3_trainable_lut_${TS}${RESULT_SUFFIX}"
 LOG_FILE="$RESULT_DIR/train_log.txt"
 CONFIG_FILE="${QKFORMER_LUT_E3_CONFIG:-configs/qkformer_lut_e3_trainable_lut.yaml}"
 mkdir -p "$RESULT_DIR"
