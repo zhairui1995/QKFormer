@@ -192,7 +192,15 @@ def _summarize_rows(rows: List[Dict[str, Any]], margin_eps: float) -> Dict[str, 
     }
 
 
-def _collect_runs(results_root: Path, train_dir: Optional[Path], margin_eps: float) -> List[Dict[str, Any]]:
+def _collect_runs(
+    results_root: Path,
+    train_dir: Optional[Path],
+    margin_eps: float,
+    alpha: Optional[float],
+    epochs: Optional[int],
+    calibration_batches: Optional[int],
+    train_batches: Optional[int],
+) -> List[Dict[str, Any]]:
     runs = []
     for metrics_path in results_root.glob("qkformer_lut_e3_trainable_lut_*/metrics.json"):
         metrics = _load_json(metrics_path)
@@ -205,8 +213,23 @@ def _collect_runs(results_root: Path, train_dir: Optional[Path], margin_eps: flo
         if int(protocol.get("version", 0)) < 4:
             continue
         adapter = metrics.get("adapter_summary", {})
+        adapter_config = metrics.get("adapter_config", {})
+        train_config = metrics.get("train_config", {})
+        data = metrics.get("data", {})
         mode = str(adapter.get("mode") or metrics.get("adapter_config", {}).get("mode") or "")
         if not mode:
+            continue
+        run_alpha = adapter_config.get("alpha_init")
+        run_epochs = train_config.get("epochs")
+        run_calib_batches = data.get("calibration", {}).get("num_batches")
+        run_train_batches = data.get("train", {}).get("num_batches")
+        if alpha is not None and (run_alpha is None or abs(float(run_alpha) - float(alpha)) > 1e-12):
+            continue
+        if epochs is not None and int(run_epochs) != int(epochs):
+            continue
+        if calibration_batches is not None and int(run_calib_batches) != int(calibration_batches):
+            continue
+        if train_batches is not None and int(run_train_batches) != int(train_batches):
             continue
         rows = _read_rows(path)
         summary = _summarize_rows(rows, margin_eps)
@@ -217,10 +240,10 @@ def _collect_runs(results_root: Path, train_dir: Optional[Path], margin_eps: flo
                 "mode": mode,
                 "seed": metrics.get("experiment", {}).get("seed"),
                 "target_modules": ",".join(adapter.get("target_modules", []) or []),
-                "alpha": metrics.get("adapter_config", {}).get("alpha_init"),
-                "epochs": metrics.get("train_config", {}).get("epochs"),
-                "calibration_batches": metrics.get("data", {}).get("calibration", {}).get("num_batches"),
-                "train_batches": metrics.get("data", {}).get("train", {}).get("num_batches"),
+                "alpha": run_alpha,
+                "epochs": run_epochs,
+                "calibration_batches": run_calib_batches,
+                "train_batches": run_train_batches,
                 "eval_loader": protocol.get("evaluation_loader"),
                 "eval_amp": protocol.get("evaluation_amp"),
                 **summary,
@@ -350,10 +373,22 @@ def main() -> None:
         default=Path("results/qk_lutformer_cifar100_t4_selective_oracle"),
     )
     parser.add_argument("--margin-eps", type=float, default=0.0)
+    parser.add_argument("--alpha", type=float, default=0.025)
+    parser.add_argument("--epochs", type=int, default=2)
+    parser.add_argument("--calibration-batches", type=int, default=128)
+    parser.add_argument("--train-batches", type=int, default=128)
     args = parser.parse_args()
 
     train_dir = _best_train_dir(args.results_root)
-    runs = _collect_runs(args.results_root, train_dir, args.margin_eps)
+    runs = _collect_runs(
+        args.results_root,
+        train_dir,
+        args.margin_eps,
+        args.alpha,
+        args.epochs,
+        args.calibration_batches,
+        args.train_batches,
+    )
     summary = _summarize_modes(runs)
     decision, interpretation = _decision(summary)
     report = {
@@ -361,6 +396,12 @@ def main() -> None:
         "interpretation": interpretation,
         "train_dir": str(train_dir) if train_dir else None,
         "margin_eps": args.margin_eps,
+        "filters": {
+            "alpha": args.alpha,
+            "epochs": args.epochs,
+            "calibration_batches": args.calibration_batches,
+            "train_batches": args.train_batches,
+        },
         "runs": runs,
         "mode_summary": summary,
     }
