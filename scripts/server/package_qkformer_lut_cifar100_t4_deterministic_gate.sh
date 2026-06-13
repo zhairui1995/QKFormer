@@ -5,20 +5,22 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 OUT="${1:-qk_lutformer_cifar100_t4_deterministic_gate_artifacts.tar.gz}"
+REPORT_PREFIX="${QKFORMER_LUT_GATE_OUTPUT_PREFIX:-results/qk_lutformer_cifar100_t4_deterministic_gate}"
 
-mapfile -t FILES < <(python3 - "$ROOT" <<'PY'
+mapfile -t FILES < <(python3 - "$ROOT" "$REPORT_PREFIX" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
-for name in (
-    "qk_lutformer_cifar100_t4_deterministic_gate.json",
-    "qk_lutformer_cifar100_t4_deterministic_gate.md",
-    "qk_lutformer_cifar100_t4_deterministic_gate_runs.csv",
-    "qk_lutformer_cifar100_t4_deterministic_gate_summary.csv",
+prefix = Path(sys.argv[2])
+for path in (
+    prefix.with_suffix(".json"),
+    prefix.with_suffix(".md"),
+    prefix.with_name(prefix.name + "_runs.csv"),
+    prefix.with_name(prefix.name + "_summary.csv"),
 ):
-    path = root / "results" / name
+    path = root / path
     if path.exists():
         print(path.relative_to(root))
 

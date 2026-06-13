@@ -14,6 +14,7 @@ if ! PYTHON_BIN="$(qk_lut_select_python)"; then
   exit 1
 fi
 
+if [[ -z "${QKFORMER_LUT_CKPT:-}" ]]; then
 QKFORMER_LUT_CKPT="$("$PYTHON_BIN" - "$ROOT" <<'PY'
 import json
 import sys
@@ -36,6 +37,7 @@ if not candidates:
 print(max(candidates)[1])
 PY
 )"
+fi
 
 export QKFORMER_LUT_CKPT
 export QKFORMER_LUT_TIME_STEP=4
@@ -46,7 +48,7 @@ export QKFORMER_LUT_E3_LEARN_ALPHA=0
 export QKFORMER_LUT_E3_SWEEP_TARGETS=stage1.0.tssa
 export QKFORMER_LUT_E3_MODE_SWEEP="${QKFORMER_LUT_E3_MODE_SWEEP:-global_plus_address_lut,global_plus_shuffled_address_lut,global_mean}"
 export QKFORMER_LUT_E3_SEED_SWEEP="${QKFORMER_LUT_E3_SEED_SWEEP:-42,43,44}"
-export QKFORMER_LUT_E3_EPOCHS=2
+export QKFORMER_LUT_E3_EPOCHS="${QKFORMER_LUT_E3_EPOCHS:-2}"
 export QKFORMER_LUT_E3_CALIB_BATCHES=128
 export QKFORMER_LUT_E3_TRAIN_BATCHES=128
 export QKFORMER_LUT_E3_GATE_BATCHES=128
@@ -64,13 +66,20 @@ echo "[qk-lut-c100-t4-gate] gpu=$QKFORMER_LUT_GPU"
 echo "[qk-lut-c100-t4-gate] modes=$QKFORMER_LUT_E3_MODE_SWEEP"
 echo "[qk-lut-c100-t4-gate] seeds=$QKFORMER_LUT_E3_SEED_SWEEP"
 echo "[qk-lut-c100-t4-gate] gate_seed=$QKFORMER_LUT_E3_GATE_SEED"
+echo "[qk-lut-c100-t4-gate] epochs=$QKFORMER_LUT_E3_EPOCHS"
 echo "[qk-lut-c100-t4-gate] partition=calib[0,16000),train[16000,32000),gate[32000,50000)"
 
 bash scripts/server/run_qkformer_lut_e3_conservative_sweep.sh --gpu "$QKFORMER_LUT_GPU"
 
 if [[ "${QKFORMER_LUT_GATE_ANALYZE_AFTER:-1}" == "1" ]]; then
-  "$PYTHON_BIN" scripts/local/analyze_qk_lut_deterministic_gate.py
-  bash scripts/server/package_qkformer_lut_cifar100_t4_deterministic_gate.sh
+  OUTPUT_PREFIX="${QKFORMER_LUT_GATE_OUTPUT_PREFIX:-results/qk_lutformer_cifar100_t4_deterministic_gate}"
+  "$PYTHON_BIN" scripts/local/analyze_qk_lut_deterministic_gate.py \
+    --epochs "$QKFORMER_LUT_E3_EPOCHS" \
+    --output-prefix "$OUTPUT_PREFIX"
+  if [[ "${QKFORMER_LUT_GATE_PACKAGE_AFTER:-1}" == "1" ]]; then
+    bash scripts/server/package_qkformer_lut_cifar100_t4_deterministic_gate.sh \
+      "${QKFORMER_LUT_GATE_ARTIFACT:-qk_lutformer_cifar100_t4_deterministic_gate_artifacts.tar.gz}"
+  fi
 fi
 
 echo "[qk-lut-c100-t4-gate] done=$(date -Is)"
