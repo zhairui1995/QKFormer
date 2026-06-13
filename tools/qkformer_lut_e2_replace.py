@@ -98,8 +98,10 @@ def make_cifar10_loader(
     device: torch.device,
     shuffle: bool = False,
     seed: Optional[int] = None,
+    index_start: int = 0,
+    index_count: Optional[int] = None,
 ):
-    from torch.utils.data import DataLoader
+    from torch.utils.data import DataLoader, Subset
     from torchvision import datasets, transforms
 
     root = Path(data_dir).expanduser()
@@ -117,6 +119,12 @@ def make_cifar10_loader(
             ]
         ),
     )
+    if index_start or index_count is not None:
+        start = max(0, int(index_start))
+        stop = len(dataset) if index_count is None else min(len(dataset), start + int(index_count))
+        if start >= stop:
+            raise ValueError(f"empty CIFAR-10 subset: start={start}, stop={stop}, size={len(dataset)}")
+        dataset = Subset(dataset, range(start, stop))
     generator = None
     if shuffle:
         generator = torch.Generator()
@@ -140,8 +148,10 @@ def make_cifar100_loader(
     device: torch.device,
     shuffle: bool = False,
     seed: Optional[int] = None,
+    index_start: int = 0,
+    index_count: Optional[int] = None,
 ):
-    from torch.utils.data import DataLoader
+    from torch.utils.data import DataLoader, Subset
     from torchvision import datasets, transforms
 
     root = Path(data_dir).expanduser()
@@ -159,6 +169,12 @@ def make_cifar100_loader(
             ]
         ),
     )
+    if index_start or index_count is not None:
+        start = max(0, int(index_start))
+        stop = len(dataset) if index_count is None else min(len(dataset), start + int(index_count))
+        if start >= stop:
+            raise ValueError(f"empty CIFAR-100 subset: start={start}, stop={stop}, size={len(dataset)}")
+        dataset = Subset(dataset, range(start, stop))
     generator = None
     if shuffle:
         generator = torch.Generator()
@@ -235,6 +251,8 @@ def build_loader(cfg: Dict[str, object], device: torch.device):
         device=device,
         shuffle=bool(cfg.get("shuffle", False)),
         seed=int(cfg["seed"]) if cfg.get("seed") is not None else None,
+        index_start=int(cfg.get("index_start", 0)),
+        index_count=int(cfg["index_count"]) if cfg.get("index_count") is not None else None,
     )
 
 

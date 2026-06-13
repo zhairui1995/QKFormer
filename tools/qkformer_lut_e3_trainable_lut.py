@@ -541,6 +541,20 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
     env_save_per_sample = env_bool("QKFORMER_LUT_E3_SAVE_PER_SAMPLE")
     if env_save_per_sample is not None:
         data_cfg["evaluation"]["save_per_sample"] = env_save_per_sample
+    gate_cfg = data_cfg.get("gate_calibration")
+    env_gate_enabled = env_bool("QKFORMER_LUT_E3_GATE_ENABLED")
+    env_gate_batches = os.environ.get("QKFORMER_LUT_E3_GATE_BATCHES")
+    env_gate_seed = os.environ.get("QKFORMER_LUT_E3_GATE_SEED")
+    env_save_gate_per_sample = env_bool("QKFORMER_LUT_E3_SAVE_GATE_PER_SAMPLE")
+    if gate_cfg is not None:
+        if env_gate_enabled is not None:
+            gate_cfg["enabled"] = env_gate_enabled
+        if env_gate_batches:
+            gate_cfg["num_batches"] = int(env_gate_batches)
+        if env_gate_seed:
+            gate_cfg["seed"] = int(env_gate_seed)
+        if env_save_gate_per_sample is not None:
+            gate_cfg["save_per_sample"] = env_save_gate_per_sample
     return {
         "QKFORMER_LUT_CKPT": env_checkpoint,
         "QKFORMER_LUT_TIME_STEP": env_time_step,
@@ -564,6 +578,10 @@ def apply_env_overrides(model_cfg, data_cfg, adapter_cfg, train_cfg):
         "QKFORMER_LUT_E3_EVAL_AMP": os.environ.get("QKFORMER_LUT_E3_EVAL_AMP"),
         "QKFORMER_LUT_E3_EVAL_LOADER": env_eval_loader,
         "QKFORMER_LUT_E3_SAVE_PER_SAMPLE": os.environ.get("QKFORMER_LUT_E3_SAVE_PER_SAMPLE"),
+        "QKFORMER_LUT_E3_GATE_BATCHES": env_gate_batches,
+        "QKFORMER_LUT_E3_GATE_ENABLED": os.environ.get("QKFORMER_LUT_E3_GATE_ENABLED"),
+        "QKFORMER_LUT_E3_GATE_SEED": env_gate_seed,
+        "QKFORMER_LUT_E3_SAVE_GATE_PER_SAMPLE": os.environ.get("QKFORMER_LUT_E3_SAVE_GATE_PER_SAMPLE"),
     }
 
 
@@ -629,6 +647,15 @@ def _true_class_margin(logits: torch.Tensor, targets: torch.Tensor) -> torch.Ten
     return target_logits - max_other
 
 
+def _prediction_stats(logits: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    probabilities = F.softmax(logits, dim=1)
+    top2 = logits.topk(2, dim=1, largest=True, sorted=True).values
+    pred_margin = top2[:, 0] - top2[:, 1]
+    confidence = probabilities.max(dim=1).values
+    entropy = -(probabilities * probabilities.clamp_min(1e-12).log()).sum(dim=1)
+    return pred_margin, confidence, entropy
+
+
 def _append_per_sample_rows(
     rows: List[Dict[str, object]],
     sample_offset: int,
@@ -649,8 +676,8 @@ def _append_per_sample_rows(
     repl_pred = replacement_native.topk(1, dim=1, largest=True, sorted=True).indices.squeeze(1)
     base_margin = _true_class_margin(base_logits, labels)
     repl_margin = _true_class_margin(repl_logits, labels)
-    base_conf = F.softmax(base_logits, dim=1).max(dim=1).values
-    repl_conf = F.softmax(repl_logits, dim=1).max(dim=1).values
+    base_pred_margin, base_conf, base_entropy = _prediction_stats(base_logits)
+    repl_pred_margin, repl_conf, repl_entropy = _prediction_stats(repl_logits)
 
     labels_cpu = labels.cpu()
     for idx in range(int(labels.numel())):
@@ -668,6 +695,10 @@ def _append_per_sample_rows(
                 "replacement_margin": float(repl_margin[idx].cpu().item()),
                 "baseline_confidence": float(base_conf[idx].cpu().item()),
                 "replacement_confidence": float(repl_conf[idx].cpu().item()),
+                "baseline_pred_margin": float(base_pred_margin[idx].cpu().item()),
+                "replacement_pred_margin": float(repl_pred_margin[idx].cpu().item()),
+                "baseline_entropy": float(base_entropy[idx].cpu().item()),
+                "replacement_entropy": float(repl_entropy[idx].cpu().item()),
             }
         )
     return sample_offset + int(labels.numel())
@@ -688,6 +719,10 @@ def _write_per_sample_csv(path: Path, rows: List[Dict[str, object]]) -> None:
         "replacement_margin",
         "baseline_confidence",
         "replacement_confidence",
+        "baseline_pred_margin",
+        "replacement_pred_margin",
+        "baseline_entropy",
+        "replacement_entropy",
     ]
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -782,7 +817,7 @@ def evaluate(model, adapter, loader, data_cfg, device, per_sample_path: Optional
         result["per_sample"] = {
             "path": str(per_sample_path),
             "num_samples": len(per_sample_rows),
-            "schema": "sample_index,target,baseline_top1,replacement_top1,baseline_correct,replacement_correct,baseline_ce,replacement_ce,baseline_margin,replacement_margin,baseline_confidence,replacement_confidence",
+            "schema": "sample_index,target,baseline_top1,replacement_top1,baseline_correct,replacement_correct,baseline_ce,replacement_ce,baseline_margin,replacement_margin,baseline_confidence,replacement_confidence,baseline_pred_margin,replacement_pred_margin,baseline_entropy,replacement_entropy",
         }
     return result
 
@@ -812,6 +847,11 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
 
     calibration_loader = build_loader(data_cfg["calibration"], device)
     train_loader = build_loader(data_cfg["train"], device)
+    gate_calibration_loader = (
+        build_loader(data_cfg["gate_calibration"], device)
+        if bool(data_cfg.get("gate_calibration", {}).get("enabled", False))
+        else None
+    )
     evaluation_loader = build_loader(data_cfg["evaluation"], device)
     bank = PrototypeBank(min_count=int(diag_cfg.get("prototype_min_count", 2)))
     print("[qk-lut-e3] calibration_start")
@@ -858,9 +898,25 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
     if bool(data_cfg["evaluation"].get("save_per_sample", False)):
         per_sample_path = output_dir / "per_sample_predictions.csv"
         print(f"[qk-lut-e3] per_sample_path={per_sample_path}")
+    gate_calibration = None
+    if gate_calibration_loader is not None:
+        gate_per_sample_path = None
+        if bool(data_cfg["gate_calibration"].get("save_per_sample", False)):
+            gate_per_sample_path = output_dir / "gate_calibration_predictions.csv"
+            print(f"[qk-lut-e3] gate_per_sample_path={gate_per_sample_path}")
+        print("[qk-lut-e3] gate_calibration_start")
+        gate_calibration = evaluate(
+            model,
+            adapter,
+            gate_calibration_loader,
+            data_cfg["gate_calibration"],
+            device,
+            gate_per_sample_path,
+        )
     print("[qk-lut-e3] evaluation_start")
     evaluation = evaluate(model, adapter, evaluation_loader, data_cfg["evaluation"], device, per_sample_path)
     adapter.close()
+    data_source = str(data_cfg["calibration"].get("mode", model_cfg["family"]))
     metrics = {
         "experiment": {**cfg["experiment"], "seed": run_seed},
         "model": {
@@ -872,15 +928,20 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
             "checkpoint": checkpoint_info,
         },
         "data": {
-            "calibration": {"source": "cifar10", **data_cfg["calibration"], "processed_batches": calibration_batches},
-            "train": {"source": "cifar10", **data_cfg["train"]},
-            "evaluation": {"source": "cifar10", **data_cfg["evaluation"]},
+            "calibration": {"source": data_source, **data_cfg["calibration"], "processed_batches": calibration_batches},
+            "train": {"source": data_source, **data_cfg["train"]},
+            **(
+                {"gate_calibration": {"source": data_source, **data_cfg["gate_calibration"]}}
+                if bool(data_cfg.get("gate_calibration", {}).get("enabled", False))
+                else {}
+            ),
+            "evaluation": {"source": data_source, **data_cfg["evaluation"]},
         },
         "diagnostic_config": diag_cfg,
         "adapter_config": adapter_cfg,
         "train_config": train_cfg,
         "protocol": {
-            "version": 4,
+            "version": 5,
             "frozen_backbone_kept_in_eval_mode": True,
             "evaluation_batch_size": int(data_cfg["evaluation"]["batch_size"]),
             "evaluation_amp": bool(data_cfg["evaluation"].get("amp", False)),
@@ -892,6 +953,7 @@ def run(config_path: Path, output_dir: Path) -> Dict[str, object]:
         "calibration_hook_summary": calibration_hook_summary,
         "train_history": train_history,
         "classification": evaluation,
+        "gate_calibration": gate_calibration,
         "verdict": "PENDING_PHASE_GATE_REVIEW" if checkpoint_info["loaded"] else "PENDING_REAL_DATA_CHECKPOINT",
     }
     metrics_path = output_dir / "metrics.json"

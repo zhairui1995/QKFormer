@@ -25,6 +25,8 @@ data:
     workers: 4
     shuffle: true
     seed: 42
+    index_start: 0
+    index_count: 16000
   train:
     mode: cifar100
     data_dir: data/cifar100
@@ -34,6 +36,21 @@ data:
     workers: 4
     shuffle: true
     seed: 43
+    index_start: 16000
+    index_count: 16000
+  gate_calibration:
+    enabled: false
+    mode: cifar100
+    data_dir: data/cifar100
+    split: train
+    batch_size: 32
+    num_batches: 128
+    workers: 4
+    shuffle: true
+    seed: 45
+    save_per_sample: false
+    index_start: 32000
+    index_count: 18000
   evaluation:
     mode: cifar100
     data_dir: data/cifar100
