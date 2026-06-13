@@ -75,6 +75,7 @@ if [[ "${QKFORMER_LUT_GATE_ANALYZE_AFTER:-1}" == "1" ]]; then
   OUTPUT_PREFIX="${QKFORMER_LUT_GATE_OUTPUT_PREFIX:-results/qk_lutformer_cifar100_t4_deterministic_gate}"
   "$PYTHON_BIN" scripts/local/analyze_qk_lut_deterministic_gate.py \
     --epochs "$QKFORMER_LUT_E3_EPOCHS" \
+    --checkpoint "$QKFORMER_LUT_CKPT" \
     --output-prefix "$OUTPUT_PREFIX"
   if [[ "${QKFORMER_LUT_GATE_PACKAGE_AFTER:-1}" == "1" ]]; then
     bash scripts/server/package_qkformer_lut_cifar100_t4_deterministic_gate.sh \

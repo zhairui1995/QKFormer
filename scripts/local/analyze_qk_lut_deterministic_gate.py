@@ -122,7 +122,13 @@ def _mean(values: Iterable[float]) -> Optional[float]:
     return sum(values) / len(values) if values else None
 
 
-def _collect_runs(results_root: Path, alpha: float, epochs: int, batches: int) -> List[Dict[str, Any]]:
+def _collect_runs(
+    results_root: Path,
+    alpha: float,
+    epochs: int,
+    batches: int,
+    checkpoint: Optional[str],
+) -> List[Dict[str, Any]]:
     runs = []
     for metrics_path in results_root.glob("qkformer_lut_e3_trainable_lut_*/metrics.json"):
         metrics = _load_json(metrics_path)
@@ -131,6 +137,9 @@ def _collect_runs(results_root: Path, alpha: float, epochs: int, batches: int) -
         if model.get("family") != "cifar100" or str(model.get("time_step")) != "4":
             continue
         if int(protocol.get("version", 0)) < 5:
+            continue
+        run_checkpoint = str(model.get("checkpoint", {}).get("path") or "")
+        if checkpoint and Path(run_checkpoint).resolve() != Path(checkpoint).resolve():
             continue
         mode = str(metrics.get("adapter_summary", {}).get("mode") or "")
         if mode not in MODES:
@@ -166,6 +175,7 @@ def _collect_runs(results_root: Path, alpha: float, epochs: int, batches: int) -
                 "mtime": result_dir.stat().st_mtime,
                 "mode": mode,
                 "seed": int(metrics.get("experiment", {}).get("seed", -1)),
+                "checkpoint": run_checkpoint,
                 "threshold": threshold,
                 "gate_calibration_acc": gate_metrics["gated_acc"],
                 "gate_calibration_delta_acc": gate_metrics["gated_delta_acc"],
@@ -288,15 +298,17 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=2)
     parser.add_argument("--batches", type=int, default=128)
     parser.add_argument("--benchmark", type=float, default=81.23)
+    parser.add_argument("--checkpoint", type=str, default=None)
     args = parser.parse_args()
 
-    runs = _collect_runs(args.results_root, args.alpha, args.epochs, args.batches)
+    runs = _collect_runs(args.results_root, args.alpha, args.epochs, args.batches, args.checkpoint)
     summary = _summarize(runs)
     decision, interpretation = _decision(summary, args.benchmark)
     report = {
         "decision": decision,
         "interpretation": interpretation,
         "benchmark_acc": args.benchmark,
+        "checkpoint": args.checkpoint,
         "registered_protocol": {
             "score": "replacement_pred_margin_minus_baseline_pred_margin",
             "threshold_grid": "calibration_quantiles_step_0.05_plus_all_and_none",

@@ -6,14 +6,18 @@ cd "$ROOT"
 
 OUT="${1:-qk_lutformer_cifar100_t4_deterministic_gate_artifacts.tar.gz}"
 REPORT_PREFIX="${QKFORMER_LUT_GATE_OUTPUT_PREFIX:-results/qk_lutformer_cifar100_t4_deterministic_gate}"
+CHECKPOINT_FILTER="${QKFORMER_LUT_CKPT:-}"
+EPOCH_FILTER="${QKFORMER_LUT_E3_EPOCHS:-}"
 
-mapfile -t FILES < <(python3 - "$ROOT" "$REPORT_PREFIX" <<'PY'
+mapfile -t FILES < <(python3 - "$ROOT" "$REPORT_PREFIX" "$CHECKPOINT_FILTER" "$EPOCH_FILTER" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 root = Path(sys.argv[1])
 prefix = Path(sys.argv[2])
+checkpoint_filter = sys.argv[3]
+epoch_filter = sys.argv[4]
 for path in (
     prefix.with_suffix(".json"),
     prefix.with_suffix(".md"),
@@ -41,6 +45,11 @@ for path in root.glob("results/qkformer_lut_e3_trainable_lut_*"):
     if int(protocol.get("version", 0)) < 5:
         continue
     if mode not in {"global_plus_address_lut", "global_plus_shuffled_address_lut", "global_mean"}:
+        continue
+    run_checkpoint = str(model.get("checkpoint", {}).get("path") or "")
+    if checkpoint_filter and Path(run_checkpoint).resolve() != Path(checkpoint_filter).resolve():
+        continue
+    if epoch_filter and int(metrics.get("train_config", {}).get("epochs", -1)) != int(epoch_filter):
         continue
     if not metrics.get("gate_calibration", {}).get("per_sample"):
         continue
