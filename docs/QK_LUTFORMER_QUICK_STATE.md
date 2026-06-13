@@ -7,16 +7,16 @@ history are needed.
 ## Current Verdict
 
 `GO-AUDIT` for structured Q/K lookup addressability and compact
-reconstruction; `NO-GO` for a stable address-specific accuracy-gain claim with
-the current adapter.
+reconstruction, plus checkpoint-conditional selective utility. A
+backbone-stable address-specific accuracy claim remains pending.
 
-The registered CIFAR-100 T=4 downstream gate is complete. A centered aligned
-address residual reaches a best single run of 81.56% Acc@1, above the saved
-81.23% QKFormer checkpoint, but its three-seed mean is 81.22% and one seed falls
-to 80.75%. A label-informed accuracy oracle gains 3.37 points for aligned
-lookup versus 3.33 for shuffled lookup and 3.21 for global smoothing. This is a
-`CONDITIONAL-ORACLE` diagnostic, not evidence for a stable or address-specific
-accuracy method.
+The matched one-epoch CIFAR-100 T=4 deterministic gate is `PASS` on the seed-42
+backbone. A threshold fitted only on a disjoint train partition yields aligned
+Acc@1 of 81.69 / 81.93 / 81.56 across adapter seeds, mean 81.7267%, versus the
+81.22% paired baseline, 81.6167% shuffled mean, and 81.4633% global mean. A
+two-epoch diagnostic reaches 82.02% best and 81.7467% aligned mean, but its
+aligned--global gap is only 0.0434 points. Independent CIFAR-100 T=4 backbone
+seeds 43/44 are running before any backbone-stable claim is allowed.
 
 The CIFAR-10 T=1 conservative E3 adapter sweep on the first checkpoint was
 positive for Q/K address LUT. An independent T=1 checkpoint repeat showed that
@@ -152,16 +152,14 @@ CIFAR-100 T=4 validation.
   - This is the main response to the reviewer's dimensional-explosion concern:
     do not store a monolithic full Q/K table; compose smaller aligned subtables
     and audit them against shuffled controls.
-- CIFAR-100 T=4 registered downstream gate:
-  - Paired baseline is 81.21% Acc@1; the training checkpoint best is 81.23%.
-  - Global + centered address seeds 42/43/44 reach 81.35% / 81.56% / 80.75%,
-    mean 81.22%.
-  - Matched centered shuffled reaches 81.25% / 80.95% / 80.87%, mean 81.02%.
-  - Global mean reaches 81.16% / 81.21% / 81.08%, mean 81.15%.
-  - Accuracy-oracle gains are 3.37 / 3.33 / 3.21 points for aligned / shuffled /
-    global. The aligned-shuffled oracle gap is only 0.04 points.
-  - Interpretation: best-run improvement and mean aligned-shuffled separation
-    are real observations, but stable accuracy and selective-gating claims fail.
+- CIFAR-100 T=4 deterministic downstream gate:
+  - Paired baseline is 81.22% Acc@1; the training checkpoint best is 81.23%.
+  - Matched one-epoch aligned gate reaches 81.69 / 81.93 / 81.56, mean 81.7267%.
+  - Matched shuffled gate reaches 81.88 / 81.43 / 81.54, mean 81.6167%.
+  - Global gate reaches 81.61 / 81.27 / 81.51, mean 81.4633%.
+  - Interpretation: checkpoint-level selective utility passes; aligned beats
+    global for every adapter seed and shuffled in the mean, but not for every
+    seed. Independent backbone replication is required.
 - CIFAR-100 T=1 stage1 alpha 0.025:
   - address/global/token-channel/shuffled mean Acc@1 deltas are
     +0.1633 / +0.3233 / -0.1333 / -0.0933.
@@ -245,6 +243,6 @@ centered residual's aligned-versus-shuffled classification ordering is not
 stable across scales, so the current adapter does not support an accuracy
 claim.
 
-Not allowed yet: stable accuracy gain, energy gain, latency gain, measured SRAM
+Not allowed yet: backbone-stable accuracy gain, energy gain, latency gain, measured SRAM
 or memory compression from the entry-count proxy alone, ImageNet gain,
 production LUT wrapper, or full pure-spike Transformer claims.

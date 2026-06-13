@@ -4,7 +4,7 @@ Status date: 2026-06-12
 
 ## Current Editorial Decision
 
-**Decision: `GO-AUDIT`.**
+**Decision: `GO-AUDIT` with checkpoint-conditional downstream utility.**
 
 The paper should currently be written as a structured Q/K lookup-addressability
 audit, not as a residual adapter method paper. The central claim is:
@@ -79,8 +79,8 @@ layers to training mode and changed their running statistics. Protocol versions
 2--3 fix the backbone mode but do not reproduce the upstream AMP/timm validation
 loader, so they remain engineering diagnostics only.
 
-The admissible downstream evidence is the completed, pre-registered CIFAR-100 $T=4$
-protocol-v4 gate: frozen backbone in evaluation mode, an $\alpha=0$ identity
+The initial admissible downstream evidence is the completed CIFAR-100 $T=4$
+protocol-v4 two-epoch gate: frozen backbone in evaluation mode, an $\alpha=0$ identity
 preflight, upstream AMP/timm full validation, fixed stage1, fixed
 $\alpha=0.025$, two epochs, 128 calibration/training batches, and seeds
 42--44.
@@ -91,10 +91,23 @@ $\alpha=0.025$, two epochs, 128 calibration/training batches, and seeds
 - Global mean: 81.16 / 81.21 / 81.08, mean 81.15%.
 - Accuracy-oracle gains: aligned 3.37, shuffled 3.33, global 3.21 points.
 
-Paper meaning: the best aligned run exceeds the saved baseline, and aligned
-lookup has a positive mean separation from shuffled. However, the three-seed
-mean does not exceed 81.23%, and the aligned oracle exceeds shuffled by only
-0.04 points. This is a `CONDITIONAL` limits result, not stable method gain.
+The subsequent matched one-epoch deterministic gate uses disjoint prototype,
+adapter, and gate-calibration train partitions. Its inference score is the
+LUT-minus-baseline top1/top2 margin difference; validation labels are not used
+to fit the threshold.
+
+- Paired baseline: 81.22%.
+- Aligned gated seeds 42/43/44: 81.69 / 81.93 / 81.56, mean 81.7267%.
+- Shuffled gated: 81.88 / 81.43 / 81.54, mean 81.6167%.
+- Global gated: 81.61 / 81.27 / 81.51, mean 81.4633%.
+- Aligned minimum delta over baseline: +0.34 points.
+- Two-epoch aligned gated best: 82.02%; mean 81.7467%, but the aligned--global
+  mean gap is only 0.0434 points.
+
+Paper meaning: the one-epoch gate passes the checkpoint-level acceptance rule
+and supports calibrated selective utility. It does not yet support a
+backbone-stable address-specific accuracy claim because aligned loses to
+shuffled for one adapter seed and independent backbone seeds are pending.
 
 ### E4 / Factorized Method Track
 

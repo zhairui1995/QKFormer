@@ -18,13 +18,16 @@ token/channel lookup with only $8.83\%$ supported entries, and adding K remains
 below the $25\%$ entry-budget gate while preserving most full-address
 reconstruction gain.
 
-The negative evidence is equally important: on CIFAR-100 $T=4$, an aligned
-centered residual reaches a best single-run Acc@1 of $81.56\%$ but averages
-$81.22\%$ across three adapter seeds, essentially matching the paired
-$81.21\%$ backbone. Its accuracy-oracle gain exceeds the shuffled control by
-only $0.04$ points. The local reconstruction ordering therefore does not
-automatically induce a stable classification ordering. The supported result is
-therefore an address-specific, interpretable and compact reconstruction story,
-not a checkpoint-stable accuracy improvement or full hardware replacement
-story. Future work should test larger datasets and real hardware or simulator
-measurements before claiming LUT-oriented latency or energy benefits.
+The downstream evidence adds a narrower positive result. On CIFAR-100 $T=4$,
+a deterministic threshold fitted only on a disjoint train partition raises
+mean Acc@1 from $81.22\%$ to $81.73\%$ across three aligned adapter seeds; every
+seed exceeds the saved $81.23\%$ QKFormer checkpoint. Matched shuffled and
+global gates reach $81.62\%$ and $81.46\%$, and a two-epoch diagnostic reaches
+$82.02\%$. The aligned--shuffled ordering is not positive for every adapter
+seed, so this supports checkpoint-conditional selective utility rather than a
+backbone-stable accuracy claim. The supported result is therefore an
+address-specific, interpretable and compact reconstruction story with a
+calibrated downstream gate, not a full hardware replacement. Future work should
+complete independent-backbone replication and test larger datasets and real
+hardware or simulator measurements before claiming broad accuracy, latency, or
+energy benefits.

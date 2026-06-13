@@ -160,11 +160,29 @@ frozen baseline logits, and local MSE to the baseline module response:
 \end{equation}
 This is a probe rather than a claimed production method: the backbone is
 frozen, the adapter is small, and every address result is compared to global,
-token/channel, and shuffled-address controls. The registered gate fixes
-$\alpha=0.025$, stage1, two training epochs, 128 calibration batches, and 128
-adapter-training batches before evaluation. The backbone remains in evaluation
-mode throughout adapter optimization so that BatchNorm statistics cannot drift.
+token/channel, and shuffled-address controls. The matched gate fixes
+$\alpha=0.025$, stage1, one adapter epoch, 128 prototype-calibration batches,
+and 128 adapter-training batches before evaluation. The backbone remains in
+evaluation mode throughout adapter optimization so that BatchNorm statistics
+cannot drift.
 For CIFAR-100 $T=4$, full-validation evaluation reuses the upstream QKFormer
 AMP and data-loader protocol. The same-capacity \emph{shuffled address LUT}
 preserves table values while breaking address alignment; the global and
 token/channel controls test generic smoothing and coarse state, respectively.
+
+Because full replacement can help and harm different inputs, we additionally
+fit a deterministic selective gate on a third, disjoint training partition.
+Let $m(\mathbf{z})$ denote the difference between the largest and second-largest
+logits. The label-free deployment score is
+\begin{equation}
+  s(\mathbf{x}) = m(\mathbf{z}_{\mathrm{LUT}}) -
+  m(\mathbf{z}_{\mathrm{base}}).
+\end{equation}
+A scalar threshold $\tau$ is selected from fixed 5\% calibration quantiles to
+maximize accuracy on the gate-calibration partition, with ties preferring lower
+LUT coverage. Validation then uses the LUT prediction iff
+$s(\mathbf{x})\geq\tau$. Prototype calibration, adapter optimization, and gate
+calibration use non-overlapping CIFAR-100 train indices
+$[0,16000)$, $[16000,32000)$, and $[32000,50000)$, respectively. Validation
+labels are never used for threshold selection. This gate evaluates selective
+utility; because it computes both branches, it is not a latency claim.

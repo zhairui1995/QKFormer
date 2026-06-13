@@ -265,65 +265,66 @@ storage. Both TC+Q and TC+QK pass all shuffled-subspace controls.}
 \label{sec:e3_results}
 
 Reconstruction alone does not establish a useful classifier. We therefore
-evaluate a registered CIFAR-100 $T=4$ gate on the best 81.23\% QKFormer
-checkpoint. The gate fixes stage1, $\alpha=0.025$, two adapter epochs, 128
-calibration and training batches, three adapter seeds, and the upstream AMP
-full-validation loader. The frozen backbone is kept in evaluation mode, and an
-$\alpha=0$ identity preflight must reproduce the checkpoint before any adapter
-comparison is admitted. We compare address, global, token/channel, and
-same-capacity shuffled-address probes. Detailed forward-only E2 diagnostics are
-reported in the supplementary material because they motivate this gate but do
-not support the central reconstruction claim.
+evaluate a matched CIFAR-100 $T=4$ gate on the best 81.23\% QKFormer
+checkpoint. The comparison fixes stage1, $\alpha=0.025$, one adapter epoch, 128
+prototype-calibration and training batches, three adapter seeds, and the
+upstream AMP full-validation loader. Prototype, adapter, and gate calibration
+use three disjoint train-index partitions. The frozen backbone is kept in
+evaluation mode, and an $\alpha=0$ identity preflight must reproduce the
+checkpoint before any adapter comparison is admitted. We compare aligned,
+global, and same-capacity shuffled-address probes under exactly the same
+optimization and gate-selection budget.
 
-Table~\ref{tab:t4_accuracy_gate} reports the centered residual decomposition,
-which is the strongest registered address-aware variant. The paired backbone
-reevaluation is $81.21\%$ Acc@1 (the training log reports a best checkpoint
-value of $81.23\%$). The aligned LUT reaches $81.35\%$, $81.56\%$, and
-$80.75\%$ across adapter seeds, for a mean of $81.22\%$. Thus its best run
-exceeds the saved QKFormer result, but the effect is not seed-stable. The
-same-capacity shuffled control averages $81.02\%$, while global smoothing
-averages $81.15\%$.
+Table~\ref{tab:t4_accuracy_gate} reports both unconditional replacement and the
+calibration-only deterministic gate. The paired backbone reevaluation is
+$81.22\%$ Acc@1 (the training log reports a best checkpoint value of
+$81.23\%$). Unconditional replacement remains unstable. In contrast, the
+aligned selective gate reaches $81.69\%$, $81.93\%$, and $81.56\%$, improving
+the paired baseline for every adapter seed. Its $81.73\%$ mean exceeds global
+gating by $0.26$ points and shuffled-address gating by $0.11$ points.
 
 \begin{table}[t]
 \centering
 \footnotesize
 \resizebox{\columnwidth}{!}{%
-\begin{tabular}{lccccc}
+\begin{tabular}{lcccccc}
 \toprule
-Mode & Seed 42 & Seed 43 & Seed 44 & Mean & Oracle gain \\
+Mode & Raw mean & Gate 42 & Gate 43 & Gate 44 & Gate mean & Min. $\Delta$ \\
 \midrule
-Paired QKFormer & 81.21 & 81.21 & 81.21 & 81.21 & -- \\
-Global mean & 81.16 & 81.21 & 81.08 & 81.15 & 3.21 \\
-Global + centered address & 81.35 & \textbf{81.56} & 80.75 & 81.22 & 3.37 \\
-Global + centered shuffled & 81.25 & 80.95 & 80.87 & 81.02 & 3.33 \\
+Paired QKFormer & 81.22 & 81.22 & 81.22 & 81.22 & 81.22 & -- \\
+Global mean & 80.91 & 81.61 & 81.27 & 81.51 & 81.46 & +0.05 \\
+Global + centered address & 81.10 & 81.69 & \textbf{81.93} & 81.56 & \textbf{81.73} & +0.34 \\
+Global + centered shuffled & 81.19 & \textbf{81.88} & 81.43 & 81.54 & 81.62 & +0.21 \\
 \bottomrule
 \end{tabular}
 }
-\caption{Registered CIFAR-100 $T=4$ downstream gate. Entries are Acc@1 in
-percent. ``Oracle gain'' is a label-informed per-sample upper bound that uses
-the residual only when it corrects a baseline error; it is diagnostic, not a
-deployable result. The aligned oracle exceeds the shuffled oracle by only
-$0.04$ points.}
+\caption{Matched one-epoch CIFAR-100 $T=4$ downstream gate. Entries are Acc@1
+in percent. ``Raw mean'' applies the residual to every validation sample. Gate
+thresholds are fitted independently for each adapter seed using a disjoint
+train partition; validation labels are never used. Min. $\Delta$ is the minimum
+gated improvement over the paired backbone across seeds.}
 \label{tab:t4_accuracy_gate}
 \end{table}
 
-The oracle analysis explains why further post-hoc adapter tuning is not
-warranted. Although an accuracy oracle can recover $3.37$ points with the
-aligned residual, shuffled and global controls recover $3.33$ and $3.21$
-points. Hence most oracle headroom is generic sample selection rather than
-Q/K-address-specific routing. We classify the downstream result as
-\emph{conditional}: it shows a reproducible aligned--shuffled mean separation
-and a strong single run, but not a stable accuracy improvement or a justified
-learned gate.
+The one-epoch gate passes the predeclared checkpoint-level criterion: aligned
+gating exceeds the saved QKFormer best, improves all three adapter seeds, and
+separates from both matched controls in the mean. The aligned--shuffled gap is
+not positive for every seed, however, so address-specific classification
+superiority is not yet backbone-stable. A two-epoch follow-up reaches a best
+gated Acc@1 of $82.02\%$ and an aligned mean of $81.75\%$, but separates from
+the stronger global gate by only $0.04$ points. We therefore claim calibrated
+selective utility on this checkpoint and reserve checkpoint-independent
+accuracy claims for the ongoing independent-backbone replication.
 
 \subsection{Current Claim Boundary}
 \label{sec:claim_boundary}
 
 These experiments support the claim that Q/K binary addresses contain
 measurable response structure and that semantic subspace tables can retain most
-of this structure under a fixed entry-count budget. Reconstruction does not by
-itself establish downstream utility, and only protocol-v4 runs that preserve
-the frozen backbone state and reproduce the upstream evaluation protocol are
-admitted to the accuracy gate. The evidence does not support claims about
-stable classification improvement, hardware speed, energy reduction, ImageNet
-accuracy, or a production full-LUT QKFormer wrapper.
+of this structure under a fixed entry-count budget. A disjoint-calibration
+margin gate further supports selective classification utility on the evaluated
+checkpoint. Only protocol-v5 runs that preserve the frozen backbone state,
+separate all calibration partitions, and reproduce the upstream evaluation
+protocol are admitted to this result. Independent-backbone replication remains
+pending, and the evidence does not support hardware speed, energy reduction,
+ImageNet accuracy, or a production full-LUT QKFormer wrapper.

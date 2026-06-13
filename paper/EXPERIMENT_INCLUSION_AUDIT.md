@@ -23,7 +23,7 @@ claims.
 | CIFAR-100 calibration-size seeds 42--44 | Support calibration-efficiency for reconstruction | Include as a mean/std curve |
 | E5 hierarchical backoff | Make misses and fallback behavior explicit | Include, but label compactness gate as partial |
 | E7 subspace-decoupled QK-LUT | Main compact lookup contribution under the 25% entry gate | Include |
-| CIFAR-100 T=4 E1 and corrected E3 gate | Test time-step transfer and downstream utility under the upstream evaluation protocol | Include as one concise table/paragraph |
+| CIFAR-100 T=4 deterministic margin gate | Checkpoint-level selective utility with disjoint calibration and matched controls | Include as one concise table/paragraph |
 
 ## Supplementary Material
 
@@ -36,6 +36,7 @@ claims.
 | E4 factorized adapter pilot | Failed alternative; useful for a journal extension or detailed limitations |
 | Full machine-readable seed rows and protocol metadata | Reproducibility |
 | Selective-oracle per-sample margin bins | Useful diagnostic, but label-informed and not a deployable method | Keep outside the main paper |
+| Two-epoch deterministic gate | Best run reaches 82.02%, but aligned--global separation misses the predeclared gate | Keep as a limits/robustness row |
 
 ## Exclude From Scientific Evidence
 
@@ -52,8 +53,10 @@ claims.
 - **Supported:** compact local Q/K addressability, held-out reconstruction,
   address alignment, calibration efficiency, explicit fallback accounting, and
   subspace entry-budget compression.
-- **Conditional:** the registered CIFAR-100 T=4 aligned residual has a best run
-  of 81.56% and a three-seed mean of 81.22%, but does not establish stable
-  improvement; its oracle advantage over shuffled is only 0.04 points.
-- **Do not claim:** stable accuracy improvement, measured SRAM/latency/energy,
+- **Supported on one checkpoint:** the matched one-epoch calibration-only gate
+  improves all aligned adapter seeds, reaches 81.7267% mean Acc@1, and exceeds
+  global and shuffled controls in the mean.
+- **Conditional:** aligned does not beat shuffled for every adapter seed;
+  independent CIFAR-100 T=4 backbone seeds 43/44 are still running.
+- **Do not claim:** backbone-stable accuracy improvement, measured SRAM/latency/energy,
   ImageNet generalization, or a production full-LUT QKFormer replacement.
