@@ -12,11 +12,6 @@ if ! PYTHON_BIN="$(qk_lut_select_python)"; then
   exit 1
 fi
 
-TS="$(date +%Y%m%d_%H%M%S)"
-RESULT_DIR="$ROOT/results/qkformer_cifar100_train_${TS}"
-LOG_FILE="$RESULT_DIR/train_log.txt"
-mkdir -p "$RESULT_DIR"
-
 export QKFORMER_LUT_CIFAR100_DATA_DIR="${QKFORMER_LUT_CIFAR100_DATA_DIR:-$ROOT/data/cifar100}"
 EPOCHS="${QKFORMER_CIFAR100_TRAIN_EPOCHS:-400}"
 BATCH_SIZE="${QKFORMER_CIFAR100_TRAIN_BATCH_SIZE:-64}"
@@ -25,6 +20,12 @@ WORKERS="${QKFORMER_CIFAR100_TRAIN_WORKERS:-8}"
 TIME_STEP="${QKFORMER_LUT_TIME_STEP:-1}"
 SEED="${QKFORMER_CIFAR100_TRAIN_SEED:-42}"
 EXPERIMENT="${QKFORMER_CIFAR100_TRAIN_EXPERIMENT:-qkformer_cifar100_t${TIME_STEP}_seed${SEED}}"
+
+TS="$(date +%Y%m%d_%H%M%S)"
+RUN_TAG="${TS}_t${TIME_STEP}_s${SEED}_g${QKFORMER_LUT_GPU:-na}_p$$"
+RESULT_DIR="$ROOT/results/qkformer_cifar100_train_${RUN_TAG}"
+LOG_FILE="$RESULT_DIR/train_log.txt"
+mkdir -p "$RESULT_DIR"
 
 {
   echo "[qk-c100-train] root=$ROOT"

@@ -15,8 +15,19 @@ backbone. A threshold fitted only on a disjoint train partition yields aligned
 Acc@1 of 81.69 / 81.93 / 81.56 across adapter seeds, mean 81.7267%, versus the
 81.22% paired baseline, 81.6167% shuffled mean, and 81.4633% global mean. A
 two-epoch diagnostic reaches 82.02% best and 81.7467% aligned mean, but its
-aligned--global gap is only 0.0434 points. Independent CIFAR-100 T=4 backbone
-seeds 43/44 are running before any backbone-stable claim is allowed.
+aligned--global gap is only 0.0434 points.
+
+Independent CIFAR-100 T=4 backbone training is complete: seed 43 reaches
+81.35% best Acc@1 at epoch 380 and seed 44 reaches 81.05% at epoch 384. Their
+simultaneous launch shared one timestamped parent directory, so the parent
+manifest was overwritten by seed 44. Consequently, the existing files named
+`deterministic_gate_backbone43` and `deterministic_gate_backbone44` both select
+the seed-44 checkpoint and cannot be treated as two-backbone replication. The
+seed-44 two-epoch gate is a real `FAIL`: aligned mean 81.23%, global mean
+81.3433%, shuffled mean 81.39%, paired baseline 81.04%. Explicit one-epoch
+gates for the seed-43 and seed-44 checkpoint paths were launched in parallel
+on GPUs 0/1 on 2026-06-14. No backbone-stable accuracy claim is allowed until
+both explicit runs finish and their checkpoint fields are verified.
 
 The CIFAR-10 T=1 conservative E3 adapter sweep on the first checkpoint was
 positive for Q/K address LUT. An independent T=1 checkpoint repeat showed that
@@ -219,13 +230,16 @@ before falling back to GPU 2. Small diagnostics default to GPU 2.
 
 ## Next Useful Experiments
 
-1. Convert the E0/E1/E5/E7 evidence into publication figures:
+1. Finish and audit the explicit one-epoch CIFAR-100 T=4 seed-43/44
+   deterministic gates. Reject any report whose recorded checkpoint does not
+   match its backbone label.
+2. Convert the E0/E1/E5/E7 evidence into publication figures:
    coverage/conditional variance, control MSE reduction, calibration-size
    curves, fallback distribution, and subspace entry-budget curves.
-2. Keep the main paper around address structure, occupancy, response
+3. Keep the main paper around address structure, occupancy, response
    reconstruction, and compact subspace lookup; treat small Acc@1 changes as
    a registered limits result.
-3. If pursuing accuracy further, require a new method-level hypothesis and a
+4. If pursuing accuracy further, require a new method-level hypothesis and a
    fresh pre-registration; do not continue alpha/stage/seed shopping.
 
 ## Claim Boundary
