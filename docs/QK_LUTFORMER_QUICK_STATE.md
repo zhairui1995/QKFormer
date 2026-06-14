@@ -213,11 +213,15 @@ Run current remote loop:
 bash scripts/local/run_remote_qk_lut_loop.sh
 ```
 
-Summarize local results with low token output:
+Read the local Markdown-only result summary:
 
 ```bash
-python3 scripts/local/analyze_qk_lut_results.py --brief
+cat results/EXPERIMENT_RESULTS_SUMMARY.md
 ```
+
+Expanded local JSON results are not part of the default continuation workflow.
+Do not run recursive result analyzers unless a numerical claim requires a raw
+evidence audit and the cold archive has deliberately been restored.
 
 Package/download/analyze existing server results only:
 

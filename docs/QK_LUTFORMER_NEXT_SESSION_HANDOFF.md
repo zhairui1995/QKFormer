@@ -12,11 +12,16 @@ Read, in order:
 4. this file
 5. `paper/PAPER_STATUS_AND_EXPERIMENT_PLAN.md` only before changing claims
 
-Run the low-token local status command:
+Read the Markdown-only local result summary:
 
 ```bash
-python3 scripts/local/analyze_qk_lut_results.py --brief
+cat results/EXPERIMENT_RESULTS_SUMMARY.md
 ```
+
+Do not run the JSON analyzer by default. Expanded local result JSON files were
+removed after being verified into a cold archive outside the repository. The
+normal continuation path is Markdown-only; restore raw JSON only for a disputed
+numerical audit.
 
 Branch: `codex/qkformer-lut-5way-controls`
 
@@ -129,6 +134,8 @@ done
 
 ## Working Habits To Preserve
 
+- Use `results/EXPERIMENT_RESULTS_SUMMARY.md` as the only default local result
+  entry point. Do not recursively read `results/` or raw archives.
 - Read real metrics and checkpoint paths before interpreting filenames.
 - Check `nvidia-smi` before large jobs. Use genuinely idle GPUs for parallel
   work; small diagnostics may default to GPU 2 only when it is available.
