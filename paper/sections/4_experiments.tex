@@ -291,6 +291,10 @@ reduces the worst observed loss to $0.52$ points and keeps all four settings
 within $0.52$ points of the clean hook. The $+0.11$ CIFAR-10 $T=4$ difference
 is treated as no-loss fluctuation, not as an accuracy improvement.
 
+% Sources: results/tcslu_qkf_c10_t1_full_20260618_161423/summary.csv;
+% results/tcslu_qkf_c10_t4_full_20260618_161423_t4rerun/summary.csv;
+% results/tcslu_qkf_c100_t1_full_20260618_104451/summary.csv;
+% results/tcslu_qkf_c100_t4_full_20260618_104512/summary.csv.
 \begin{table}[H]
 \centering
 \footnotesize
@@ -322,6 +326,8 @@ random table, $95.45\%$ for token/channel means, and $95.31\%$ after shuffling
 the address--prototype alignment. Thus calibration alone does not erase the
 semantic-address advantage.
 
+% Sources: results/tcslu_qkf_c10_t4_semantic_controls_20260618.md;
+% results/tcslu_qkf_c10_t4_control_replication_20260618_181345/replication_summary.csv.
 \begin{table}[H]
 \centering
 \footnotesize
@@ -373,6 +379,7 @@ The grouped binary-pattern projection LUT removes this SSA approximation error
 the aggregate current MSE near $2\times10^{-9}$ and preserves accuracy within
 $0.06$ points on both checkpoints.
 
+% Source: results/qk_grouped_projection_c100_all4_20260618.md.
 \begin{table}[H]
 \centering
 \footnotesize
