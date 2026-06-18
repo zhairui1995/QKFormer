@@ -1,30 +1,33 @@
 \begin{abstract}
-Spiking Transformers replace dense floating-point attention with event-driven
-operations, but it remains unclear whether their binary query--key states form
-reliable lookup-table (LUT) addresses. We study this question in QKFormer with
-a staged, negative-controlled audit that separates address feasibility,
-held-out response reconstruction, support-aware fallback, and downstream
-adapter utility. Q/K-addressed prototypes reduce held-out response MSE relative
-to a global mean by $3.71\%\pm0.004$ on CIFAR-10 and $4.42\%\pm0.004$ on
-CIFAR-100 across randomized calibration subsets. Coarse token/channel LUTs
-reach only $2.79\%$ and $3.42\%$, while shuffling the address--prototype
-alignment degrades MSE by $17.83\%$ and $15.82\%$, respectively. Across three
-independently trained single-step CIFAR-10 checkpoints, correct-address
-reductions range from $3.76\%$ to $5.94\%$ and exceed token/channel controls in
-every case. To address the dimensionality objection against monolithic Q/K
-tables, we first audit support-aware hierarchical backoff and then introduce a
-subspace-decoupled residual LUT that composes smaller token/channel, Q/gate, and
-K subtables. On CIFAR-100, the compact token/channel+Q/gate subspace LUT beats
-token/channel lookup for all calibration seeds from 8 to 512 batches using only
-$8.83\%$ of full-address supported entries; adding the K subtable uses about
-$20.2\%$ entries and retains $93.6\%$--$105.9\%$ of the full-address
-reconstruction gain. On CIFAR-100 $T=4$, a deterministic threshold fitted only
-on a disjoint train partition raises mean Acc@1 from $81.22\%$ to $81.73\%$
-across three adapter seeds; matched shuffled and global controls reach
-$81.62\%$ and $81.46\%$. All aligned runs exceed the saved $81.23\%$ QKFormer
-checkpoint, while a two-epoch diagnostic reaches $82.02\%$. The accuracy result
-is checkpoint-conditional pending independent-backbone replication. Thus
-QK-LUTFormer establishes reproducible, interpretable Q/K lookup-addressability
-and calibrated selective utility while explicitly avoiding unsupported energy,
-latency, or production full-LUT claims.
+Spiking Transformers expose binary internal states, but it remains unclear
+whether their query--key patterns form reliable and compact lookup-table (LUT)
+addresses. We study this question in QKFormer through a negative-controlled
+pipeline covering address feasibility, held-out response reconstruction,
+support-aware fallback, and subspace decomposition. Correct Q/K-addressed
+prototypes reduce held-out response MSE by $3.71\%$ on CIFAR-10 and $4.42\%$
+on CIFAR-100, compared with $2.79\%$ and $3.42\%$ for coarse token/channel
+lookup. Shuffling the address--prototype alignment instead degrades MSE by
+$17.83\%$ and $15.82\%$, showing that table capacity alone does not explain the
+effect. Existing checkpoint and calibration-subset studies preserve this
+ordering. To avoid a monolithic address table, we introduce a
+subspace-decoupled estimator that composes token/channel, Q/gate, and K
+residual subtables. In the canonical CIFAR-100 seed-42 analysis, TC+Q/gate and
+TC+QK retain $87.58\%$ and $94.31\%$ of full-address reconstruction gain while
+using $8.83\%$ and $20.54\%$ of the compact address-space entry count. Their
+matched shuffled-subspace controls are worse than the global mean. These
+results support compact, interpretable Q/K lookup-addressability for local
+response reconstruction. In an end-to-end current-replacement diagnostic,
+calibrated Q/K lookup preserves QKFormer accuracy within $0.52$ percentage
+points on CIFAR-10/100 at $T=1$ and $T=4$, including a two-stage CIFAR-10
+replacement within $0.27$ points. For all four attention projections, an exact
+2-bit grouped spike-pattern LUT preserves CIFAR-100 accuracy within $0.06$
+points at both $T=1$ and $T=4$, using 2,664 KiB of FP32 table values.
+Across five fixed calibration subsets, aligned current lookup ranks first in
+all five runs; its paired advantages over global and token/channel controls
+have 95\% intervals that exclude zero. Transfer to Spikformer-4-384w is only
+partial: temporal+channel calibration improves static replacement from
+$66.47\%$ to $76.35\%$, versus an $88.16\%$ clean baseline. We retain this as
+an architecture-dependent boundary rather than claiming cross-architecture
+generalization, measured SRAM, latency, energy, ImageNet, or production
+hardware gains.
 \end{abstract}

@@ -3,20 +3,81 @@
 This repository is the independent **QK-LUTFormer / QKFormer-LUT hybrid**
 branch for SDR-LUTAttn.
 
+## Highest-Priority Experiment Execution Rule
+
+Do not run training, evaluation, or scientific experiment workloads locally on
+the Mac checkout. Local commands may inspect files, edit code/docs, parse
+downloaded metrics, and run lightweight syntax/format checks only.
+
+All experiments must run on the remote server unless the user explicitly
+overrides this rule for a specific diagnostic:
+
+- Server: `lbz@192.168.70.60`
+- Remote repo: `/home/lbz/mac_agent/sdr-lutattn-qkformer-lut`
+- Conda environment: `sdr`
+- Python: `/home/lbz/miniconda/envs/sdr/bin/python`
+- Data root used so far: `/home/datasets`
+
+Default remote command shape:
+
+```bash
+ssh lbz@192.168.70.60 'cd /home/lbz/mac_agent/sdr-lutattn-qkformer-lut && PYTHONPATH=$PWD /home/lbz/miniconda/envs/sdr/bin/python ...'
+```
+
+For long-running experiments, launch through `nohup` or a server script, write
+logs and result files under the remote `results/` tree, monitor until the
+process exits, then download only the needed `summary.csv`, `metrics.json`, and
+small Markdown/JSON artifacts to the local checkout. Do not store passwords,
+tokens, or private credentials in scripts, docs, logs, commits, or long-term
+memory.
+
+## Current Operating Policy
+
+The authoritative scientific verdict is scoped `GO-METHOD`. The paper method
+is the combination of:
+
+1. Q/K-address-specific held-out response reconstruction (E1)
+2. explicit support-aware hierarchical backoff (E5)
+3. compact subspace-decoupled Q/K lookup (E7)
+
+Classification accuracy is not the core method claim. The completed CIFAR-100
+T=4 matched-control study supports stable classification improvement across the
+independently trained seed-42/43/44 backbones: all five registered one-/two-
+epoch gates pass and aligned Q/K LUT has the highest mean Acc@1 in every gate.
+Treat this as secondary downstream evidence, not as the basis of `GO-METHOD`.
+It does not establish cross-architecture, cross-dataset, ImageNet, latency, or
+energy generalization. Existing seed-43/44 checkpoints, metrics, reports, and
+gate artifacts remain valid and may be audited or summarized; do not launch new
+seed-43/44 experiments by default.
+
+All new paper-mainline analysis defaults to seed 42. Existing multi-seed E1/E7
+results and classification gates remain admissible as already-completed
+robustness evidence, but do not start new seed-43/44 experiments unless a
+concrete reviewer requirement makes them necessary. Stop alpha, stage,
+checkpoint, and random-seed searches.
+
+The default workflow is paper closure, not more training: synchronize claims
+and tables to the result summary, verify traceability, compile and inspect the
+paper, then identify one reviewer-relevant evidence gap. Any new experiment
+must state its hypothesis, strongest matched control, fixed budget, success and
+failure gates, and claim unlocked before launch. Prefer one preregistered
+high-value experiment over a new sweep.
+
 ## Required Context
 
 Before important work, read:
 
 1. the user's global Codex rules file, when available
-2. `docs/QK_LUTFORMER_QUICK_STATE.md`
-3. `docs/QKFORMER_LUT_BRANCH_STATUS.md`
-4. `docs/CODEX_HANDOFF_QKFORMER_LUT.md`
+2. `results/EXPERIMENT_RESULTS_SUMMARY.md`
+3. `docs/QK_LUTFORMER_QUICK_STATE.md`
+4. `docs/QK_LUTFORMER_NEXT_SESSION_HANDOFF.md`
 
 For low-token continuation or side conversations, start with
-`docs/QK_LUTFORMER_QUICK_STATE.md` and
-`python3 scripts/local/analyze_qk_lut_results.py --brief`. Open the full
-handoff/status docs only when implementation details, claim boundaries, or
-historical evidence are needed.
+`results/EXPERIMENT_RESULTS_SUMMARY.md` and
+`docs/QK_LUTFORMER_QUICK_STATE.md`. Do not recursively inspect raw result JSON
+or cold archives unless a numerical claim requires forensic verification.
+Open the historical branch-status/handoff documents only when implementation
+history is needed.
 
 Use the original CCS project only as historical context. If the sibling CCS
 checkout is available, relevant docs there are:
@@ -28,7 +89,7 @@ Do not modify the CCS repository unless the user explicitly asks.
 
 ## Scope
 
-- Branch: `codex/qkformer-lut-hybrid`
+- Branch: `codex/qkformer-lut-5way-controls`
 - Upstream base: `https://github.com/zhouchenlin2096/QKFormer`
 - Working remote fork: `git@github.com:zhairui1995/QKFormer.git`
 - Main local path: this repository checkout
@@ -48,10 +109,19 @@ prototype route.
   implements.
 - Do not claim accuracy, energy, latency, or downstream gains without real
   metrics.
+- Do not describe independent training-seed replication as cross-architecture
+  or cross-dataset generalization. Classification may appear only as a
+  secondary, protocol-scoped contribution with matched-control evidence.
+- Do not run new seed-43/44, alpha, stage, or checkpoint sweeps by default;
+  preserve and document existing results.
 - Distillation, surrogate gradients, or direct training are allowed later only
   as trained hybrid methods, not forward-only ANN-to-SNN conversion.
 
-## Current Evidence
+## Historical Evidence
+
+The chronology below is retained for provenance. Its embedded "next step"
+sentences are historical and must not override the Current Operating Policy or
+the current Markdown result summary.
 
 CCS-LUTAttn E0-E2 ended as NO-GO for the current converted wrapper:
 
@@ -93,6 +163,7 @@ QK-LUTFormer E0 code path is implemented and can run on CIFAR-10:
   - `scripts/server/run_qkformer_lut_t1_e0_after_latest_train.sh`
   - `scripts/server/run_qkformer_lut_t1_e3_conservative_sweep.sh`
   - `scripts/server/run_qkformer_lut_t1_e3_seed_sweep.sh`
+  - `scripts/server/run_qkformer_grouped_projection_all4.sh`
   - `scripts/server/package_qkformer_lut_t1_e3_seed_sweep.sh`
 - Local automation:
   - `scripts/local/run_remote_qk_lut_loop.sh`
@@ -440,7 +511,8 @@ cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && bash scripts/server/run_qkformer_lut_t1_e3_conservative_sweep.sh --gpu 2
 ```
 
-Run the T=1 E3 multi-seed control sweep and package artifacts:
+Historical reproduction only; do not run this T=1 E3 multi-seed sweep by
+default:
 
 ```bash
 cd ~/mac_agent/sdr-lutattn-qkformer-lut && git pull && bash scripts/server/run_qkformer_lut_t1_e3_seed_sweep.sh --gpu 2
@@ -455,7 +527,7 @@ cd /Users/cvue/Documents/github_zr/sdr-lutattn-qkformer-lut && bash scripts/loca
 
 Remote automation defaults: server `lbz@192.168.70.60`, remote repo
 `~/mac_agent/sdr-lutattn-qkformer-lut`, conda env `sdr`, branch
-`codex/qkformer-lut-hybrid`, small diagnostics on GPU 2. For expensive training
+`codex/qkformer-lut-5way-controls`, small diagnostics on GPU 2. For expensive training
 jobs, use `--kind train`; it checks `nvidia-smi` for an idle GPU before falling
 back to GPU 2. Never store server passwords in scripts, docs, or commits; the
 loop requires SSH key authentication.
@@ -473,6 +545,11 @@ checkpoint.
 - `NO-GO`: binary Q/K addresses remain sparse or do not explain response; stop
   LUT-ization and switch to standard QKFormer training or a hybrid ANN-SNN
   baseline.
+
+The historical E0 phase gate is complete. The current project-level verdict is
+`GO-METHOD`; do not reopen E0-E7 selection unless new contradictory evidence
+appears. Future gates must be claim-specific, such as measured systems cost,
+cross-architecture generalization, or end-to-end replacement fidelity.
 
 ## Hygiene
 

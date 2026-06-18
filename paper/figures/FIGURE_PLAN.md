@@ -1,10 +1,10 @@
 # QK-LUTFormer Figure Plan
 
-Status date: 2026-06-12
+Status date: 2026-06-14
 
-Paper identity: `GO-AUDIT`, a structured Q/K lookup-addressability audit.
-Figures must support address structure and claim boundaries, not a residual
-adapter method claim.
+Paper identity: scoped `GO-METHOD` for address reconstruction, explicit
+backoff, and compact subspace lookup. Figures must not imply stable
+classification or measured hardware gains.
 
 ## Figure 1: Audit Overview
 
@@ -196,39 +196,39 @@ LaTeX snippet:
 \end{figure}
 ```
 
-## Figure 5: Address Component Ablation
+## Figure 5: E7 Component And Entry-Budget Ablation
 
 Output:
 
-- `paper/figures/storyboard_fig5_component_ablation.md`
+- `paper/figures/fig5_e7_component_ablation.pdf`
+- `paper/figures/data/fig5_e7_component_ablation_data.json`
+- `paper/figures/data/fig5_e7_component_ablation_data.csv`
 
 Status:
 
-- Storyboard only. No PDF is generated because component-ablation results are
-  not present.
+- Implemented from the fixed CIFAR-100 T=1 seed-42, 128-calibration-batch,
+  full-validation E7 result.
 
-Claim supported after future result:
+Claims supported:
 
-- Which Q/K or population address components add reconstruction signal beyond
-  head/token/channel coarsening.
+- TC+Q/gate and TC+QK retain most full-address reconstruction gain.
+- Both subspace variants remain below the 25% compact-address entry gate.
+- Shuffled-subspace controls break the reconstruction benefit.
 
 Claims not supported:
 
-- Factorized LUT method superiority before E4 or component gates pass.
-- Stable classification utility or hardware gains.
+- Stable classification utility.
+- Measured SRAM, latency, area, energy, or production hardware gains.
 
-Reserved LaTeX snippet after data exists:
+LaTeX snippet:
 
 ```tex
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\columnwidth]{figures/fig5_component_ablation.pdf}
-  \caption{Component ablation for Q/K lookup-address construction. Each row
-  uses the same E1 calibration/evaluation protocol and reports held-out
-  response reconstruction relative to the global mean. The plot tests whether
-  Q/K-specific address fields add reconstruction signal beyond
-  head/token/channel coarsening. The shuffled full-address row preserves table
-  capacity while breaking address--prototype alignment.}
-  \label{fig:component-ablation}
+  \includegraphics[width=\columnwidth]{figures/fig5_e7_component_ablation.pdf}
+  \caption{Seed-42 E7 component ablation. Aligned semantic subtables retain
+  most full-address gain below the 25\% entry gate, whereas shuffled-subspace
+  controls are worse than the global mean.}
+  \label{fig:e7-component}
 \end{figure}
 ```

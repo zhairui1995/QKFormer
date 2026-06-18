@@ -16,26 +16,23 @@ are already binary, can they form a useful discrete address space for lookup
 modules?
 
 This paper studies that question through QK-LUTFormer. We do not claim a pure
-LUT hardware replacement for the full QKFormer block. Instead, we build a
-diagnostic and adapter pipeline that asks whether Q/K binary addresses explain
-attention-module responses better than non-address controls. To address the
-obvious dimensionality concern of direct full-vector lookup, we additionally
-evaluate two scalable lookup mechanisms: a support-aware hierarchy that makes
-misses explicit, and a subspace-decoupled residual LUT that composes smaller
-token/channel, Q/gate, and K subtables instead of materializing a monolithic
-full-address table. For downstream utility, we additionally use frozen-backbone
-residual LUT adapter probes with classification, baseline-logit distillation,
-and local response constraints; these probes test whether the reconstruction
-signal transfers to accuracy, rather than defining the main claim.
+LUT hardware replacement for the full QKFormer block. Instead, we test whether
+Q/K binary addresses explain attention-module responses better than coarse and
+alignment-breaking controls. To address the dimensionality concern of direct
+full-vector lookup, we evaluate two bounded lookup mechanisms: a support-aware
+hierarchy that makes misses explicit, and a subspace-decoupled residual LUT
+that composes smaller token/channel, Q/gate, and K subtables instead of
+materializing a monolithic full-address table.
 
-Our experiments show a clear separation between local response structure and
-downstream classification. Correct compact addresses consistently reconstruct
-held-out responses better than token/channel and shuffled controls across
-datasets, checkpoints, time steps, and calibration budgets. Support-aware
-backoff makes misses observable, while subspace decomposition preserves most of
-the full-address gain below a fixed entry budget. Classification is evaluated
-through a separate frozen-backbone gate, so local reconstruction is never
-silently promoted into an accuracy claim.
+Correct compact addresses consistently reconstruct held-out responses better
+than token/channel and shuffled controls across datasets, checkpoints, time
+steps, and calibration budgets. Support-aware backoff makes misses observable,
+while subspace decomposition preserves most of the full-address gain below a
+fixed entry budget. We keep downstream classification outside the core method
+claim, but separately test whether calibrated current-level lookup preserves
+the frozen classifier end to end. A matched Spikformer experiment is reported
+separately as an architecture-dependent boundary and is not promoted into a
+broad Spiking Transformer generalization claim.
 
 \begin{figure*}[t]
   \centering
@@ -58,7 +55,16 @@ Our contributions are:
   \item We introduce support-aware hierarchical backoff and a
   subspace-decoupled QK-LUT. The latter replaces product-size lookup with a sum
   of semantic subtables and passes a predeclared 25\% supported-entry gate.
-  \item We separate reconstruction from downstream utility through a registered
-  frozen-backbone accuracy gate with global, token/channel, and shuffled
-  controls, and explicitly bound claims that are not supported by that gate.
+  \item We evaluate calibrated Q/K-address lookup as an end-to-end
+  current-replacement diagnostic on QKFormer CIFAR-10/100 at $T=1$ and $T=4$,
+  with aligned, shuffled, coarse, random, and global controls. Aligned lookup
+  ranks first across five fixed calibration subsets, with paired 95\%
+  intervals excluding zero against global and token/channel controls. As a
+  completeness test, an exact grouped spike-pattern decomposition replaces all
+  four attention projection currents while preserving CIFAR-100 accuracy
+  within $0.06$ points at both time steps.
+  \item We provide traceable entry-count, gain-retention, and idealized
+  value-array analyses and a matched Spikformer boundary experiment while
+  explicitly separating partial transfer and analytical proxies from measured
+  SRAM, latency, energy, and broad cross-architecture claims.
 \end{itemize}

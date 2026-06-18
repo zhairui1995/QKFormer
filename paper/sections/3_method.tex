@@ -128,61 +128,65 @@ implementation-level evaluation.
   \label{fig:address-controls}
 \end{figure*}
 
-\subsection{Forward-Only Replacement Diagnostic}
+\subsection{End-to-End Current Replacement Diagnostic}
 \label{sec:e2}
 
-Forward-only replacement substitutes selected module outputs with calibrated
-prototype predictions through hooks. This is not the proposed final method. It
-is a controlled diagnostic that measures whether replacing a local module
-output collapses classification and which stages are most tolerant to LUT-like
-responses. We evaluate stage1-only, stage2-only, and combined replacements,
-calibration sizes, blend ratios, random calibration subsets, and non-address
-controls.
+The replacement diagnostic substitutes the selected QKFormer attention
+projection current with a hard Q/K-address lookup while the remainder of the
+network executes unchanged. A static table returns the calibration-set mean
+current for each supported address. The calibrated variant, referred to as
+TCSLU in the experiment artifacts, applies moment and channel calibration to
+restore the current distribution before the original BN/LIF path and retains
+the support-aware fallback rule for missing addresses. Calibration uses 128
+training batches, and classification is then evaluated on the complete
+validation split with no backbone optimization.
 
-\subsection{Residual LUT Adapter Probe}
+We compare aligned addresses against shuffled address--prototype assignments,
+coarse token/channel means, a global mean, and a same-size random table. We
+also expand the intervention from \texttt{stage1.0.tssa} to
+\texttt{stage1.0.tssa}+\texttt{stage2.0.tssa}. This evaluates classification
+end to end, but the intervention remains a local current replacement rather
+than replacement of every attention block or the complete QKFormer network.
+
+\paragraph{Grouped binary-pattern projection LUT.}
+The compact prototype address cannot uniquely recover every SSA projection
+current. For all-attention projection replacement, we instead exploit the
+binary input to each 1$\times$1 projection. Let $\mathbf{x}$ be partitioned
+into $M$ groups of $g$ bits. For group $m$ and binary pattern $p$, we
+precompute
+\begin{equation}
+  \mathcal{T}_{m}[p] = \mathbf{W}_{m}\mathbf{b}(p),
+\end{equation}
+where $\mathbf{W}_{m}$ contains the corresponding input columns of the frozen
+projection and $\mathbf{b}(p)$ decodes the pattern. The projection current is
+then reconstructed as
+\begin{equation}
+  \hat{\mathbf{y}} =
+  \mathbf{b}_{\mathrm{proj}} +
+  \sum_{m=1}^{M}\mathcal{T}_{m}[p_m(\mathbf{x})].
+\end{equation}
+This replaces multiplication by pattern-indexed vector lookup and
+accumulation. We evaluate $g\in\{2,4,8\}$ without training. The diagnostic hook
+still executes the original convolution before substituting its output, so it
+tests numerical and classification fidelity rather than measured runtime.
+
+\subsection{Downstream Validation Scope}
 \label{sec:e3}
 
-To test whether reconstruction structure transfers to downstream predictions,
-we use a trainable residual LUT adapter probe. Given a frozen QKFormer module
-output $\mathbf{y}$ and a LUT prediction
-$\hat{\mathbf{y}}_{a}$ indexed by address $a$, the adapted response is
-\begin{equation}
-  \tilde{\mathbf{y}} = (1-\alpha)\mathbf{y} + \alpha \hat{\mathbf{y}}_{a}.
-\end{equation}
-The table is initialized from shrinkage-calibrated prototypes and then trained
-with the backbone frozen. The loss combines cross entropy, KL divergence to the
-frozen baseline logits, and local MSE to the baseline module response:
-\begin{equation}
-  \mathcal{L} =
-  \lambda_{\mathrm{ce}}\mathcal{L}_{\mathrm{ce}}
-  + \lambda_{\mathrm{kl}}\mathcal{L}_{\mathrm{kl}}
-  + \lambda_{\mathrm{mse}}\|\tilde{\mathbf{y}}-\mathbf{y}\|_2^2 .
-\end{equation}
-This is a probe rather than a claimed production method: the backbone is
-frozen, the adapter is small, and every address result is compared to global,
-token/channel, and shuffled-address controls. The matched gate fixes
-$\alpha=0.025$, stage1, one adapter epoch, 128 prototype-calibration batches,
-and 128 adapter-training batches before evaluation. The backbone remains in
-evaluation mode throughout adapter optimization so that BatchNorm statistics
-cannot drift.
-For CIFAR-100 $T=4$, full-validation evaluation reuses the upstream QKFormer
-AMP and data-loader protocol. The same-capacity \emph{shuffled address LUT}
-preserves table values while breaking address alignment; the global and
-token/channel controls test generic smoothing and coarse state, respectively.
+Local response reconstruction does not establish classifier improvement. We
+therefore report current-replacement fidelity as a separate validation problem,
+not as the basis of the compact LUT method verdict. The current study freezes
+the backbone, preserves the full-validation protocol, and uses matched semantic
+controls.
 
-Because full replacement can help and harm different inputs, we additionally
-fit a deterministic selective gate on a third, disjoint training partition.
-Let $m(\mathbf{z})$ denote the difference between the largest and second-largest
-logits. The label-free deployment score is
-\begin{equation}
-  s(\mathbf{x}) = m(\mathbf{z}_{\mathrm{LUT}}) -
-  m(\mathbf{z}_{\mathrm{base}}).
-\end{equation}
-A scalar threshold $\tau$ is selected from fixed 5\% calibration quantiles to
-maximize accuracy on the gate-calibration partition, with ties preferring lower
-LUT coverage. Validation then uses the LUT prediction iff
-$s(\mathbf{x})\geq\tau$. Prototype calibration, adapter optimization, and gate
-calibration use non-overlapping CIFAR-100 train indices
-$[0,16000)$, $[16000,32000)$, and $[32000,50000)$, respectively. Validation
-labels are never used for threshold selection. This gate evaluates selective
-utility; because it computes both branches, it is not a latency claim.
+\paragraph{Cross-architecture protocol.}
+We separately intercept the SSA projection current in Spikformer-4-384w
+\cite{zhou2023spikformer}, before its original BN/LIF path, and evaluate the
+same clean, static, and calibrated-current sequence on CIFAR-10 at $T=4$.
+Because QKFormer and Spikformer expose different attention topology and state
+geometry, this is a matched intervention protocol rather than an assertion
+that their address encodings are identical. A result is considered positive
+cross-architecture transfer only if the calibrated replacement is near-lossless
+under fixed controls. Otherwise, the measured row is retained as an
+architecture-dependent boundary. Current-level hooks do not constitute
+complete model replacement.

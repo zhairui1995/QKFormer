@@ -1,0 +1,112 @@
+{
+  "args": {
+    "alphas": "0.0,0.25,1.0",
+    "batch_size": 128,
+    "calib_batches": 8,
+    "calibration_schedule": "independent",
+    "channel_bins": 8,
+    "checkpoint": "results/qkformer_cifar100_train_20260610_164027/output/qkformer_cifar100_t1_seed42/model_best.pth.tar",
+    "corruption": "none",
+    "corruption_seed": 12345,
+    "corruption_severity": 1,
+    "data_dir": "/home/datasets",
+    "dim": 384,
+    "family": "cifar100",
+    "group_lut_only": true,
+    "layer": 4,
+    "local_cuda_index": 0,
+    "lut_mode": "aligned_lut",
+    "max_eval_batches": 100000,
+    "min_support": 2,
+    "population_bins": 4,
+    "projection_group_size": 8,
+    "result_dir": "results/qk_grouped_projection_c100_t1_all4_full_20260618_185121",
+    "root": ".",
+    "seed": 42,
+    "ssa_address_mode": "qk",
+    "ssa_context_bins": 4,
+    "ssa_context_groups": 6,
+    "targets": "stage1.0.tssa,stage2.0.tssa,stage3.0.ssa,stage3.1.ssa",
+    "time_step": 1,
+    "token_bins": 8,
+    "workers": 4
+  },
+  "calib_batches": 0,
+  "calibration_schedule": "independent",
+  "checkpoint": {
+    "loaded": true,
+    "missing_keys": [],
+    "path": "results/qkformer_cifar100_train_20260610_164027/output/qkformer_cifar100_t1_seed42/model_best.pth.tar",
+    "unexpected_keys": []
+  },
+  "claim": "small diagnostic: replace QKFormer proj_conv current via hook, preserving proj_bn/proj_lif; does not remove conv compute",
+  "experiment": "qkformer_current_unit_probe",
+  "lut_mode": "aligned_lut",
+  "moment_batches": 0,
+  "rows": [
+    {
+      "alpha": 1.0,
+      "calibration_mode": "group_lut",
+      "clean_top1": 77.78,
+      "corruption": "none",
+      "corruption_severity": 0,
+      "current_cosine": 0.9999999701976776,
+      "current_mse": 2.0973839609528255e-09,
+      "drop_top1": 0.04999999999999716,
+      "fallback_rate": 0.0,
+      "hit_rate": 1.0,
+      "injected_top1": 77.73,
+      "kl_clean_to_injected": 0.03292475570142269,
+      "logit_mse": 0.03871618926525116,
+      "memory_kib": 42624.0,
+      "method": "qkformer_current_grouped_projection_lut_hard",
+      "moment_match": false,
+      "per_target_metrics": {
+        "stage1.0.tssa": {
+          "current_cosine": 0.9999999403953552,
+          "current_mse": 6.016119269425246e-10,
+          "fallback_rate": 0.0,
+          "hit_rate": 1.0,
+          "memory_kib": 1152.0,
+          "spike_sparsity": 0.9072265625,
+          "supported_scalar_entries": 294912.0
+        },
+        "stage2.0.tssa": {
+          "current_cosine": 1.0,
+          "current_mse": 1.0304512798597898e-09,
+          "fallback_rate": 0.0,
+          "hit_rate": 1.0,
+          "memory_kib": 4608.0,
+          "spike_sparsity": 0.9233012296715561,
+          "supported_scalar_entries": 1179648.0
+        },
+        "stage3.0.ssa": {
+          "current_cosine": 1.0,
+          "current_mse": 9.41127531461916e-09,
+          "fallback_rate": 0.0,
+          "hit_rate": 1.0,
+          "memory_kib": 18432.0,
+          "spike_sparsity": 0.7885793050130209,
+          "supported_scalar_entries": 4718592.0
+        },
+        "stage3.1.ssa": {
+          "current_cosine": 1.0,
+          "current_mse": 2.9004461055137654e-09,
+          "fallback_rate": 0.0,
+          "hit_rate": 1.0,
+          "memory_kib": 18432.0,
+          "spike_sparsity": 0.8857311672634549,
+          "supported_scalar_entries": 4718592.0
+        }
+      },
+      "spike_sparsity": 0.8879619615649745,
+      "supported_scalar_entries": 10911744.0
+    }
+  ],
+  "targets": [
+    "stage1.0.tssa",
+    "stage2.0.tssa",
+    "stage3.0.ssa",
+    "stage3.1.ssa"
+  ]
+}

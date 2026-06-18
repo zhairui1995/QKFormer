@@ -1,0 +1,50 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{What the reconstruction result establishes.}
+Correct Q/K-derived addresses improve held-out local response reconstruction
+beyond global, token/channel, candidate/background, and matched shuffled
+controls. The shuffled failures are important: they preserve table capacity
+but break address--prototype semantics. E5 further makes unsupported addresses
+visible through explicit fallback levels, while E7 shows that the useful signal
+can be composed from smaller semantic subtables rather than a monolithic
+Cartesian table.
+
+\paragraph{Why the entry proxy is limited.}
+The entry-count and FP32 value-array analyses isolate the storage associated
+with supported scalar prototypes. They do not include keys, indices, counters,
+padding, allocator overhead, memory traffic, or control logic. Consequently,
+the observed 8.83\% and 20.54\% entry fractions support compact table
+composition, not measured SRAM, latency, area, or energy savings. Those claims
+require an implementation-level hardware or simulator study.
+
+\paragraph{What current replacement adds.}
+The end-to-end classifier results close part of the
+reconstruction-to-replacement gap: calibrated Q/K lookup preserves QKFormer
+accuracy across CIFAR-10/100 and $T=1/4$, and remains close to clean inference
+when two early attention currents are replaced together. The aligned control
+also remains strongest after calibration. The grouped binary-pattern
+decomposition extends the result to all four attention projection currents,
+but it uses more table values than the original projection weights and leaves
+Q/K/V projections, MLPs, and BN/LIF dynamics unchanged. It therefore
+establishes projection replacement fidelity, not complete-network LUT
+execution or cross-architecture transfer.
+
+\paragraph{What the Spikformer boundary establishes.}
+The matched Spikformer intervention transfers only partially. Learned
+temporal+channel calibration recovers $9.88$ points over static lookup
+($66.47\%\rightarrow76.35\%$), but remains $11.81$ points below the
+$88.16\%$ clean model. This negative result indicates that QKFormer's
+near-lossless current contract does not automatically transfer to SSA currents
+with different temporal and channel geometry. The missing Spikformer semantic,
+robustness, and multi-current controls remain visible as \tbd{} cells rather than
+being inferred from QKFormer.
+
+\paragraph{Why cross-architecture generalization is not yet claimed.}
+One positive architecture and one boundary architecture establish
+architecture dependence, not broad replacement generality. A defensible
+cross-architecture claim requires at least one additional architecture to pass
+the same fixed clean/static/calibrated protocol, plus matched address-breaking
+controls and robustness checks. Keeping these tables separate prevents the
+positive QKFormer result from becoming an unsupported universal Spiking
+Transformer claim.

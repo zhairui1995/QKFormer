@@ -1,0 +1,57 @@
+{
+  "source": {
+    "dataset": "CIFAR-100",
+    "time_step": 1,
+    "checkpoint_seed": 42,
+    "calibration_seed": 42,
+    "calibration_batches": 128,
+    "evaluation_batches": 313,
+    "evaluation_split": "full validation",
+    "min_count": 2,
+    "source_metrics": "results/qkformer_lut_e1_recon_20260612_093330_e7_subspace_calib128_seed42_min2/metrics.json",
+    "compact_full_address_space_entries": 69632,
+    "footprint_assumption": "supported scalar prototype values plus four module-level global fallback scalars, FP32 values only; excludes keys, indices, counters, alignment, allocator overhead, and hardware metadata"
+  },
+  "rows": [
+    {
+      "label": "Token/channel",
+      "reduction_pct": 3.425338428736714,
+      "shuffled_reduction_pct": null,
+      "supported_entries": 2052,
+      "entry_fraction_pct": 2.946920955882353,
+      "gain_retention_pct": 77.42159572341605,
+      "idealized_fp32_bytes": 8208,
+      "idealized_fp32_kib": 8.015625
+    },
+    {
+      "label": "TC+Q/gate",
+      "reduction_pct": 3.8749349689920005,
+      "shuffled_reduction_pct": -1.890765264655329,
+      "supported_entries": 6148,
+      "entry_fraction_pct": 8.829273897058824,
+      "gain_retention_pct": 87.58365191216143,
+      "idealized_fp32_bytes": 24592,
+      "idealized_fp32_kib": 24.015625
+    },
+    {
+      "label": "TC+QK",
+      "reduction_pct": 4.1726613879007655,
+      "shuffled_reduction_pct": -1.660045993399036,
+      "supported_entries": 14303,
+      "entry_fraction_pct": 20.540843290441178,
+      "gain_retention_pct": 94.31304666263459,
+      "idealized_fp32_bytes": 57212,
+      "idealized_fp32_kib": 55.87109375
+    },
+    {
+      "label": "Full address",
+      "reduction_pct": 4.424267411089701,
+      "shuffled_reduction_pct": null,
+      "supported_entries": 19258,
+      "entry_fraction_pct": 27.656824448529413,
+      "gain_retention_pct": 100.0,
+      "idealized_fp32_bytes": 77032,
+      "idealized_fp32_kib": 75.2265625
+    }
+  ]
+}

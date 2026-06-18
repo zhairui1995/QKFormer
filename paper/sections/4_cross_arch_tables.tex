@@ -1,0 +1,143 @@
+% Table C sources:
+% results/tcslu_qkf_c10_t1_full_20260618_161423/summary.csv
+% results/tcslu_qkf_c10_t4_full_20260618_161423_t4rerun/summary.csv
+% results/tcslu_qkf_c100_t1_full_20260618_104451/summary.csv
+% results/tcslu_qkf_c100_t4_full_20260618_104512/summary.csv
+% results/tcslu_spik_c10_t4_boundary_rerun_20260618_105951/summary.csv
+\begin{table*}[t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{llllrrrrl}
+\toprule
+Architecture & Dataset & $T$ & Target & Clean & Static LUT &
+Calibrated LUT & Drop & Status \\
+\midrule
+QKFormer & CIFAR-10  & 1 & stage1 TSSA & 94.64 & 93.64 & 94.57 & 0.07 & Completed \\
+QKFormer & CIFAR-10  & 4 & stage1 TSSA & 95.70 & 95.08 & 95.81 & -0.11 & Completed \\
+QKFormer & CIFAR-100 & 1 & stage1 TSSA & 77.78 & 75.55 & 77.26 & 0.52 & Completed \\
+QKFormer & CIFAR-100 & 4 & stage1 TSSA & 81.09 & 68.02 & 80.65 & 0.44 & Completed \\
+Spikformer-4-384w & CIFAR-10 & 4 & SSA current & 88.16 & 66.47 & 76.35 & 11.81 & Boundary \\
+SpikingResformer & \tbd & \tbd & DSSA current & \tbd & \tbd & \tbd & \tbd & Pending \\
+\bottomrule
+\end{tabular}
+\caption{Cross-architecture current-replacement matrix. Drop is clean minus
+calibrated Acc@1 in percentage points; negative values are treated as no-loss
+fluctuations. Completed rows contain measured full-validation results, the
+Spikformer row is a measured boundary, and the SpikingResformer row is pending.
+These interventions replace selected currents, not complete networks.}
+\label{tab:cross_arch_generalization}
+\end{table*}
+
+% Table D sources:
+% results/tcslu_qkf_c10_t4_semantic_controls_20260618.md
+% results/tcslu_qkf_c10_t4_control_replication_20260618_181345/replication_summary.csv
+\begin{table*}[t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrrr}
+\toprule
+Architecture / setting & Aligned & Shuffled & Token/channel & Global & Random &
+Aligned advantage \\
+\midrule
+QKFormer, CIFAR-10 $T=4$ & \textbf{95.81} & 95.31 & 95.45 & 95.63 & 95.52 & +0.18 \\
+Spikformer-4-384w, CIFAR-10 $T=4$ & 76.35 & \tbd & \tbd & \tbd & \tbd & \tbd \\
+SpikingResformer & \tbd & \tbd & \tbd & \tbd & \tbd & \tbd \\
+\bottomrule
+\end{tabular}
+\caption{Matched semantic controls (Acc@1, \%). QKFormer controls are completed;
+its aligned advantage is relative to the strongest fixed-subset control,
+global mean. Across five calibration subsets, aligned exceeds global by
+$0.190$ points with 95\% CI $[0.037,0.343]$ and ranks first in all five runs.
+Spikformer and SpikingResformer controls are pending, not zero. \textit{N/A}
+would denote a technically inapplicable control; none is asserted here.}
+\label{tab:cross_arch_controls}
+\end{table*}
+
+% Table E sources:
+% results/tcslu_qkf_c10_t4_control_replication_20260618_181345/replication_summary.csv
+% results/tcslu_qkf_c10_t4_followup_experiments_20260618.md
+\begin{table*}[t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{lllrrrrl}
+\toprule
+Architecture & Robustness axis & Setting & Clean & Static & Calibrated & Drop & Status \\
+\midrule
+QKFormer & Calibration subset & five fixed 128-batch subsets & 95.70 & \tbd & 95.820$\pm$0.123 & -0.120 & Completed \\
+QKFormer & Support threshold & min support 1/2/4 & 95.70 & 95.08 & 95.81 & -0.11 & Completed \\
+QKFormer & Corruption & noise, severity 1 & 94.27 & 92.21 & 94.26 & 0.01 & Completed \\
+QKFormer & Corruption & brightness, severity 1 & 95.93 & 95.29 & 95.87 & 0.06 & Completed \\
+QKFormer & Replacement scope & stage1 only & 95.70 & 95.08 & 95.81 & -0.11 & Completed \\
+QKFormer & Replacement scope & stage1 + stage2 & 95.70 & 88.99 & 95.43 & 0.27 & Completed \\
+Spikformer-4-384w & Calibration subset & fixed matched subsets & \tbd & \tbd & \tbd & \tbd & Pending \\
+Spikformer-4-384w & Support threshold & preregistered thresholds & \tbd & \tbd & \tbd & \tbd & Pending \\
+Spikformer-4-384w & Corruption & noise / brightness & \tbd & \tbd & \tbd & \tbd & Pending \\
+Spikformer-4-384w & Replacement scope & multiple SSA currents & \tbd & \tbd & \tbd & \tbd & Pending \\
+\bottomrule
+\end{tabular}
+\caption{Robustness and scaling matrix. Drop is clean minus calibrated Acc@1.
+All QKFormer rows are completed measurements. The calibration-subset static
+aggregate was not registered in the summary and is therefore \tbd{} rather than
+inferred. Cross-architecture extensions remain pending.}
+\label{tab:replacement_robustness}
+\end{table*}
+
+% Table F primary source: paper/tables/data/lookup_cost_proxy.csv
+% Grouped 2-bit row: results/qk_grouped_projection_c100_all4_20260618.md
+\begin{table*}[t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llrrrrr}
+\toprule
+Family & Table / setting & Entries & Address bits & Prototype KiB &
+Metadata KiB & Lookup/MAC \\
+\midrule
+E7 reconstruction & TC+QK & 14,303 & 17 & 55.87 & 141.42 & \textit{N/A} \\
+E7 reconstruction & Full address & 19,258 & 17 & 75.23 & 190.42 & \textit{N/A} \\
+QKFormer current & CIFAR-100 $T=1$ & 2,048 & 11 & 8.00 & 8.25 & 0.010417 \\
+QKFormer current & CIFAR-100 $T=4$ & 2,048 & 11 & 8.00 & 8.25 & 0.010417 \\
+Spikformer boundary & learned temporal+channel & 92,646 & \tbd & 361.90 & 916.06 & \tbd \\
+Grouped projection & QKFormer all-attention, 2 bit & 681,984 & 2 & 2,664 & \tbd & 0.002604 \\
+\bottomrule
+\end{tabular}
+\caption{Analytical lookup-cost proxies, not measured latency, energy, power,
+or SRAM. E7 metadata uses sparse FP32 values, uint32 keys, uint16 counters,
+and validity bits. The dense 2,048-entry QKFormer current tables use FP32
+values plus a validity bitset. Grouped-projection entries count stored scalar
+values. \textit{N/A} marks a reconstruction-only ratio that is not defined;
+\tbd{} marks an uncomputed quantity.}
+\label{tab:lookup_cost_proxy}
+\end{table*}
+
+% Table G source: paper/tables/data/tcslu_peer_spiking_transformer_comparison.csv
+\begin{table*}[t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lllrrrll}
+\toprule
+Method & Architecture / unit & Dataset & $T$ & Params & Top-1 &
+LUT replacement & Calibration \\
+\midrule
+Spikformer~\cite{zhou2023spikformer} & SSA & ImageNet-1K & 4 & 66.3M & 74.81 & No & No \\
+QKFormer~\cite{zhou2024qkformer} & Q-K attention & ImageNet-1K & \tbd & 64.96M & 85.65 & No & No \\
+SpikingResformer~\cite{shi2024spikingresformer} & DSSA & ImageNet-1K & 4 & \tbd & 79.40 & No & No \\
+Meta-SpikeFormer~\cite{yao2024metaspikeformer} & SDSA & ImageNet-1K & \tbd & 55M & 80.0 & No & No \\
+TCSLU-QKFormer (ours) & selected-current LUT & CIFAR-100 & 1 / 4 & \tbd & 77.26 / 80.65 & Yes & Yes \\
+TCSLU-Spikformer (ours) & SSA-current LUT & CIFAR-10 & 4 & \tbd & 76.35 & Yes & Yes (boundary) \\
+\bottomrule
+\end{tabular}
+}
+\caption{Peer Spiking Transformer context. Published rows reproduce reported
+paper metrics and retain citations; datasets are not directly comparable.
+Our rows report selected-current replacement diagnostics rather than new
+backbones. Parameters, ImageNet results, and power for our method remain
+\tbd{}. No measured power is reported; efficiency statements elsewhere are
+analytical proxies only.}
+\label{tab:peer_comparison}
+\end{table*}

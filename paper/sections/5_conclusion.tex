@@ -1,33 +1,27 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-We studied whether compact local states derived from QKFormer's binary Q/K
-spikes form a useful LUT address space. Q/K-derived addresses are well occupied on CIFAR-10 and
-CIFAR-100 and improve held-out reconstruction over global averages. On
-CIFAR-10 and CIFAR-100, the fine-grained address LUT consistently exceeds a
-coarse token/channel LUT and strongly separates from a same-capacity shuffled
-table across randomized calibration subsets. The address-over-token/channel
-ordering also holds across three independently trained $T=1$ checkpoints and
-from 8 to 512 calibration batches. The hierarchical backoff audit further
-shows how this addressability can be made explicit under support thresholds:
-fallback fractions are measurable, shuffled alignment remains negative, and the
-hierarchy retains full-address reconstruction gains at practical calibration
-sizes. The subspace-decoupled residual LUT then addresses the compactness
-failure of pure backoff: token/channel+Q/gate subtables improve over
-token/channel lookup with only $8.83\%$ supported entries, and adding K remains
-below the $25\%$ entry-budget gate while preserving most full-address
-reconstruction gain.
-
-The downstream evidence adds a narrower positive result. On CIFAR-100 $T=4$,
-a deterministic threshold fitted only on a disjoint train partition raises
-mean Acc@1 from $81.22\%$ to $81.73\%$ across three aligned adapter seeds; every
-seed exceeds the saved $81.23\%$ QKFormer checkpoint. Matched shuffled and
-global gates reach $81.62\%$ and $81.46\%$, and a two-epoch diagnostic reaches
-$82.02\%$. The aligned--shuffled ordering is not positive for every adapter
-seed, so this supports checkpoint-conditional selective utility rather than a
-backbone-stable accuracy claim. The supported result is therefore an
-address-specific, interpretable and compact reconstruction story with a
-calibrated downstream gate, not a full hardware replacement. Future work should
-complete independent-backbone replication and test larger datasets and real
-hardware or simulator measurements before claiming broad accuracy, latency, or
-energy benefits.
+QKFormer's binary Q/K states form reproducible lookup addresses for local
+response reconstruction. Correct alignment consistently beats coarse and
+shuffled controls, support-aware backoff exposes lookup misses, and
+subspace-decoupled tables preserve most full-address gain below a 25\% compact
+address-space entry budget. The canonical seed-42 analysis retains 87.58\% of
+full-address gain with TC+Q/gate and 94.31\% with TC+QK, using 8.83\% and
+20.54\% entry fractions. These results support a compact and auditable
+response-reconstruction method. Calibrated Q/K lookup further preserves
+QKFormer end-to-end accuracy within $0.52$ percentage points on CIFAR-10/100 at
+$T=1/4$, and a two-stage current replacement remains within $0.27$ points.
+An exact 2-bit grouped spike-pattern LUT further replaces all four attention
+projection currents while keeping CIFAR-100 within $0.06$ points at $T=1/4$.
+Across five fixed calibration subsets, aligned current lookup ranks first in
+all five runs; paired 95\% intervals exclude zero against both global and
+token/channel controls. The matched Spikformer experiment shows only partial
+transfer: calibration improves static lookup from $66.47\%$ to $76.35\%$, but
+the result remains $11.81$ points below clean accuracy and is therefore an
+architecture-dependent boundary.
+These results establish attention-projection replacement fidelity, not
+replacement of Q/K/V projections, MLPs, BN/LIF, or every network operation.
+Cross-architecture generalization still requires another architecture to pass
+the fixed matched-control protocol. Measured hardware efficiency,
+ImageNet-scale replacement evaluation, and a production full-LUT wrapper also
+remain future validation targets.

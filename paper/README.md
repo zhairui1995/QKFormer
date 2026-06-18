@@ -5,8 +5,8 @@ hybrid branch.
 
 Current paper-side verdict:
 
-- `GO-AUDIT`: the strongest supported paper is a structured Q/K
-  lookup-addressability audit.
+- scoped `GO-METHOD`: the supported method is address-specific reconstruction,
+  explicit hierarchical backoff, and compact subspace-decoupled lookup.
 - Current title: `QK-LUTFormer: Compact and Auditable Lookup Addresses for
   Spiking Q-K Attention`.
 - `E1 PASS`: correct Q/K addresses beat global, token/channel, and shuffled
@@ -16,12 +16,14 @@ Current paper-side verdict:
 - `E7 PASS`: subspace-decoupled residual QK-LUT beats token/channel and
   shuffled-subspace controls across CIFAR-100 calibration sizes/seeds while
   staying below the 25% entry-budget gate.
-- `CIFAR-100 T=4 CHECKPOINT PASS`: a matched one-epoch deterministic gate
-  raises aligned mean Acc@1 from 81.22% to 81.73% over three adapter seeds.
-  Shuffled and global controls reach 81.62% and 81.46%; independent-backbone
-  replication is running before any broader claim.
-- `E4 FAIL/PENDING`: factorized LUT modes did not pass the CIFAR-100 pilot and
-  have not promoted the paper to a method track.
+- New component and footprint analysis is fixed to CIFAR-100 T=1 seed 42,
+  128 calibration batches, and full validation.
+- The completed five-gate CIFAR-100 T=4 classification study is secondary,
+  protocol-scoped evidence; it is not cross-architecture or cross-dataset
+  generalization and is not the basis of the method verdict.
+- All four attention `proj_conv` currents have a near-lossless grouped-LUT
+  replacement result on CIFAR-100 `T=1/4`. This is completeness/fidelity
+  support, not complete-network replacement or measured acceleration.
 
 Current claim boundary:
 
@@ -31,10 +33,10 @@ Current claim boundary:
 - Supported: compact subspace-decoupled reconstruction under a 25% entry-budget
   gate.
 - Partially supported: hierarchical backoff as a scalable audit mechanism.
-- Supported on one checkpoint: disjoint-calibration selective utility with
-  matched global and shuffled controls.
-- Not supported: backbone-stable accuracy improvement, energy, latency, ImageNet,
-  measured hardware acceleration, or a full production LUT wrapper.
+- Secondary: same-architecture CIFAR-100 T=4 classification stability under
+  the registered matched-control gates.
+- Not supported: energy, latency, measured SRAM, ImageNet, hardware
+  acceleration, or a full production LUT wrapper.
 
 See `PAPER_STATUS_AND_EXPERIMENT_PLAN.md` for the latest experiment digest and
 paper-directed next experiment priorities.
@@ -46,3 +48,9 @@ latexmk -pdf main.tex
 ```
 
 or use any equivalent LaTeX engine available locally.
+
+Generate the E7 component figure with:
+
+```bash
+python3 ../scripts/plot_qk_lut_e7_component_ablation.py
+```

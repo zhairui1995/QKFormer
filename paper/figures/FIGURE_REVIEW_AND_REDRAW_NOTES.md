@@ -1,6 +1,6 @@
 # Figure Review And Redraw Notes
 
-Status date: 2026-06-11
+Status date: 2026-06-14
 
 ## Gemini Availability
 
@@ -27,13 +27,16 @@ publication styling and clearer dataset/claim separation.
   shuffled-control panels.
 - Figure 4 was refined with a shaded address-over-token gap and an annotation
   showing the limited seed-42 calibration-efficiency evidence.
+- Figure 5 was added as a two-panel seed-42 E7 component and entry-budget
+  ablation with matched shuffled-subspace controls and explicit FP32-proxy
+  labeling.
 
 ## Remaining Design Boundary
 
 The figures are intentionally restrained: white background, thin lines,
 color-blind-friendly palette, no gradients, no 3D, no hardware or speed visual
-metaphors. This matches the current `GO-AUDIT` paper identity and avoids
-implying residual-adapter or hardware-acceleration claims.
+metaphors. This matches the scoped `GO-METHOD` identity while avoiding stable
+classification or hardware-acceleration claims.
 
 ## When Visio/Figma Would Help
 
