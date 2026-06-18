@@ -313,19 +313,13 @@ Detailed review handoff and a copy-ready ChatGPT Pro prompt:
 
 ## Next Work
 
-Do not start another seed, alpha, stage, checkpoint, calibration, support, or
-group-size sweep. The paper and external review package should be audited
-first.
+The operator-scope extension has reached its registered stop condition at
+Q/K/V. Await the user's scientific decision. Do not start MLP, patch,
+classifier, cumulative all-affine, a new accumulator implementation, post-LUT
+calibration, or another parameter sweep by default.
 
-If one replacement-scope experiment is approved after review, the only current
-direction is:
-
-**audit and extend LUT replacement to Q/K/V projections, MLPs, patch
-embeddings, and the classifier.**
-
-This is the remaining operator-scope gap. Until it is closed, use
-“all-attention projection-current replacement,” never “complete QKFormer,”
-“full attention,” or “all-operator” LUT replacement.
+Continue to use “all-attention projection-current replacement,” never
+“complete QKFormer,” “full attention,” or “all-operator” LUT replacement.
 
 ## Session Completion And SSH Note
 
@@ -333,6 +327,33 @@ This is the remaining operator-scope gap. Until it is closed, use
 - A final SSH status recheck timed out once after completion.
 - The timeout is an operational verification note, not evidence of an
   unfinished experiment. Do not rerun formal jobs solely because of it.
+
+## All-Affine Audit Stop Point
+
+The planned Q/K/V -> MLP -> patch -> classifier -> cumulative audit was
+preregistered in `docs/QKFORMER_ALL_AFFINE_LUT_PREREGISTRATION.md`.
+
+It stopped at Q/K/V after the main configuration and the only allowed retry
+both failed:
+
+- main integer range `[0, 7]`: 77.58 -> 77.13, drop 0.45 pp;
+- retry integer range `[0, 15]`: identical 77.58 -> 77.13;
+- aggregate output NRMSE 0.00012029 and zero clipping;
+- all ten Q/K/V targets executed;
+- registered maximum drop: 0.25 pp.
+
+Observed inputs were exact integers and no larger than four, so the retry only
+doubled table storage. This rules out address range as the failure cause. The
+working hypothesis is BN/LIF threshold amplification of tiny accumulation-order
+error.
+
+Per the user-approved rule, do not run MLP, patch, classifier, or cumulative
+all-affine experiments without a new decision. The current scientific boundary
+remains all-attention `proj_conv` replacement, not all learned affine operators
+and not complete QKFormer replacement.
+
+Detailed evidence:
+`results/qk_all_affine_qkv_boundary_20260619.md`.
 
 ## Hygiene
 

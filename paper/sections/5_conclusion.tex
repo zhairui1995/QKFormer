@@ -21,6 +21,9 @@ the result remains $11.81$ points below clean accuracy and is therefore an
 architecture-dependent boundary.
 These results establish attention-projection replacement fidelity, not
 replacement of Q/K/V projections, MLPs, BN/LIF, or every network operation.
+A preregistered all-Q/K/V follow-up confirms this boundary: two integer-range
+settings both lose $0.45$ Acc@1 points despite aggregate projection NRMSE of
+$1.20\times10^{-4}$.
 Cross-architecture generalization still requires another architecture to pass
 the fixed matched-control protocol. Measured hardware efficiency,
 ImageNet-scale replacement evaluation, and a production full-LUT wrapper also

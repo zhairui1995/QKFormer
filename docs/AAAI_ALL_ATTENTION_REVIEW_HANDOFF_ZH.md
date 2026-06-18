@@ -180,3 +180,19 @@ SRAM、energy 或 hardware efficiency。
 - 最终一次 SSH 状态复查发生连接超时；这不影响已下载并核对的正式结果。
 - 不应仅因该超时重跑实验。若需要复核，先检查服务器现有 result directories，
   不要启动新的训练或 sweep。
+
+## 后续 All-Affine 审计结果
+
+后续实验已按预注册规则启动，但在第一类 Q/K/V projections 即停止：
+
+- 8-level 主配置：77.58 -> 77.13，下降 0.45 pp；
+- 16-level 唯一重试：结果完全相同；
+- aggregate output NRMSE 为 0.00012029，clip rate 为 0；
+- 十个 Q/K/V targets 全部执行；
+- 输入均为精确整数且最大不超过 4，因此增加 levels 只增加存储，没有改善。
+
+该结果连续两次超过 0.25 pp loss gate。MLP、patch embedding、classifier 和
+cumulative all-affine 未运行。它进一步说明 all-attention `proj_conv`
+replacement 不能外推为 all-affine 或 complete-network replacement。
+
+证据：`results/qk_all_affine_qkv_boundary_20260619.md`。

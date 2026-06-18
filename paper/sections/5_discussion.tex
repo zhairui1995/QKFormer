@@ -48,3 +48,15 @@ the same fixed clean/static/calibrated protocol, plus matched address-breaking
 controls and robustness checks. Keeping these tables separate prevents the
 positive QKFormer result from becoming an unsupported universal Spiking
 Transformer claim.
+
+\paragraph{Why projection-current fidelity does not imply all-affine fidelity.}
+A preregistered follow-up replaced all ten Q/K/V projections simultaneously
+with scalar-level LUT decompositions. The local projection error was small
+(aggregate NRMSE $1.20\times10^{-4}$) and clipping was zero, yet full-validation
+Acc@1 fell by $0.45$ points. Increasing the integer table range from 8 to 16
+levels produced the same result because all observed inputs were already exact
+integers no larger than four. This boundary suggests that small changes in
+floating-point accumulation order can be amplified by downstream BN/LIF
+thresholds. We therefore do not extrapolate the successful attention
+\texttt{proj\_conv} result to Q/K/V, all learned affine operators, or the
+complete network.

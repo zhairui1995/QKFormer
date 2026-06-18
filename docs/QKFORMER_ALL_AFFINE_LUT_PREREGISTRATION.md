@@ -95,3 +95,16 @@ Even then, do not claim:
 If one category fails twice, retain both rows as a boundary result, record the
 root-cause metrics, stop the experiment sequence, and request the user's
 scientific judgment.
+
+## Outcome
+
+`STOP` at the first category, Q/K/V.
+
+- Main 8-level row: 77.58 -> 77.13, 0.45 pp drop.
+- Only retry, 16 levels: identical result.
+- Output NRMSE: 0.00012029.
+- Clip rate: zero.
+- All ten requested Q/K/V targets executed.
+
+MLP, patch embedding, classifier, and cumulative `all_affine` rows were not
+launched. See `results/qk_all_affine_qkv_boundary_20260619.md`.

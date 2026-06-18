@@ -414,9 +414,30 @@ prior grouped/truth-table LUT ideas, uses more table values than the frozen
 projection weights, and is currently tested through a hook that still executes
 the original convolution.
 
-The only current operator-scope extension is an audit of Q/K/V projections,
-MLPs, patch embeddings, and the classifier. Do not call the present result a
-complete QKFormer, full-attention, or all-operator LUT replacement.
+The operator-scope extension was audited under a preregistered stop rule. Do
+not call the present result a complete QKFormer, full-attention, or
+all-operator LUT replacement.
+
+### All-Affine Audit Stopped At Q/K/V
+
+The preregistered all-affine extension stopped at its first category. All ten
+Q/K/V projections were replaced simultaneously on QKFormer CIFAR-100 `T=1`,
+seed 42, full validation:
+
+| Attempt | Clean | LUT | Drop | Output NRMSE | Clip | Gate |
+|---|---:|---:|---:|---:|---:|---|
+| integer levels 8 | 77.58 | 77.13 | 0.45 | 0.00012029 | 0 | FAIL |
+| integer levels 16 retry | 77.58 | 77.13 | 0.45 | 0.00012029 | 0 | FAIL |
+
+All observed Q/K/V inputs were exact integers and already lay within `[0, 4]`,
+so the retry changed only table size, not predictions. The 0.45-point paired
+drop exceeds the preregistered 0.25-point gate despite very small local error.
+The likely boundary is simultaneous BN/LIF threshold sensitivity to changed
+floating-point accumulation order.
+
+Per the stop rule, MLP, patch embedding, classifier, and cumulative
+`all_affine` experiments were not launched. See
+`results/qk_all_affine_qkv_boundary_20260619.md`.
 
 ## Raw Evidence Policy
 

@@ -287,10 +287,28 @@ projection weights, and is currently evaluated through a hook that still
 executes the convolution. Keep the core novelty on semantic Q/K addressing,
 support-aware backoff, and compact subspace lookup.
 
-If a single follow-up replacement experiment is approved after paper review,
-audit Q/K/V projections, MLPs, patch embeddings, and the classifier. Do not
-resume seed, alpha, stage, checkpoint, calibration, support, or group-size
-sweeps.
+The follow-up operator audit has now stopped at Q/K/V. Do not run MLP, patch,
+classifier, cumulative all-affine, or a new quantization/accumulator sweep
+without a new user decision.
 
 ChatGPT Pro review handoff:
 `docs/AAAI_ALL_ATTENTION_REVIEW_HANDOFF_ZH.md`.
+
+### All-Affine Extension Boundary
+
+The next operator-scope audit was preregistered and executed, but stopped at
+Q/K/V after both allowed attempts failed:
+
+- main 8-level integer LUT: 77.58 -> 77.13, drop 0.45 pp;
+- only retry, 16 levels: identical 77.58 -> 77.13;
+- output NRMSE: 0.00012029;
+- clipping: zero;
+- all ten Q/K/V targets executed.
+
+The inputs were already exact integers within `[0, 4]`, so increasing the range
+could not improve fidelity. The paired drop exceeds the 0.25 pp gate. MLP,
+patch embedding, classifier, and cumulative all-affine replacement were not
+run. Await user judgment before designing a different accumulator or
+post-LUT-calibration method.
+
+Memo: `results/qk_all_affine_qkv_boundary_20260619.md`.

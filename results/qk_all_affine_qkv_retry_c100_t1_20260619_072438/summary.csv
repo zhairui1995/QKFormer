@@ -1,0 +1,2 @@
+clean_top1,injected_top1,drop_top1,kl_clean_to_injected,logit_mse,output_mse,output_nrmse,clip_rate,input_quant_mse,table_scalar_entries,table_fp32_kib,original_weight_values,table_to_weight_value_ratio,targets_requested,targets_executed,gate_clean_baseline_pass,gate_drop_top1_pass,gate_output_nrmse_pass,gate_clip_rate_pass,gate_all_targets_executed,gate_finite,gate_pass
+77.58,77.13,0.45000000000000284,0.06178137395977974,0.06823831886053085,9.578207522317235e-09,0.00012029002387401902,0.0,0.0,15630336,61056.0,976896,16.0,10,10,False,False,True,True,True,True,False
