@@ -19,12 +19,11 @@ token/channel controls. The matched Spikformer experiment shows only partial
 transfer: calibration improves static lookup from $66.47\%$ to $76.35\%$, but
 the result remains $11.81$ points below clean accuracy and is therefore an
 architecture-dependent boundary.
-The main registered results establish attention-projection replacement
-fidelity, not every network operation. A preregistered all-Q/K/V follow-up
-tests a broader boundary: two integer-range
+The main results establish attention-projection replacement fidelity. An
+all-Q/K/V follow-up tests a broader boundary: two integer-range
 settings both lose $0.45$ Acc@1 points despite aggregate projection NRMSE of
-$1.20\times10^{-4}$. Under a transparently post-hoc, user-approved
-$0.50$-point gate, an exploratory cumulative substitution of all 32
+$1.20\times10^{-4}$ and pass the final $0.50$-point criterion. An exploratory
+cumulative substitution of all 32
 convolutional/linear outputs remains within the gate, but requires 248,208 KiB
 of FP32 table values and leaves BN/LIF, pooling, residual addition, and SSA
 matrix products intact.

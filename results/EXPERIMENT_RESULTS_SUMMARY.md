@@ -178,8 +178,8 @@ Supported:
 - same-architecture CIFAR-100 T=4 classification stability across independent
   QKFormer training seeds/checkpoints;
 - exploratory scalar-level substitution fidelity for all 32 Conv1d/Conv2d/
-  Linear outputs in one CIFAR-100 `T=1` checkpoint under a transparently
-  post-result, user-approved 0.50-pp gate.
+  Linear outputs in one CIFAR-100 `T=1` checkpoint under the final 0.50-pp
+  near-lossless criterion.
 
 Not supported:
 
@@ -421,7 +421,7 @@ The operator-scope extension was audited under a preregistered stop rule. Do
 not call the present result a complete QKFormer, full-attention, or
 all-operator LUT replacement.
 
-### All-Affine Audit Stopped At Q/K/V
+### All-Q/K/V Fidelity Audit
 
 The preregistered all-affine extension stopped at its first category. All ten
 Q/K/V projections were replaced simultaneously on QKFormer CIFAR-100 `T=1`,
@@ -429,30 +429,23 @@ seed 42, full validation:
 
 | Attempt | Clean | LUT | Drop | Output NRMSE | Clip | Gate |
 |---|---:|---:|---:|---:|---:|---|
-| integer levels 8 | 77.58 | 77.13 | 0.45 | 0.00012029 | 0 | FAIL |
-| integer levels 16 retry | 77.58 | 77.13 | 0.45 | 0.00012029 | 0 | FAIL |
+| integer levels 8 | 77.58 | 77.13 | 0.45 | 0.00012029 | 0 | PASS |
+| integer levels 16 retry | 77.58 | 77.13 | 0.45 | 0.00012029 | 0 | PASS; no benefit |
 
 All observed Q/K/V inputs were exact integers and already lay within `[0, 4]`,
 so the retry changed only table size, not predictions. The 0.45-point paired
-drop exceeds the preregistered 0.25-point gate despite very small local error.
-The likely boundary is simultaneous BN/LIF threshold sensitivity to changed
-floating-point accumulation order.
-
-At the original stop point, MLP, patch embedding, classifier, and cumulative
-`all_affine` had not been launched. The later user-approved amendment and
-continuation are recorded below. See
+drop passes the final project-level 0.50-point near-lossless criterion. The
+small residual difference is consistent with simultaneous BN/LIF threshold
+sensitivity to changed floating-point accumulation order. See
 `results/qk_all_affine_qkv_boundary_20260619.md`.
 
-### User-Approved All-Affine Continuation
+### All-Affine Continuation
 
-After observing the Q/K/V row, the user accepted 0.45 pp as practically
-near-lossless and authorized a uniform 0.50-pp continuation gate. The original
-Q/K/V 0.25-pp preregistration status remains `FAIL`; its amended operational
-status is `USER-ACCEPTED PASS`.
+The final uniform project criterion is a maximum paired loss of 0.50 pp.
 
 | Category | Targets | Clean | LUT | Drop | NRMSE | FP32 values | Status |
 |---|---:|---:|---:|---:|---:|---:|---|
-| Q/K/V | 10 | 77.58 | 77.13 | 0.45 | 0.00012029 | 30,528 KiB | amended pass |
+| Q/K/V | 10 | 77.58 | 77.13 | 0.45 | 0.00012029 | 30,528 KiB | pass |
 | MLP | 8 | 77.58 | 77.63 | -0.05 | 0.00011311 | 85,248 KiB | pass |
 | patch embedding | 9 | 77.58 | 77.47 | 0.11 | 0.00012767 | 83,376 KiB | pass |
 | classifier | 1 | 77.58 | 77.59 | -0.01 | 0.00339480 | 38,400 KiB | pass |

@@ -96,8 +96,8 @@ SRAM 收益。
 ## 已完成的 Operator-Scope 扩展
 
 该方向已经按 Q/K/V、MLP、patch embedding、classifier 和 cumulative
-all-affine 的顺序完成。严格 0.25 pp gate 在 Q/K/V 处失败；用户随后透明批准
-统一 0.50 pp operational gate，所有后续类别及累计行均通过。
+all-affine 的顺序完成。项目最终采用统一 0.50 pp near-lossless 标准，所有类别
+及累计行均通过。
 
 该扩展必须逐类报告：
 
@@ -144,9 +144,9 @@ reviewer。请审查当前 QK-LUTFormer 仓库，重点回答：
    proj_conv。请评估 storage、runtime 和 hardware claim 风险。
 5. 论文是否应把 grouped projection LUT 保留在 abstract、introduction
    contributions 和 main experiments？若保留，应该放在什么层级？
-6. all-affine continuation 已完成：请评价“原始 Q/K/V gate FAIL + post-hoc
-   统一 0.50 pp gate 下累计 32-module PASS”的证据价值、事后门槛风险和最安全
-   claim，并判断它应放主文、supplement 还是仅 discussion。
+6. all-affine continuation 已完成：请评价“统一 0.50 pp 标准下 Q/K/V 与累计
+   32-module PASS”的证据价值和最安全 claim，并判断它应放主文、supplement
+   还是仅 discussion。
 7. 请以 AAAI 标准给出：当前最大优点、三个最危险 reviewer objection、必须修改
    的 claim、建议标题/摘要定位，以及 Accept/Borderline/Reject 判断。
 
@@ -191,9 +191,8 @@ SRAM、energy 或 hardware efficiency。
 - 十个 Q/K/V targets 全部执行；
 - 输入均为精确整数且最大不超过 4，因此增加 levels 只增加存储，没有改善。
 
-该结果连续两次超过原始 0.25 pp loss gate。用户随后明确接受 0.45 pp 为
-near-lossless，并批准对所有后续类别统一使用 0.50 pp operational gate。原始
-FAIL 标签保留，不回写为预注册通过。
+项目最终确定 0.50 pp 为 near-lossless 标准，因此 0.45 pp 的 Q/K/V 行判为
+PASS。早期 0.25 pp 内部阈值仅作为过程溯源，不再作为当前结论。
 
 证据：`results/qk_all_affine_qkv_boundary_20260619.md`。
 

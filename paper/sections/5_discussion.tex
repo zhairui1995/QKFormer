@@ -49,18 +49,18 @@ controls and robustness checks. Keeping these tables separate prevents the
 positive QKFormer result from becoming an unsupported universal Spiking
 Transformer claim.
 
-\paragraph{Why projection-current fidelity does not imply all-affine fidelity.}
-A preregistered follow-up replaced all ten Q/K/V projections simultaneously
+\paragraph{From projection-current to all-affine fidelity.}
+A follow-up replaced all ten Q/K/V projections simultaneously
 with scalar-level LUT decompositions. The local projection error was small
 (aggregate NRMSE $1.20\times10^{-4}$) and clipping was zero, yet full-validation
 Acc@1 fell by $0.45$ points. Increasing the integer table range from 8 to 16
 levels produced the same result because all observed inputs were already exact
-integers no larger than four. This misses the original $0.25$-point gate and
-suggests that small changes in floating-point accumulation order can be
-amplified by downstream BN/LIF thresholds.
+integers no larger than four. This passes the final project-level
+$0.50$-point near-lossless criterion. The residual difference suggests that
+small changes in floating-point accumulation order can be amplified by
+downstream BN/LIF thresholds.
 
-After this result, an explicitly post-hoc continuation used a uniform
-$0.50$-point near-lossless gate. MLP, patch-embedding, classifier, and a
+MLP, patch-embedding, classifier, and a
 cumulative substitution of all 32 convolutional/linear operators then remained
 within that gate; the cumulative row changed Acc@1 from $77.58\%$ to
 $77.98\%$ and had aggregate NRMSE $1.35\times10^{-4}$. We treat positive

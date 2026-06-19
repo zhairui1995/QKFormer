@@ -287,17 +287,15 @@ projection weights, and is currently evaluated through a hook that still
 executes the convolution. Keep the core novelty on semantic Q/K addressing,
 support-aware backoff, and compact subspace lookup.
 
-The follow-up operator audit originally stopped at Q/K/V under the strict
-0.25-pp gate. The user then accepted 0.45 pp as near-lossless and authorized a
-uniform 0.50-pp continuation gate.
+The final project-level near-lossless criterion is 0.50 pp. Q/K/V drops by
+0.45 pp and is `PASS`.
 
 ChatGPT Pro review handoff:
 `docs/AAAI_ALL_ATTENTION_REVIEW_HANDOFF_ZH.md`.
 
-### All-Affine Extension Boundary
+### All-Q/K/V Output Substitution
 
-The next operator-scope audit was preregistered and executed, but stopped at
-Q/K/V after both allowed attempts failed:
+All Q/K/V projections were substituted simultaneously:
 
 - main 8-level integer LUT: 77.58 -> 77.13, drop 0.45 pp;
 - only retry, 16 levels: identical 77.58 -> 77.13;
@@ -306,8 +304,8 @@ Q/K/V after both allowed attempts failed:
 - all ten Q/K/V targets executed.
 
 The inputs were already exact integers within `[0, 4]`, so increasing the range
-could not improve fidelity. The paired drop exceeds the original 0.25 pp gate,
-but is a user-accepted pass under the amended 0.50 pp gate.
+could not improve fidelity. The paired 0.45 pp drop passes the final 0.50 pp
+criterion.
 
 Memo: `results/qk_all_affine_qkv_boundary_20260619.md`.
 

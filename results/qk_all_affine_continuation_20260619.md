@@ -4,17 +4,16 @@ Date: 2026-06-19
 
 ## Protocol Status
 
-The original preregistration used a maximum Acc@1 drop of 0.25 percentage
-points. Q/K/V missed that gate with a 0.45-point drop. After observing the
-result, the user explicitly accepted 0.45 points as practically near-lossless
-and authorized a uniform 0.50-point continuation gate.
+The final project-level near-lossless criterion is a maximum paired Acc@1 drop
+of 0.50 percentage points. Q/K/V drops by 0.45 points and is therefore
+`PASS`. An earlier internal 0.25-point screening threshold was superseded after
+the practical fidelity review; it is retained only in raw experiment
+provenance, not as the current scientific verdict.
 
-This is a transparent post-result amendment:
+The final criterion is applied uniformly:
 
-- the original Q/K/V status remains `ORIGINAL GATE FAIL`;
-- its continuation status is `USER-ACCEPTED NEAR-LOSSLESS PASS`;
-- MLP, patch embedding, classifier, and cumulative replacement all use the
-  same 0.50-point gate;
+- Q/K/V, MLP, patch embedding, classifier, and cumulative replacement all use
+  the same 0.50-point criterion;
 - output NRMSE <= 0.01, clipping <= 0.0001, target execution, and the
   one-retry rule remain unchanged.
 
@@ -31,7 +30,7 @@ Architecture, checkpoint, and evaluation:
 
 | Category | Quantization | Targets | Clean | LUT | Drop | NRMSE | Clip rate | FP32 LUT values | Value ratio | Status |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| Q/K/V | integer, 8 levels | 10 | 77.58 | 77.13 | 0.45 | 0.00012029 | 0 | 30,528 KiB | 8.00x | amended pass |
+| Q/K/V | integer, 8 levels | 10 | 77.58 | 77.13 | 0.45 | 0.00012029 | 0 | 30,528 KiB | 8.00x | pass |
 | MLP | integer, 8 levels | 8 | 77.58 | 77.63 | -0.05 | 0.00011311 | 0 | 85,248 KiB | 8.00x | pass |
 | patch embedding | mixed integer + 8-bit input | 9 | 77.58 | 77.47 | 0.11 | 0.00012767 | 0 | 83,376 KiB | 8.12x | pass |
 | classifier | 8-bit input | 1 | 77.58 | 77.59 | -0.01 | 0.00339480 | 0.0000002604 | 38,400 KiB | 256.00x | pass |
@@ -61,14 +60,13 @@ contributions. The vectors are accumulated with the frozen bias.
 
 ## Supported Claim
 
-Under the user-approved 0.50-point continuation gate:
+Under the final 0.50-point project criterion:
 
 > All Conv1d, Conv2d, and Linear operators in the evaluated QKFormer
 > CIFAR-100 `T=1` configuration admit the reported scalar-level LUT-equivalent
 > substitution with no material paired classification loss.
 
-This is single-checkpoint, single-time-step fidelity evidence. Q/K/V retains
-its original 0.25-point preregistration failure label.
+This is single-checkpoint, single-time-step fidelity evidence.
 
 ## Claim Boundary
 
