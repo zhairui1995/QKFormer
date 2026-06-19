@@ -8,6 +8,8 @@ GPU="${1:-0}"
 CATEGORY="${2:-qkv}"
 ATTEMPT="${3:-main}"
 TIME_STEP="${4:-1}"
+MAX_DROP="${QK_AFFINE_MAX_DROP:-0.25}"
+CLEAN_TOLERANCE="${QK_AFFINE_CLEAN_TOLERANCE:-0.15}"
 
 case "$CATEGORY" in
   qkv|mlp|patch|classifier|projection|all_affine) ;;
@@ -71,11 +73,11 @@ mkdir -p "$RESULT_DIR"
   --integer-max "$INTEGER_MAX" \
   --uniform-bits "$UNIFORM_BITS" \
   --input-chunk "${QK_AFFINE_INPUT_CHUNK:-4}" \
-  --max-drop 0.25 \
+  --max-drop "$MAX_DROP" \
   --max-nrmse 0.01 \
   --max-clip-rate 0.0001 \
   --expected-clean-top1 "$EXPECTED_CLEAN" \
-  --clean-tolerance 0.15 \
+  --clean-tolerance "$CLEAN_TOLERANCE" \
   --seed 42 \
   --local-cuda-index 0 \
   2>&1 | tee "$RESULT_DIR/run.log"

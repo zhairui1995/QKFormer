@@ -76,3 +76,16 @@ Not supported:
   `results/qk_all_affine_qkv_main_c100_t1_20260618_234138`
 - Retry:
   `results/qk_all_affine_qkv_retry_c100_t1_20260619_072438`
+
+## User Decision
+
+After reviewing the boundary result, the user accepted a 0.45-point drop as
+practically near-lossless and authorized continuation with a uniform 0.50-point
+operational gate. The original 0.25-point gate remains a recorded failure.
+
+Revised status:
+
+- original preregistered gate: `FAIL`;
+- user-approved continuation status: `NEAR-LOSSLESS PASS`.
+
+The continuation resumes at MLP and retains the same one-retry stop rule.
