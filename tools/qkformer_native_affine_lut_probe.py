@@ -93,6 +93,7 @@ class QuantizedTransitionLUT(torch.nn.Module):
         x_range: Tuple[float, float],
         v_range: Tuple[float, float],
         bits: int,
+        x_integer_range: Optional[Tuple[int, int]] = None,
     ) -> None:
         super().__init__()
         self.tau = float(tau)
@@ -101,10 +102,16 @@ class QuantizedTransitionLUT(torch.nn.Module):
         self.v_reset = None if v_reset is None else float(v_reset)
         self.x_range = (float(x_range[0]), float(x_range[1]))
         self.v_range = (float(v_range[0]), float(v_range[1]))
+        self.x_integer_range = x_integer_range
         self.bits = int(bits)
         if self.bits < 1 or self.bits > 10:
             raise ValueError(f"LIF transition LUT bits must be in [1, 10], got {self.bits}")
-        self.levels = 1 << self.bits
+        self.v_levels = 1 << self.bits
+        self.x_levels = (
+            int(x_integer_range[1] - x_integer_range[0] + 1)
+            if x_integer_range is not None
+            else 1 << self.bits
+        )
         self.v = 0.0
         self.v_seq: Optional[torch.Tensor] = None
         self.executions = 0
@@ -121,8 +128,20 @@ class QuantizedTransitionLUT(torch.nn.Module):
         self,
         value: torch.Tensor,
         value_range: Tuple[float, float],
+        levels: int,
+        integer_range: Optional[Tuple[int, int]] = None,
     ) -> torch.Tensor:
         fp32 = value.detach().float()
+        if integer_range is not None:
+            lo_int, hi_int = integer_range
+            clipped = (fp32 < float(lo_int)) | (fp32 > float(hi_int))
+            index = fp32.round().long().clamp(lo_int, hi_int) - lo_int
+            decoded = (index + lo_int).float()
+            diff = decoded - fp32
+            self.clip_count += int(clipped.sum().item())
+            self.input_count += int(fp32.numel())
+            self.quant_sse += float((diff * diff).sum().item())
+            return index
         lo, hi = value_range
         if hi <= lo:
             index = torch.zeros_like(fp32, dtype=torch.long)
@@ -130,9 +149,9 @@ class QuantizedTransitionLUT(torch.nn.Module):
             clipped = fp32 != lo
         else:
             clipped = (fp32 < lo) | (fp32 > hi)
-            scaled = (fp32.clamp(lo, hi) - lo) * ((self.levels - 1) / (hi - lo))
-            index = scaled.round().long().clamp(0, self.levels - 1)
-            decoded = lo + index.float() * ((hi - lo) / (self.levels - 1))
+            scaled = (fp32.clamp(lo, hi) - lo) * ((levels - 1) / (hi - lo))
+            index = scaled.round().long().clamp(0, levels - 1)
+            decoded = lo + index.float() * ((hi - lo) / (levels - 1))
         diff = decoded - fp32
         self.clip_count += int(clipped.sum().item())
         self.input_count += int(fp32.numel())
@@ -142,13 +161,22 @@ class QuantizedTransitionLUT(torch.nn.Module):
     def _decoded_levels(
         self,
         value_range: Tuple[float, float],
+        levels: int,
         device: torch.device,
         dtype: torch.dtype,
+        integer_range: Optional[Tuple[int, int]] = None,
     ) -> torch.Tensor:
+        if integer_range is not None:
+            return torch.arange(
+                integer_range[0],
+                integer_range[1] + 1,
+                device=device,
+                dtype=dtype,
+            )
         lo, hi = value_range
         if hi <= lo:
-            return torch.full((self.levels,), lo, device=device, dtype=dtype)
-        return torch.linspace(lo, hi, self.levels, device=device, dtype=dtype)
+            return torch.full((levels,), lo, device=device, dtype=dtype)
+        return torch.linspace(lo, hi, levels, device=device, dtype=dtype)
 
     def _tables(
         self,
@@ -159,8 +187,19 @@ class QuantizedTransitionLUT(torch.nn.Module):
         cached = self._table_cache.get(key)
         if cached is not None:
             return cached
-        x = self._decoded_levels(self.x_range, device, dtype).view(1, -1)
-        v = self._decoded_levels(self.v_range, device, dtype).view(-1, 1)
+        x = self._decoded_levels(
+            self.x_range,
+            self.x_levels,
+            device,
+            dtype,
+            integer_range=self.x_integer_range,
+        ).view(1, -1)
+        v = self._decoded_levels(
+            self.v_range,
+            self.v_levels,
+            device,
+            dtype,
+        ).view(-1, 1)
         if self.decay_input:
             if self.v_reset is None or self.v_reset == 0.0:
                 charged = v + (x - v) / self.tau
@@ -194,9 +233,14 @@ class QuantizedTransitionLUT(torch.nn.Module):
         spikes = []
         states = []
         for t in range(x_seq.shape[0]):
-            x_index = self._quantize(x_seq[t], self.x_range)
-            v_index = self._quantize(v, self.v_range)
-            flat_index = v_index * self.levels + x_index
+            x_index = self._quantize(
+                x_seq[t],
+                self.x_range,
+                self.x_levels,
+                integer_range=self.x_integer_range,
+            )
+            v_index = self._quantize(v, self.v_range, self.v_levels)
+            flat_index = v_index * self.x_levels + x_index
             spike = spike_table[flat_index]
             v = state_table[flat_index]
             spikes.append(spike.unsqueeze(0))
@@ -206,11 +250,14 @@ class QuantizedTransitionLUT(torch.nn.Module):
         return torch.cat(spikes, dim=0)
 
     def table_entries(self) -> int:
-        return 2 * self.levels * self.levels
+        return 2 * self.x_levels * self.v_levels
 
     def summary(self) -> Dict[str, float]:
         return {
             "executions": float(self.executions),
+            "x_levels": float(self.x_levels),
+            "v_levels": float(self.v_levels),
+            "integer_x": float(self.x_integer_range is not None),
             "clip_rate": self.clip_count / self.input_count if self.input_count else 0.0,
             "quant_mse": self.quant_sse / self.input_count if self.input_count else 0.0,
             "quantized_values": float(self.input_count),
@@ -614,7 +661,7 @@ def replace_lif_targets(
     model: torch.nn.Module,
     lif_targets: Dict[str, torch.nn.Module],
     lif_lut_bits: int,
-    lif_ranges: Dict[str, Dict[str, Tuple[float, float]]],
+    lif_ranges: Dict[str, Dict[str, object]],
 ) -> Dict[str, torch.nn.Module]:
     replacements = {}
     for name, module in list(lif_targets.items()):
@@ -630,6 +677,7 @@ def replace_lif_targets(
                 x_range=lif_ranges[name]["x"],
                 v_range=lif_ranges[name]["v"],
                 bits=lif_lut_bits,
+                x_integer_range=lif_ranges[name].get("x_integer"),
             )
         else:
             replacement = NativeMultiStepLIF(**common)
@@ -810,7 +858,7 @@ def run(args) -> Dict[str, object]:
         fold_bn=args.fold_bn,
     )
     lif_calibration_batches = 0
-    lif_ranges: Dict[str, Dict[str, Tuple[float, float]]] = {}
+    lif_ranges: Dict[str, Dict[str, object]] = {}
     if args.replace_lif and args.lif_lut_bits > 0:
         lif_calibration_batches, lif_x_stats, lif_v_stats = collect_lif_ranges(
             native_model,
@@ -819,13 +867,20 @@ def run(args) -> Dict[str, object]:
             native_lif_targets,
             args.calib_batches,
         )
-        lif_ranges = {
-            name: {
+        for name in native_lif_targets:
+            x_summary = lif_x_stats[name].summary()
+            x_integer = None
+            if float(x_summary["integer_max_error"]) <= args.lif_integer_tolerance:
+                x_integer = (
+                    math.floor(float(x_summary["minimum"])) - args.lif_integer_margin,
+                    math.ceil(float(x_summary["maximum"])) + args.lif_integer_margin,
+                )
+            lif_ranges[name] = {
                 "x": expanded_range(lif_x_stats[name], args.lif_range_margin),
                 "v": expanded_range(lif_v_stats[name], args.lif_range_margin),
+                "x_integer": x_integer,
+                "x_integer_max_error": float(x_summary["integer_max_error"]),
             }
-            for name in native_lif_targets
-        }
     lif_replacements = (
         replace_lif_targets(
             native_model,
@@ -965,6 +1020,8 @@ def main() -> None:
     parser.add_argument("--replace-lif", action="store_true")
     parser.add_argument("--lif-lut-bits", type=int, default=0)
     parser.add_argument("--lif-range-margin", type=float, default=0.05)
+    parser.add_argument("--lif-integer-tolerance", type=float, default=1.0e-6)
+    parser.add_argument("--lif-integer-margin", type=int, default=1)
     parser.add_argument("--max-lif-clip-rate", type=float, default=0.0001)
     parser.add_argument("--max-drop", type=float, default=1.50)
     parser.add_argument("--max-clip-rate", type=float, default=0.0001)
