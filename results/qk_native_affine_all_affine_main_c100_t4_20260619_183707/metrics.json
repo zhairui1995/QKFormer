@@ -1,0 +1,1337 @@
+{
+  "args": {
+    "batch_size": 32,
+    "calib_batches": 32,
+    "category": "all_affine",
+    "checkpoint": "/home/lbz/mac_agent/sdr-lutattn-qkformer-lut/results/qkformer_cifar100_train_20260612_075800/output/qkformer_cifar100_t4_seed42/model_best.pth.tar",
+    "clean_tolerance": 0.25,
+    "data_dir": "/home/datasets",
+    "dim": 384,
+    "expected_clean_top1": 81.09,
+    "family": "cifar100",
+    "fold_bn": true,
+    "input_chunk": 4,
+    "integer_max": 7,
+    "layer": 4,
+    "lif_integer_margin": 1,
+    "lif_integer_tolerance": 1e-06,
+    "lif_lut_bits": 8,
+    "lif_range_margin": 0.05,
+    "local_cuda_index": 0,
+    "max_clip_rate": 0.0001,
+    "max_drop": 1.5,
+    "max_eval_batches": 100000,
+    "max_lif_clip_rate": 0.0001,
+    "replace_lif": true,
+    "result_dir": "/home/lbz/mac_agent/sdr-lutattn-qkformer-lut/results/qk_native_affine_all_affine_main_c100_t4_20260619_183707",
+    "root": "/home/lbz/mac_agent/sdr-lutattn-qkformer-lut",
+    "seed": 42,
+    "time_step": 4,
+    "uniform_bits": 8,
+    "workers": 4
+  },
+  "calibration_batches": 32,
+  "category": "all_affine",
+  "checkpoint": {
+    "clean": {
+      "loaded": true,
+      "missing_keys": [],
+      "path": "/home/lbz/mac_agent/sdr-lutattn-qkformer-lut/results/qkformer_cifar100_train_20260612_075800/output/qkformer_cifar100_t4_seed42/model_best.pth.tar",
+      "unexpected_keys": []
+    },
+    "native": {
+      "loaded": true,
+      "missing_keys": [],
+      "path": "/home/lbz/mac_agent/sdr-lutattn-qkformer-lut/results/qkformer_cifar100_train_20260612_075800/output/qkformer_cifar100_t4_seed42/model_best.pth.tar",
+      "unexpected_keys": []
+    }
+  },
+  "claim": "LUT-native replacement for frozen learned affine operators. Target Conv/Linear modules are replaced by lookup-and-accumulate modules during native evaluation. Optional BN folding removes paired inference BatchNorm modules; optional LIF replacement uses either an exact native state transition or a finite quantized (v, x) transition table. Pooling, residual, and attention matrix products remain unchanged.",
+  "experiment": "qkformer_native_affine_lut_probe",
+  "fold_bn": true,
+  "folded_bn_eval_calls": 0,
+  "folded_bn_targets": [
+    "patch_embed1.proj_bn",
+    "patch_embed1.proj1_bn",
+    "patch_embed1.proj_res_bn",
+    "patch_embed2.proj3_bn",
+    "patch_embed2.proj4_bn",
+    "patch_embed2.proj_res_bn",
+    "patch_embed3.proj3_bn",
+    "patch_embed3.proj4_bn",
+    "patch_embed3.proj_res_bn",
+    "stage1.0.tssa.q_bn",
+    "stage1.0.tssa.k_bn",
+    "stage1.0.tssa.proj_bn",
+    "stage1.0.mlp.mlp1_bn",
+    "stage1.0.mlp.mlp2_bn",
+    "stage2.0.tssa.q_bn",
+    "stage2.0.tssa.k_bn",
+    "stage2.0.tssa.proj_bn",
+    "stage2.0.mlp.mlp1_bn",
+    "stage2.0.mlp.mlp2_bn",
+    "stage3.0.ssa.q_bn",
+    "stage3.0.ssa.k_bn",
+    "stage3.0.ssa.v_bn",
+    "stage3.0.ssa.proj_bn",
+    "stage3.0.mlp.mlp1_bn",
+    "stage3.0.mlp.mlp2_bn",
+    "stage3.1.ssa.q_bn",
+    "stage3.1.ssa.k_bn",
+    "stage3.1.ssa.v_bn",
+    "stage3.1.ssa.proj_bn",
+    "stage3.1.mlp.mlp1_bn",
+    "stage3.1.mlp.mlp2_bn"
+  ],
+  "gate": {
+    "all_native_lif_targets_executed": true,
+    "all_native_targets_executed": true,
+    "clean_baseline_pass": true,
+    "clip_rate_pass": true,
+    "drop_top1_pass": true,
+    "finite": true,
+    "folded_bn_eval_calls_zero": true,
+    "folded_bn_modules_removed": true,
+    "lif_lut_clip_rate_pass": true,
+    "original_lif_eval_calls_zero": true,
+    "original_lif_modules_removed": true,
+    "original_target_eval_calls_zero": true,
+    "original_target_modules_removed": true,
+    "pass": true
+  },
+  "input_ranges": {
+    "head": [
+      0.00390625,
+      3.3359375
+    ],
+    "patch_embed1.proj1_conv": [
+      0.0,
+      1.0
+    ],
+    "patch_embed1.proj_conv": [
+      -1.9894737005233765,
+      2.12648868560791
+    ],
+    "patch_embed1.proj_res_conv": [
+      0.0,
+      1.0
+    ],
+    "patch_embed2.proj3_conv": [
+      0.0,
+      4.0
+    ],
+    "patch_embed2.proj4_conv": [
+      0.0,
+      1.0
+    ],
+    "patch_embed2.proj_res_conv": [
+      0.0,
+      4.0
+    ],
+    "patch_embed3.proj3_conv": [
+      0.0,
+      4.0
+    ],
+    "patch_embed3.proj4_conv": [
+      0.0,
+      1.0
+    ],
+    "patch_embed3.proj_res_conv": [
+      0.0,
+      4.0
+    ],
+    "stage1.0.mlp.mlp1_conv": [
+      0.0,
+      3.0
+    ],
+    "stage1.0.mlp.mlp2_conv": [
+      0.0,
+      1.0
+    ],
+    "stage1.0.tssa.k_conv": [
+      0.0,
+      2.0
+    ],
+    "stage1.0.tssa.proj_conv": [
+      0.0,
+      1.0
+    ],
+    "stage1.0.tssa.q_conv": [
+      0.0,
+      2.0
+    ],
+    "stage2.0.mlp.mlp1_conv": [
+      0.0,
+      3.0
+    ],
+    "stage2.0.mlp.mlp2_conv": [
+      0.0,
+      1.0
+    ],
+    "stage2.0.tssa.k_conv": [
+      0.0,
+      2.0
+    ],
+    "stage2.0.tssa.proj_conv": [
+      0.0,
+      1.0
+    ],
+    "stage2.0.tssa.q_conv": [
+      0.0,
+      2.0
+    ],
+    "stage3.0.mlp.mlp1_conv": [
+      0.0,
+      3.0
+    ],
+    "stage3.0.mlp.mlp2_conv": [
+      0.0,
+      1.0
+    ],
+    "stage3.0.ssa.k_conv": [
+      0.0,
+      2.0
+    ],
+    "stage3.0.ssa.proj_conv": [
+      0.0,
+      1.0
+    ],
+    "stage3.0.ssa.q_conv": [
+      0.0,
+      2.0
+    ],
+    "stage3.0.ssa.v_conv": [
+      0.0,
+      2.0
+    ],
+    "stage3.1.mlp.mlp1_conv": [
+      0.0,
+      5.0
+    ],
+    "stage3.1.mlp.mlp2_conv": [
+      0.0,
+      1.0
+    ],
+    "stage3.1.ssa.k_conv": [
+      0.0,
+      4.0
+    ],
+    "stage3.1.ssa.proj_conv": [
+      0.0,
+      1.0
+    ],
+    "stage3.1.ssa.q_conv": [
+      0.0,
+      4.0
+    ],
+    "stage3.1.ssa.v_conv": [
+      0.0,
+      4.0
+    ]
+  },
+  "lif_calibration_batches": 32,
+  "lif_lut_clip_rate": 1.6722683259507347e-09,
+  "lif_lut_fp32_kib": 16980.0,
+  "lif_lut_per_target": {
+    "patch_embed1.proj1_lif": {
+      "clip_rate": 1.2715657552083334e-10,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0009452682535513304,
+      "quantized_values": 7864320000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "patch_embed1.proj_lif": {
+      "clip_rate": 5.442301432291667e-08,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0032209194951225073,
+      "quantized_values": 3932160000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "patch_embed1.proj_res_lif": {
+      "clip_rate": 0.0,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0002460690400171946,
+      "quantized_values": 7864320000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "patch_embed2.proj3_lif": {
+      "clip_rate": 6.357828776041667e-11,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0008080097845879208,
+      "quantized_values": 15728640000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "patch_embed2.proj4_lif": {
+      "clip_rate": 7.62939453125e-10,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.00045166536244303947,
+      "quantized_values": 3932160000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "patch_embed2.proj_res_lif": {
+      "clip_rate": 1.7801920572916666e-09,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0003563309834981434,
+      "quantized_values": 3932160000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "patch_embed3.proj3_lif": {
+      "clip_rate": 7.62939453125e-10,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0007192096356418915,
+      "quantized_values": 7864320000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "patch_embed3.proj4_lif": {
+      "clip_rate": 5.086263020833334e-10,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0007291943069011419,
+      "quantized_values": 1966080000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "patch_embed3.proj_res_lif": {
+      "clip_rate": 1.0172526041666667e-09,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.00016462599602527916,
+      "quantized_values": 1966080000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage1.0.mlp.mlp1_lif": {
+      "clip_rate": 3.1789143880208335e-11,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0004204651250630074,
+      "quantized_values": 31457280000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage1.0.mlp.mlp2_lif": {
+      "clip_rate": 0.0,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.000546983320225263,
+      "quantized_values": 7864320000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage1.0.tssa.attn_lif": {
+      "clip_rate": 0.0,
+      "executions": 313.0,
+      "integer_x": 1.0,
+      "quant_mse": 0.0,
+      "quantized_values": 655360000.0,
+      "table_scalar_entries": 7680.0,
+      "v_levels": 256.0,
+      "x_levels": 15.0
+    },
+    "stage1.0.tssa.k_lif": {
+      "clip_rate": 0.0,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.00030592944330031364,
+      "quantized_values": 7864320000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage1.0.tssa.proj_lif": {
+      "clip_rate": 2.543131510416667e-10,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0005600611393378737,
+      "quantized_values": 7864320000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage1.0.tssa.q_lif": {
+      "clip_rate": 0.0,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.00018820316203982656,
+      "quantized_values": 7864320000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage2.0.mlp.mlp1_lif": {
+      "clip_rate": 1.2715657552083334e-10,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.00039818043348702003,
+      "quantized_values": 15728640000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage2.0.mlp.mlp2_lif": {
+      "clip_rate": 2.0345052083333334e-09,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0015871731162536888,
+      "quantized_values": 3932160000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage2.0.tssa.attn_lif": {
+      "clip_rate": 0.0,
+      "executions": 313.0,
+      "integer_x": 1.0,
+      "quant_mse": 0.0,
+      "quantized_values": 163840000.0,
+      "table_scalar_entries": 13824.0,
+      "v_levels": 256.0,
+      "x_levels": 27.0
+    },
+    "stage2.0.tssa.k_lif": {
+      "clip_rate": 2.543131510416667e-10,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.00026923001080867836,
+      "quantized_values": 3932160000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage2.0.tssa.proj_lif": {
+      "clip_rate": 0.0,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0032310969444690274,
+      "quantized_values": 3932160000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage2.0.tssa.q_lif": {
+      "clip_rate": 2.543131510416667e-10,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0001914317632227418,
+      "quantized_values": 3932160000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage3.0.mlp.mlp1_lif": {
+      "clip_rate": 2.543131510416667e-10,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0006765921490111699,
+      "quantized_values": 7864320000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage3.0.mlp.mlp2_lif": {
+      "clip_rate": 5.086263020833334e-10,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0028888918014553684,
+      "quantized_values": 1966080000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage3.0.ssa.attn_lif": {
+      "clip_rate": 1.52587890625e-09,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0019952001229892858,
+      "quantized_values": 1966080000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage3.0.ssa.k_lif": {
+      "clip_rate": 8.138020833333334e-09,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.000892352769060138,
+      "quantized_values": 1966080000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage3.0.ssa.proj_lif": {
+      "clip_rate": 2.0345052083333334e-09,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.00015869038786882185,
+      "quantized_values": 1966080000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage3.0.ssa.q_lif": {
+      "clip_rate": 5.086263020833334e-10,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.00142183062339512,
+      "quantized_values": 1966080000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage3.0.ssa.v_lif": {
+      "clip_rate": 3.0517578125e-09,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0007840635212138295,
+      "quantized_values": 1966080000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage3.1.mlp.mlp1_lif": {
+      "clip_rate": 1.2715657552083334e-10,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0026877187225346766,
+      "quantized_values": 7864320000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage3.1.mlp.mlp2_lif": {
+      "clip_rate": 0.0,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.005130143582231054,
+      "quantized_values": 1966080000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage3.1.ssa.attn_lif": {
+      "clip_rate": 2.5431315104166666e-09,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0013255696366368966,
+      "quantized_values": 1966080000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage3.1.ssa.k_lif": {
+      "clip_rate": 1.52587890625e-09,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0008447211016493384,
+      "quantized_values": 1966080000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage3.1.ssa.proj_lif": {
+      "clip_rate": 8.646647135416667e-09,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0006034472517687391,
+      "quantized_values": 1966080000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage3.1.ssa.q_lif": {
+      "clip_rate": 0.0,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0009145087502906487,
+      "quantized_values": 1966080000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    },
+    "stage3.1.ssa.v_lif": {
+      "clip_rate": 4.069010416666667e-09,
+      "executions": 313.0,
+      "integer_x": 0.0,
+      "quant_mse": 0.0004442138306136864,
+      "quantized_values": 1966080000.0,
+      "table_scalar_entries": 131072.0,
+      "v_levels": 256.0,
+      "x_levels": 256.0
+    }
+  },
+  "lif_lut_quant_mse": 0.0008379697726048138,
+  "lif_lut_table_scalar_entries": 4346880,
+  "lif_mode": "quantized_transition_8bit",
+  "lif_ranges": {
+    "patch_embed1.proj1_lif": {
+      "v": [
+        -12.747416111826897,
+        1.6546388000249863
+      ],
+      "x": [
+        -16.595942544937134,
+        18.957048463821412
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "patch_embed1.proj_lif": {
+      "v": [
+        -23.64014272391796,
+        2.173340067267418
+      ],
+      "x": [
+        -28.492267417907716,
+        33.458007621765134
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "patch_embed1.proj_res_lif": {
+      "v": [
+        -7.006547400355339,
+        1.3812640994787215
+      ],
+      "x": [
+        -8.80569875240326,
+        9.669119715690613
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "patch_embed2.proj3_lif": {
+      "v": [
+        -13.868361327052117,
+        1.7080171436071396
+      ],
+      "x": [
+        -17.8003737449646,
+        15.279871654510497
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "patch_embed2.proj4_lif": {
+      "v": [
+        -5.6820611447095875,
+        1.3181933254003524
+      ],
+      "x": [
+        -10.2053542137146,
+        15.866302013397217
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "patch_embed2.proj_res_lif": {
+      "v": [
+        -6.486933204531669,
+        1.3565205663442612
+      ],
+      "x": [
+        -10.194391775131226,
+        12.403132963180543
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "patch_embed3.proj3_lif": {
+      "v": [
+        -10.987746664881707,
+        1.57084501683712
+      ],
+      "x": [
+        -15.555743074417114,
+        16.178521966934206
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "patch_embed3.proj4_lif": {
+      "v": [
+        -6.513369557261467,
+        1.3577794402837753
+      ],
+      "x": [
+        -10.132567262649536,
+        23.01463112831116
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "patch_embed3.proj_res_lif": {
+      "v": [
+        -5.081938764452934,
+        1.2896160691976548
+      ],
+      "x": [
+        -7.1707970142364506,
+        7.239410066604615
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage1.0.mlp.mlp1_lif": {
+      "v": [
+        -7.820119759440422,
+        1.4200056403875352
+      ],
+      "x": [
+        -10.65643310546875,
+        13.527587890625
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage1.0.mlp.mlp2_lif": {
+      "v": [
+        -9.093735024333,
+        1.4806539863348007
+      ],
+      "x": [
+        -15.648062324523925,
+        11.57355556488037
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage1.0.tssa.attn_lif": {
+      "v": [
+        0.0,
+        0.0
+      ],
+      "x": [
+        -0.6000000000000001,
+        12.6
+      ],
+      "x_integer": [
+        -1,
+        13
+      ],
+      "x_integer_max_error": 0.0
+    },
+    "stage1.0.tssa.k_lif": {
+      "v": [
+        -7.084125611186027,
+        1.3849582999944687
+      ],
+      "x": [
+        -10.442028999328613,
+        9.65981388092041
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage1.0.tssa.proj_lif": {
+      "v": [
+        -8.65174259841442,
+        1.4596067279577256
+      ],
+      "x": [
+        -14.458794927597046,
+        13.189253187179565
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage1.0.tssa.q_lif": {
+      "v": [
+        -5.326299664378166,
+        1.3012523025274276
+      ],
+      "x": [
+        -8.365938711166383,
+        7.794592428207397
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage2.0.mlp.mlp1_lif": {
+      "v": [
+        -6.52917899787426,
+        1.3585322707891465
+      ],
+      "x": [
+        -9.258934354782104,
+        14.715516424179077
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage2.0.mlp.mlp2_lif": {
+      "v": [
+        -16.615554043650626,
+        1.8388358443975448
+      ],
+      "x": [
+        -26.85803875923157,
+        17.996906137466432
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage2.0.tssa.attn_lif": {
+      "v": [
+        0.0,
+        0.0
+      ],
+      "x": [
+        -1.2000000000000002,
+        25.2
+      ],
+      "x_integer": [
+        -1,
+        25
+      ],
+      "x_integer_max_error": 0.0
+    },
+    "stage2.0.tssa.k_lif": {
+      "v": [
+        -6.116866824030876,
+        1.3388983577489852
+      ],
+      "x": [
+        -9.29847493171692,
+        10.014019632339478
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage2.0.tssa.proj_lif": {
+      "v": [
+        -14.688485571742058,
+        1.7470706790685653
+      ],
+      "x": [
+        -31.494102573394777,
+        38.091398334503175
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage2.0.tssa.q_lif": {
+      "v": [
+        -5.320389649271965,
+        1.3009708732366563
+      ],
+      "x": [
+        -8.340549635887147,
+        7.968990015983581
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage3.0.mlp.mlp1_lif": {
+      "v": [
+        -8.195763203501702,
+        1.4378934234380722
+      ],
+      "x": [
+        -12.52006916999817,
+        18.886416482925416
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage3.0.mlp.mlp2_lif": {
+      "v": [
+        -22.96587028205395,
+        2.141231855750084
+      ],
+      "x": [
+        -35.07923259735107,
+        27.5251745223999
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage3.0.ssa.attn_lif": {
+      "v": [
+        -0.05,
+        0.534375
+      ],
+      "x": [
+        -2.2687500000000003,
+        47.64375
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage3.0.ssa.k_lif": {
+      "v": [
+        -10.295549914240837,
+        1.5378832668066025
+      ],
+      "x": [
+        -16.029535675048827,
+        19.751818084716795
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage3.0.ssa.proj_lif": {
+      "v": [
+        -3.8287594646215437,
+        1.229940864443779
+      ],
+      "x": [
+        -6.529068326950073,
+        8.452597951889038
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage3.0.ssa.q_lif": {
+      "v": [
+        -14.240255683660507,
+        1.7257263362407684
+      ],
+      "x": [
+        -20.727157497406004,
+        22.077478313446044
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage3.0.ssa.v_lif": {
+      "v": [
+        -9.239298436045647,
+        1.4875855773687363
+      ],
+      "x": [
+        -15.181107378005981,
+        17.776298379898073
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage3.1.mlp.mlp1_lif": {
+      "v": [
+        -17.69876707792282,
+        1.8904172301292421
+      ],
+      "x": [
+        -36.46830825805664,
+        24.577713775634766
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage3.1.mlp.mlp2_lif": {
+      "v": [
+        -24.277348893880845,
+        2.20368315577507
+      ],
+      "x": [
+        -46.882555389404295,
+        39.20832290649414
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage3.1.ssa.attn_lif": {
+      "v": [
+        -0.05,
+        0.534375
+      ],
+      "x": [
+        -1.4500000000000002,
+        30.45
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage3.1.ssa.k_lif": {
+      "v": [
+        -8.711030003428458,
+        1.4624299377202987
+      ],
+      "x": [
+        -14.033840990066528,
+        20.62070450782776
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage3.1.ssa.proj_lif": {
+      "v": [
+        -6.452872511744499,
+        1.354898628592491
+      ],
+      "x": [
+        -12.60001893043518,
+        17.12404294013977
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage3.1.ssa.q_lif": {
+      "v": [
+        -9.936280676722527,
+        1.520775207877159
+      ],
+      "x": [
+        -14.967864513397217,
+        21.54628896713257
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    },
+    "stage3.1.ssa.v_lif": {
+      "v": [
+        -6.944110718369484,
+        1.3782907992601394
+      ],
+      "x": [
+        -11.450405073165893,
+        13.611641836166381
+      ],
+      "x_integer": null,
+      "x_integer_max_error": 0.5
+    }
+  },
+  "lif_targets": [
+    "patch_embed1.proj_lif",
+    "patch_embed1.proj1_lif",
+    "patch_embed1.proj_res_lif",
+    "patch_embed2.proj3_lif",
+    "patch_embed2.proj4_lif",
+    "patch_embed2.proj_res_lif",
+    "patch_embed3.proj3_lif",
+    "patch_embed3.proj4_lif",
+    "patch_embed3.proj_res_lif",
+    "stage1.0.tssa.q_lif",
+    "stage1.0.tssa.k_lif",
+    "stage1.0.tssa.attn_lif",
+    "stage1.0.tssa.proj_lif",
+    "stage1.0.mlp.mlp1_lif",
+    "stage1.0.mlp.mlp2_lif",
+    "stage2.0.tssa.q_lif",
+    "stage2.0.tssa.k_lif",
+    "stage2.0.tssa.attn_lif",
+    "stage2.0.tssa.proj_lif",
+    "stage2.0.mlp.mlp1_lif",
+    "stage2.0.mlp.mlp2_lif",
+    "stage3.0.ssa.q_lif",
+    "stage3.0.ssa.k_lif",
+    "stage3.0.ssa.v_lif",
+    "stage3.0.ssa.attn_lif",
+    "stage3.0.ssa.proj_lif",
+    "stage3.0.mlp.mlp1_lif",
+    "stage3.0.mlp.mlp2_lif",
+    "stage3.1.ssa.q_lif",
+    "stage3.1.ssa.k_lif",
+    "stage3.1.ssa.v_lif",
+    "stage3.1.ssa.attn_lif",
+    "stage3.1.ssa.proj_lif",
+    "stage3.1.mlp.mlp1_lif",
+    "stage3.1.mlp.mlp2_lif"
+  ],
+  "metrics": {
+    "clean_top1": 81.02,
+    "clip_rate": 1.0807016087756429e-11,
+    "drop_top1": 0.21999999999999886,
+    "input_quant_mse": 3.140949381123252e-08,
+    "kl_clean_to_native": 0.09178909133076668,
+    "logit_mse": 0.10881742587089538,
+    "native_top1": 80.8,
+    "per_target": {
+      "head": {
+        "clip_rate": 2.604166666666667e-07,
+        "executions": 313.0,
+        "input_quant_mse": 1.4217051126373312e-05,
+        "input_values": 3840000.0,
+        "table_scalar_entries": 9830400.0
+      },
+      "patch_embed1.proj1_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 1966080000.0,
+        "table_scalar_entries": 331776.0
+      },
+      "patch_embed1.proj_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 2.320804753884052e-05,
+        "input_values": 122880000.0,
+        "table_scalar_entries": 331776.0
+      },
+      "patch_embed1.proj_res_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 1966080000.0,
+        "table_scalar_entries": 36864.0
+      },
+      "patch_embed2.proj3_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 3932160000.0,
+        "table_scalar_entries": 1327104.0
+      },
+      "patch_embed2.proj4_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 7864320000.0,
+        "table_scalar_entries": 2654208.0
+      },
+      "patch_embed2.proj_res_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 3932160000.0,
+        "table_scalar_entries": 147456.0
+      },
+      "patch_embed3.proj3_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 1966080000.0,
+        "table_scalar_entries": 5308416.0
+      },
+      "patch_embed3.proj4_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 3932160000.0,
+        "table_scalar_entries": 10616832.0
+      },
+      "patch_embed3.proj_res_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 1966080000.0,
+        "table_scalar_entries": 589824.0
+      },
+      "stage1.0.mlp.mlp1_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 3932160000.0,
+        "table_scalar_entries": 294912.0
+      },
+      "stage1.0.mlp.mlp2_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 15728640000.0,
+        "table_scalar_entries": 294912.0
+      },
+      "stage1.0.tssa.k_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 3932160000.0,
+        "table_scalar_entries": 73728.0
+      },
+      "stage1.0.tssa.proj_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 3932160000.0,
+        "table_scalar_entries": 73728.0
+      },
+      "stage1.0.tssa.q_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 3932160000.0,
+        "table_scalar_entries": 73728.0
+      },
+      "stage2.0.mlp.mlp1_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 1966080000.0,
+        "table_scalar_entries": 1179648.0
+      },
+      "stage2.0.mlp.mlp2_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 7864320000.0,
+        "table_scalar_entries": 1179648.0
+      },
+      "stage2.0.tssa.k_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 1966080000.0,
+        "table_scalar_entries": 294912.0
+      },
+      "stage2.0.tssa.proj_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 1966080000.0,
+        "table_scalar_entries": 294912.0
+      },
+      "stage2.0.tssa.q_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 1966080000.0,
+        "table_scalar_entries": 294912.0
+      },
+      "stage3.0.mlp.mlp1_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 983040000.0,
+        "table_scalar_entries": 4718592.0
+      },
+      "stage3.0.mlp.mlp2_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 3932160000.0,
+        "table_scalar_entries": 4718592.0
+      },
+      "stage3.0.ssa.k_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 983040000.0,
+        "table_scalar_entries": 1179648.0
+      },
+      "stage3.0.ssa.proj_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 983040000.0,
+        "table_scalar_entries": 1179648.0
+      },
+      "stage3.0.ssa.q_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 983040000.0,
+        "table_scalar_entries": 1179648.0
+      },
+      "stage3.0.ssa.v_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 983040000.0,
+        "table_scalar_entries": 1179648.0
+      },
+      "stage3.1.mlp.mlp1_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 983040000.0,
+        "table_scalar_entries": 4718592.0
+      },
+      "stage3.1.mlp.mlp2_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 3932160000.0,
+        "table_scalar_entries": 4718592.0
+      },
+      "stage3.1.ssa.k_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 983040000.0,
+        "table_scalar_entries": 1179648.0
+      },
+      "stage3.1.ssa.proj_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 983040000.0,
+        "table_scalar_entries": 1179648.0
+      },
+      "stage3.1.ssa.q_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 983040000.0,
+        "table_scalar_entries": 1179648.0
+      },
+      "stage3.1.ssa.v_conv": {
+        "clip_rate": 0.0,
+        "executions": 313.0,
+        "input_quant_mse": 0.0,
+        "input_values": 983040000.0,
+        "table_scalar_entries": 1179648.0
+      }
+    },
+    "table_fp32_kib": 248208.0,
+    "table_scalar_entries": 63541248,
+    "targets_executed": 32,
+    "targets_requested": 32,
+    "total_native_executions": 10016
+  },
+  "native_lif_executions": 10955,
+  "native_lif_targets_executed": 35,
+  "original_lif_eval_calls": 0,
+  "original_target_eval_calls": 0,
+  "remaining_folded_bn_targets": 0,
+  "remaining_lif_targets": 0,
+  "remaining_original_targets": 0,
+  "replace_lif": true,
+  "targets": [
+    "patch_embed1.proj_conv",
+    "patch_embed1.proj1_conv",
+    "patch_embed1.proj_res_conv",
+    "patch_embed2.proj3_conv",
+    "patch_embed2.proj4_conv",
+    "patch_embed2.proj_res_conv",
+    "patch_embed3.proj3_conv",
+    "patch_embed3.proj4_conv",
+    "patch_embed3.proj_res_conv",
+    "stage1.0.tssa.q_conv",
+    "stage1.0.tssa.k_conv",
+    "stage1.0.tssa.proj_conv",
+    "stage1.0.mlp.mlp1_conv",
+    "stage1.0.mlp.mlp2_conv",
+    "stage2.0.tssa.q_conv",
+    "stage2.0.tssa.k_conv",
+    "stage2.0.tssa.proj_conv",
+    "stage2.0.mlp.mlp1_conv",
+    "stage2.0.mlp.mlp2_conv",
+    "stage3.0.ssa.q_conv",
+    "stage3.0.ssa.k_conv",
+    "stage3.0.ssa.v_conv",
+    "stage3.0.ssa.proj_conv",
+    "stage3.0.mlp.mlp1_conv",
+    "stage3.0.mlp.mlp2_conv",
+    "stage3.1.ssa.q_conv",
+    "stage3.1.ssa.k_conv",
+    "stage3.1.ssa.v_conv",
+    "stage3.1.ssa.proj_conv",
+    "stage3.1.mlp.mlp1_conv",
+    "stage3.1.mlp.mlp2_conv",
+    "head"
+  ]
+}
