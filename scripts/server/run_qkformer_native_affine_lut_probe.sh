@@ -64,6 +64,12 @@ fi
 if [[ "${QK_NATIVE_AFFINE_REPLACE_LIF:-0}" == "1" ]]; then
   EXTRA_ARGS+=(--replace-lif)
 fi
+if [[ -n "${QK_NATIVE_AFFINE_LIF_LUT_BITS:-}" ]]; then
+  EXTRA_ARGS+=(--lif-lut-bits "$QK_NATIVE_AFFINE_LIF_LUT_BITS")
+fi
+if [[ -n "${QK_NATIVE_AFFINE_LIF_RANGE_MARGIN:-}" ]]; then
+  EXTRA_ARGS+=(--lif-range-margin "$QK_NATIVE_AFFINE_LIF_RANGE_MARGIN")
+fi
 
 "$PYTHON" tools/qkformer_native_affine_lut_probe.py \
   --root "$ROOT" \
