@@ -22,6 +22,65 @@ from tools.qkformer_lut_e2_replace import (
 )
 
 
+class NativeMultiStepLIF(torch.nn.Module):
+    """Drop-in native implementation of eval-time SpikingJelly MultiStepLIFNode."""
+
+    def __init__(
+        self,
+        tau: float = 2.0,
+        decay_input: bool = True,
+        v_threshold: float = 1.0,
+        v_reset: Optional[float] = 0.0,
+    ) -> None:
+        super().__init__()
+        self.tau = float(tau)
+        self.decay_input = bool(decay_input)
+        self.v_threshold = float(v_threshold)
+        self.v_reset = None if v_reset is None else float(v_reset)
+        self.v = 0.0
+        self.v_seq: Optional[torch.Tensor] = None
+        self.executions = 0
+
+    def reset(self) -> None:
+        self.v = 0.0
+        self.v_seq = None
+
+    def forward(self, x_seq: torch.Tensor) -> torch.Tensor:
+        if x_seq.dim() <= 1:
+            raise ValueError("NativeMultiStepLIF expects [T, ...] input")
+        self.executions += 1
+        if isinstance(self.v, float):
+            v = torch.zeros_like(x_seq[0])
+            if self.v != 0.0:
+                v.fill_(float(self.v))
+        else:
+            v = self.v.to(device=x_seq.device, dtype=x_seq.dtype)
+        spikes = []
+        states = []
+        for t in range(x_seq.shape[0]):
+            x = x_seq[t]
+            if self.decay_input:
+                if self.v_reset is None or self.v_reset == 0.0:
+                    v = v + (x - v) / self.tau
+                else:
+                    v = v + (x - (v - self.v_reset)) / self.tau
+            else:
+                if self.v_reset is None or self.v_reset == 0.0:
+                    v = v * (1.0 - 1.0 / self.tau) + x
+                else:
+                    v = v - (v - self.v_reset) / self.tau + x
+            spike = (v - self.v_threshold >= 0).to(x)
+            if self.v_reset is None:
+                v = v - spike * self.v_threshold
+            else:
+                v = (1.0 - spike) * v + spike * self.v_reset
+            spikes.append(spike.unsqueeze(0))
+            states.append(v.unsqueeze(0))
+        self.v = states[-1].squeeze(0).detach().clone()
+        self.v_seq = torch.cat(states, dim=0)
+        return torch.cat(spikes, dim=0)
+
+
 def _continuous_target(name: str) -> bool:
     return name == "patch_embed1.proj_conv" or name == "head"
 
@@ -334,6 +393,44 @@ def attach_remaining_bn_counter(model: torch.nn.Module, bn_names):
     return remaining, counter, handles
 
 
+def discover_lif_targets(model: torch.nn.Module) -> Dict[str, torch.nn.Module]:
+    targets = {}
+    for name, module in model.named_modules():
+        if module.__class__.__name__ == "MultiStepLIFNode":
+            targets[name] = module
+    return targets
+
+
+def attach_remaining_lif_counter(model: torch.nn.Module, lif_names):
+    remaining = 0
+    counter = {"calls": 0}
+    handles = []
+    target_set = set(lif_names)
+    for name, module in model.named_modules():
+        if name not in target_set:
+            continue
+        if module.__class__.__name__ == "MultiStepLIFNode":
+            remaining += 1
+            def hook(_module, _inputs, _output):
+                counter["calls"] += 1
+            handles.append(module.register_forward_hook(hook))
+    return remaining, counter, handles
+
+
+def replace_lif_targets(model: torch.nn.Module, lif_targets: Dict[str, torch.nn.Module]) -> Dict[str, NativeMultiStepLIF]:
+    replacements = {}
+    for name, module in list(lif_targets.items()):
+        replacement = NativeMultiStepLIF(
+            tau=float(getattr(module, "tau")),
+            decay_input=bool(getattr(module, "decay_input")),
+            v_threshold=float(getattr(module, "v_threshold")),
+            v_reset=getattr(module, "v_reset"),
+        )
+        set_submodule(model, name, replacement)
+        replacements[name] = replacement
+    return replacements
+
+
 def replace_targets(
     model: torch.nn.Module,
     targets: Dict[str, torch.nn.Module],
@@ -476,6 +573,7 @@ def run(args) -> Dict[str, object]:
 
     clean_targets = discover_targets(clean_model, args.category)
     native_targets = discover_targets(native_model, args.category)
+    native_lif_targets = discover_lif_targets(native_model)
     data_cfg = {
         "mode": args.family,
         "data_dir": args.data_dir,
@@ -504,6 +602,7 @@ def run(args) -> Dict[str, object]:
         input_chunk=args.input_chunk,
         fold_bn=args.fold_bn,
     )
+    lif_replacements = replace_lif_targets(native_model, native_lif_targets) if args.replace_lif else {}
     remaining_original_targets, original_counter, original_handles = attach_remaining_original_counter(
         native_model, native_targets.keys()
     )
@@ -513,13 +612,19 @@ def run(args) -> Dict[str, object]:
         if name is not None
     ]
     remaining_folded_bn_targets, bn_counter, bn_handles = attach_remaining_bn_counter(native_model, folded_bn_names)
+    remaining_lif_targets, lif_counter, lif_handles = attach_remaining_lif_counter(native_model, native_lif_targets.keys())
     try:
         metrics = evaluate(clean_model, native_model, validation_loader, device, wrappers, args.max_eval_batches)
     finally:
-        for handle in original_handles + bn_handles:
+        for handle in original_handles + bn_handles + lif_handles:
             handle.remove()
     original_target_eval_calls = int(original_counter["calls"])
     folded_bn_eval_calls = int(bn_counter["calls"])
+    original_lif_eval_calls = int(lif_counter["calls"])
+    native_lif_targets_executed = sum(
+        1 for module in lif_replacements.values() if module.executions > 0
+    )
+    native_lif_executions = sum(module.executions for module in lif_replacements.values())
     gate = {
         "clean_baseline_pass": abs(metrics["clean_top1"] - args.expected_clean_top1) <= args.clean_tolerance,
         "drop_top1_pass": metrics["drop_top1"] <= args.max_drop,
@@ -529,6 +634,11 @@ def run(args) -> Dict[str, object]:
         "original_target_eval_calls_zero": original_target_eval_calls == 0,
         "folded_bn_modules_removed": (not args.fold_bn) or remaining_folded_bn_targets == 0,
         "folded_bn_eval_calls_zero": (not args.fold_bn) or folded_bn_eval_calls == 0,
+        "original_lif_modules_removed": (not args.replace_lif) or remaining_lif_targets == 0,
+        "original_lif_eval_calls_zero": (not args.replace_lif) or original_lif_eval_calls == 0,
+        "all_native_lif_targets_executed": (not args.replace_lif) or (
+            native_lif_targets_executed == len(lif_replacements)
+        ),
         "finite": all(
             math.isfinite(float(metrics[key]))
             for key in ("clean_top1", "native_top1", "clip_rate", "logit_mse")
@@ -555,6 +665,12 @@ def run(args) -> Dict[str, object]:
         "folded_bn_targets": folded_bn_names if args.fold_bn else [],
         "remaining_folded_bn_targets": remaining_folded_bn_targets if args.fold_bn else None,
         "folded_bn_eval_calls": folded_bn_eval_calls if args.fold_bn else None,
+        "replace_lif": bool(args.replace_lif),
+        "lif_targets": list(native_lif_targets) if args.replace_lif else [],
+        "remaining_lif_targets": remaining_lif_targets if args.replace_lif else None,
+        "original_lif_eval_calls": original_lif_eval_calls if args.replace_lif else None,
+        "native_lif_targets_executed": native_lif_targets_executed if args.replace_lif else None,
+        "native_lif_executions": native_lif_executions if args.replace_lif else None,
         "metrics": metrics,
         "gate": gate,
     }
@@ -582,6 +698,7 @@ def main() -> None:
     parser.add_argument("--uniform-bits", type=int, default=8)
     parser.add_argument("--input-chunk", type=int, default=4)
     parser.add_argument("--fold-bn", action="store_true")
+    parser.add_argument("--replace-lif", action="store_true")
     parser.add_argument("--max-drop", type=float, default=1.50)
     parser.add_argument("--max-clip-rate", type=float, default=0.0001)
     parser.add_argument("--expected-clean-top1", type=float, default=77.78)
@@ -604,6 +721,11 @@ def main() -> None:
                 "fold_bn": payload["fold_bn"],
                 "remaining_folded_bn_targets": payload["remaining_folded_bn_targets"],
                 "folded_bn_eval_calls": payload["folded_bn_eval_calls"],
+                "replace_lif": payload["replace_lif"],
+                "remaining_lif_targets": payload["remaining_lif_targets"],
+                "original_lif_eval_calls": payload["original_lif_eval_calls"],
+                "native_lif_targets_executed": payload["native_lif_targets_executed"],
+                "native_lif_executions": payload["native_lif_executions"],
             },
             sort_keys=True,
         )

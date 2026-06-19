@@ -61,6 +61,9 @@ EXTRA_ARGS=()
 if [[ "${QK_NATIVE_AFFINE_FOLD_BN:-0}" == "1" ]]; then
   EXTRA_ARGS+=(--fold-bn)
 fi
+if [[ "${QK_NATIVE_AFFINE_REPLACE_LIF:-0}" == "1" ]]; then
+  EXTRA_ARGS+=(--replace-lif)
+fi
 
 "$PYTHON" tools/qkformer_native_affine_lut_probe.py \
   --root "$ROOT" \
