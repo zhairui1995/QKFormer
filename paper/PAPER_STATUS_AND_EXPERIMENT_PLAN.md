@@ -75,7 +75,9 @@ are an idealized prototype-only footprint, not measured SRAM.
 5. Separate entry/FP32 proxies from measured hardware claims.
 6. Present all-attention projection replacement as completeness/fidelity
    support, not as a standalone novelty center.
-7. Compile, check page count and layout, then run citation and numerical claim
+7. Keep the all-affine continuation exploratory and disclose its post-result
+   0.50-point gate and 9.47x table-value expansion.
+8. Compile, check page count and layout, then run citation and numerical claim
    traceability audits.
 
 ## Claim Boundary
@@ -109,8 +111,18 @@ grouped binary-pattern LUT on CIFAR-100 seed-42 `T=1` and `T=4`. The compact
 This is a strong completeness/fidelity result, but not the paper's independent
 novelty center: it is an exact grouped decomposition, uses 2,664 KiB of FP32
 table values, and the current hook still executes the original projection.
-The remaining operator-scope audit is Q/K/V projections, MLPs, patch
-embeddings, and the classifier.
+The later operator-scope audit covers all 32 Conv1d/Conv2d/Linear modules in
+the evaluated CIFAR-100 `T=1` checkpoint. Q/K/V misses the original 0.25-point
+gate at a 0.45-point drop. Under a transparently post-result, user-approved
+uniform 0.50-point gate, MLP, patch embedding, classifier, and cumulative
+all-affine rows pass; the cumulative row is 77.58 -> 77.98.
+
+This is exploratory substitution-fidelity evidence, not a compact design:
+FP32 table values total 248,208 KiB (9.47x the original weight-value count).
+BN/LIF, pooling, residual addition, and SSA matrix products remain unchanged.
+
+Report:
+`../results/qk_all_affine_continuation_20260619.md`.
 
 Review handoff:
 `../docs/AAAI_ALL_ATTENTION_REVIEW_HANDOFF_ZH.md`.

@@ -287,9 +287,9 @@ projection weights, and is currently evaluated through a hook that still
 executes the convolution. Keep the core novelty on semantic Q/K addressing,
 support-aware backoff, and compact subspace lookup.
 
-The follow-up operator audit has now stopped at Q/K/V. Do not run MLP, patch,
-classifier, cumulative all-affine, or a new quantization/accumulator sweep
-without a new user decision.
+The follow-up operator audit originally stopped at Q/K/V under the strict
+0.25-pp gate. The user then accepted 0.45 pp as near-lossless and authorized a
+uniform 0.50-pp continuation gate.
 
 ChatGPT Pro review handoff:
 `docs/AAAI_ALL_ATTENTION_REVIEW_HANDOFF_ZH.md`.
@@ -306,9 +306,26 @@ Q/K/V after both allowed attempts failed:
 - all ten Q/K/V targets executed.
 
 The inputs were already exact integers within `[0, 4]`, so increasing the range
-could not improve fidelity. The paired drop exceeds the 0.25 pp gate. MLP,
-patch embedding, classifier, and cumulative all-affine replacement were not
-run. Await user judgment before designing a different accumulator or
-post-LUT-calibration method.
+could not improve fidelity. The paired drop exceeds the original 0.25 pp gate,
+but is a user-accepted pass under the amended 0.50 pp gate.
 
 Memo: `results/qk_all_affine_qkv_boundary_20260619.md`.
+
+### All-Affine Continuation Completed
+
+All remaining categories pass the uniform amended gate:
+
+| Category | Clean -> LUT | Drop | NRMSE |
+|---|---:|---:|---:|
+| MLP | 77.58 -> 77.63 | -0.05 | 0.00011311 |
+| patch embedding | 77.58 -> 77.47 | 0.11 | 0.00012767 |
+| classifier | 77.58 -> 77.59 | -0.01 | 0.00339480 |
+| cumulative 32 affine modules | 77.58 -> 77.98 | -0.40 | 0.00013521 |
+
+The cumulative row covers every Conv1d, Conv2d, and Linear module in the
+evaluated QKFormer CIFAR-100 `T=1` checkpoint. It does not cover BN/LIF,
+pooling, residual addition, or SSA matrix products. Its FP32 LUT values occupy
+248,208 KiB (9.47x the original weight-value count), so it is fidelity evidence,
+not compactness or measured hardware evidence.
+
+Memo: `results/qk_all_affine_continuation_20260619.md`.

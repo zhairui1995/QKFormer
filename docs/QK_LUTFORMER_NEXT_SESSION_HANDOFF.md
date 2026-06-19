@@ -313,13 +313,17 @@ Detailed review handoff and a copy-ready ChatGPT Pro prompt:
 
 ## Next Work
 
-The operator-scope extension has reached its registered stop condition at
-Q/K/V. Await the user's scientific decision. Do not start MLP, patch,
-classifier, cumulative all-affine, a new accumulator implementation, post-LUT
-calibration, or another parameter sweep by default.
+The operator-scope extension originally reached its strict stop condition at
+Q/K/V. The user subsequently approved a uniform 0.50-pp near-lossless gate and
+the continuation is complete. Do not start a new accumulator implementation,
+post-LUT calibration, bit-width sweep, checkpoint replication, or hardware
+claim experiment by default.
 
-Continue to use “all-attention projection-current replacement,” never
-“complete QKFormer,” “full attention,” or “all-operator” LUT replacement.
+Keep “all-attention projection-current replacement” as the registered
+completeness claim. The later row may be described explicitly as exploratory
+“all Conv1d/Conv2d/Linear output substitution” under a post-result 0.50-pp
+gate. Never call it “complete QKFormer,” “full attention,” or “all-operator”
+LUT replacement.
 
 ## Session Completion And SSH Note
 
@@ -328,7 +332,7 @@ Continue to use “all-attention projection-current replacement,” never
 - The timeout is an operational verification note, not evidence of an
   unfinished experiment. Do not rerun formal jobs solely because of it.
 
-## All-Affine Audit Stop Point
+## All-Affine Strict Stop And Continuation
 
 The planned Q/K/V -> MLP -> patch -> classifier -> cumulative audit was
 preregistered in `docs/QKFORMER_ALL_AFFINE_LUT_PREREGISTRATION.md`.
@@ -347,13 +351,24 @@ doubled table storage. This rules out address range as the failure cause. The
 working hypothesis is BN/LIF threshold amplification of tiny accumulation-order
 error.
 
-Per the user-approved rule, do not run MLP, patch, classifier, or cumulative
-all-affine experiments without a new decision. The current scientific boundary
-remains all-attention `proj_conv` replacement, not all learned affine operators
-and not complete QKFormer replacement.
+The later user amendment accepted the 0.45-pp row as near-lossless. MLP, patch,
+classifier, and cumulative all-affine were then completed under a uniform
+0.50-pp operational gate:
+
+- MLP: 77.58 -> 77.63;
+- patch: 77.58 -> 77.47;
+- classifier: 77.58 -> 77.59;
+- all 32 Conv1d/Conv2d/Linear modules: 77.58 -> 77.98.
+
+The cumulative result supports scalar-level LUT-equivalent substitution
+fidelity for all convolutional and linear operators in this single
+QKFormer/CIFAR-100/T=1 checkpoint. It is not complete QKFormer replacement:
+BN/LIF, pooling, residual addition, and SSA matrix products remain. FP32 LUT
+values total 248,208 KiB (9.47x the original weight-value count), and the hooks
+still execute the original modules.
 
 Detailed evidence:
-`results/qk_all_affine_qkv_boundary_20260619.md`.
+`results/qk_all_affine_continuation_20260619.md`.
 
 ## Hygiene
 

@@ -55,8 +55,17 @@ with scalar-level LUT decompositions. The local projection error was small
 (aggregate NRMSE $1.20\times10^{-4}$) and clipping was zero, yet full-validation
 Acc@1 fell by $0.45$ points. Increasing the integer table range from 8 to 16
 levels produced the same result because all observed inputs were already exact
-integers no larger than four. This boundary suggests that small changes in
-floating-point accumulation order can be amplified by downstream BN/LIF
-thresholds. We therefore do not extrapolate the successful attention
-\texttt{proj\_conv} result to Q/K/V, all learned affine operators, or the
-complete network.
+integers no larger than four. This misses the original $0.25$-point gate and
+suggests that small changes in floating-point accumulation order can be
+amplified by downstream BN/LIF thresholds.
+
+After this result, an explicitly post-hoc continuation used a uniform
+$0.50$-point near-lossless gate. MLP, patch-embedding, classifier, and a
+cumulative substitution of all 32 convolutional/linear operators then remained
+within that gate; the cumulative row changed Acc@1 from $77.58\%$ to
+$77.98\%$ and had aggregate NRMSE $1.35\times10^{-4}$. We treat positive
+deltas as no-loss fluctuation. This exploratory row supports operator-output
+substitution fidelity, but not a compact design: its FP32 table values occupy
+248,208 KiB, $9.47\times$ the original weight-value count. BN/LIF, pooling,
+residual addition, and SSA matrix products remain unchanged, and the hook still
+executes each original operator.

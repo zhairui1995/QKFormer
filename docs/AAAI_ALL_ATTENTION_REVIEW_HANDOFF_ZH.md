@@ -93,12 +93,11 @@ SRAM 收益。
 - measured hardware acceleration；
 - cross-architecture Spiking Transformer replacement。
 
-## 下一步唯一合理扩展方向
+## 已完成的 Operator-Scope 扩展
 
-在论文同步和外部审查完成前，不再启动 seed、alpha、stage、checkpoint 或
-group-size sweep。若决定继续扩大 replacement scope，只做一个预注册方向：
-
-**审计并扩展到 Q/K/V projections、MLPs、patch embeddings 和 classifier。**
+该方向已经按 Q/K/V、MLP、patch embedding、classifier 和 cumulative
+all-affine 的顺序完成。严格 0.25 pp gate 在 Q/K/V 处失败；用户随后透明批准
+统一 0.50 pp operational gate，所有后续类别及累计行均通过。
 
 该扩展必须逐类报告：
 
@@ -110,8 +109,9 @@ group-size sweep。若决定继续扩大 replacement scope，只做一个预注�
 - strongest matched control；
 - 是否真正绕过原算子执行。
 
-只有这些算子均被覆盖，且 BN/LIF/state dynamics 的保留范围被清楚定义后，才可
-讨论“complete attention block”或“complete-network operator replacement”。
+32 个 Conv1d/Conv2d/Linear modules 已覆盖，但 BN/LIF/state dynamics、
+pooling、residual addition 和 SSA matrix products 未替换。因此仍不能讨论
+complete attention block 或 complete-network replacement。
 
 ## 提交前仍需处理的非实验问题
 
@@ -144,9 +144,9 @@ reviewer。请审查当前 QK-LUTFormer 仓库，重点回答：
    proj_conv。请评估 storage、runtime 和 hardware claim 风险。
 5. 论文是否应把 grouped projection LUT 保留在 abstract、introduction
    contributions 和 main experiments？若保留，应该放在什么层级？
-6. 若只允许一个下一实验方向，审计 Q/K/V、MLP、patch embedding 和 classifier
-   是否是最有价值的扩展？请给出固定范围、matched controls、pass/fail gates
-   和它能解锁的准确 claim。
+6. all-affine continuation 已完成：请评价“原始 Q/K/V gate FAIL + post-hoc
+   统一 0.50 pp gate 下累计 32-module PASS”的证据价值、事后门槛风险和最安全
+   claim，并判断它应放主文、supplement 还是仅 discussion。
 7. 请以 AAAI 标准给出：当前最大优点、三个最危险 reviewer objection、必须修改
    的 claim、建议标题/摘要定位，以及 Accept/Borderline/Reject 判断。
 
@@ -191,8 +191,19 @@ SRAM、energy 或 hardware efficiency。
 - 十个 Q/K/V targets 全部执行；
 - 输入均为精确整数且最大不超过 4，因此增加 levels 只增加存储，没有改善。
 
-该结果连续两次超过 0.25 pp loss gate。MLP、patch embedding、classifier 和
-cumulative all-affine 未运行。它进一步说明 all-attention `proj_conv`
-replacement 不能外推为 all-affine 或 complete-network replacement。
+该结果连续两次超过原始 0.25 pp loss gate。用户随后明确接受 0.45 pp 为
+near-lossless，并批准对所有后续类别统一使用 0.50 pp operational gate。原始
+FAIL 标签保留，不回写为预注册通过。
 
 证据：`results/qk_all_affine_qkv_boundary_20260619.md`。
+
+在修订门槛下，MLP、patch embedding、classifier 及 cumulative all-affine
+均首轮通过。累计行同时替换 32 个 Conv1d/Conv2d/Linear outputs：
+77.58 -> 77.98，NRMSE 0.00013521，clip 0。
+
+但该行的 FP32 table values 为 248,208 KiB，约为原 weight-value count 的
+9.47 倍；BN/LIF、pooling、residual addition、SSA matrix products 仍保留，
+hook 仍先执行原算子。因此它支持 all-convolution/linear substitution fidelity，
+不支持 complete QKFormer、compact LUT 或硬件加速。
+
+完整证据：`results/qk_all_affine_continuation_20260619.md`。

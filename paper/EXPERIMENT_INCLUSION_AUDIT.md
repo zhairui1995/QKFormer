@@ -39,7 +39,7 @@ claims.
 | Full machine-readable seed rows and protocol metadata | Reproducibility |
 | Selective-oracle per-sample margin bins | Useful diagnostic, but label-informed and not a deployable method | Keep outside the main paper |
 | Classification adapter diagnostics | Downstream utility is outside the current method claim | Retain only as project history |
-| All-Q/K/V scalar LUT audit | Two preregistered attempts miss the 0.25 pp fidelity gate despite low local NRMSE | Retain as a boundary result; do not proceed to all-affine claim |
+| All-affine scalar LUT audit | Q/K/V misses the original 0.25 pp gate; a user-approved uniform 0.50 pp continuation preserves all 32 Conv/Linear outputs | Retain as exploratory fidelity evidence, not a preregistered compactness or hardware result |
 
 ## Exclude From Scientific Evidence
 

@@ -24,6 +24,10 @@ Current paper-side verdict:
 - All four attention `proj_conv` currents have a near-lossless grouped-LUT
   replacement result on CIFAR-100 `T=1/4`. This is completeness/fidelity
   support, not complete-network replacement or measured acceleration.
+- An exploratory, transparently post-hoc 0.50-point continuation gate also
+  preserves a cumulative substitution of all 32 Conv1d/Conv2d/Linear outputs
+  on CIFAR-100 `T=1`; the direct tables expand value count by 9.47x and leave
+  BN/LIF, pooling, residual addition, and SSA matrix products unchanged.
 
 Current claim boundary:
 

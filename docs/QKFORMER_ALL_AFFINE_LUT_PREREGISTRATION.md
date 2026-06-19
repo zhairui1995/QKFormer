@@ -133,3 +133,24 @@ Under this amendment, Q/K/V is:
 
 The continuation resumes at MLP. This amendment is a transparent post-result
 decision and must not be described as part of the original preregistration.
+
+## Continuation Outcome
+
+Under the amended 0.50-point operational gate:
+
+| Category | Clean -> LUT | Drop | Status |
+|---|---:|---:|---|
+| Q/K/V | 77.58 -> 77.13 | 0.45 | user-accepted pass |
+| MLP | 77.58 -> 77.63 | -0.05 | pass |
+| patch embedding | 77.58 -> 77.47 | 0.11 | pass |
+| classifier | 77.58 -> 77.59 | -0.01 | pass |
+| cumulative all-affine | 77.58 -> 77.98 | -0.40 | pass |
+
+The cumulative row covers all 32 Conv1d, Conv2d, and Linear modules in this
+checkpoint. It does not replace BN/LIF, pooling, residual addition, or SSA
+matrix products. Its FP32 table-value footprint is 248,208 KiB, 9.47 times the
+original weight-value count, so the result is fidelity evidence rather than a
+compactness or hardware-efficiency result.
+
+Detailed report:
+`results/qk_all_affine_continuation_20260619.md`.

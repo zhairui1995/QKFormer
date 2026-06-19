@@ -89,3 +89,6 @@ Revised status:
 - user-approved continuation status: `NEAR-LOSSLESS PASS`.
 
 The continuation resumes at MLP and retains the same one-retry stop rule.
+
+The continuation subsequently completed; see
+`results/qk_all_affine_continuation_20260619.md`.

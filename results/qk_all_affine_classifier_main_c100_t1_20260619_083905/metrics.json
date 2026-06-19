@@ -1,0 +1,83 @@
+{
+  "args": {
+    "batch_size": 32,
+    "calib_batches": 32,
+    "category": "classifier",
+    "checkpoint": "/home/lbz/mac_agent/sdr-lutattn-qkformer-lut/results/qkformer_cifar100_train_20260610_164027/output/qkformer_cifar100_t1_seed42/model_best.pth.tar",
+    "clean_tolerance": 0.25,
+    "data_dir": "/home/datasets",
+    "dim": 384,
+    "expected_clean_top1": 77.78,
+    "family": "cifar100",
+    "input_chunk": 4,
+    "integer_max": 7,
+    "layer": 4,
+    "local_cuda_index": 0,
+    "max_clip_rate": 0.0001,
+    "max_drop": 0.5,
+    "max_eval_batches": 100000,
+    "max_nrmse": 0.01,
+    "result_dir": "/home/lbz/mac_agent/sdr-lutattn-qkformer-lut/results/qk_all_affine_classifier_main_c100_t1_20260619_083905",
+    "root": "/home/lbz/mac_agent/sdr-lutattn-qkformer-lut",
+    "seed": 42,
+    "time_step": 1,
+    "uniform_bits": 8,
+    "workers": 4
+  },
+  "calibration_batches": 32,
+  "category": "classifier",
+  "checkpoint": {
+    "loaded": true,
+    "missing_keys": [],
+    "path": "/home/lbz/mac_agent/sdr-lutattn-qkformer-lut/results/qkformer_cifar100_train_20260610_164027/output/qkformer_cifar100_t1_seed42/model_best.pth.tar",
+    "unexpected_keys": []
+  },
+  "claim": "LUT-equivalent fidelity audit for frozen learned affine operators; original operators still execute before hook substitution; BN/LIF/pooling/residual/attention matrix products remain unchanged",
+  "experiment": "qkformer_all_affine_lut_probe",
+  "gate": {
+    "all_targets_executed": true,
+    "clean_baseline_pass": true,
+    "clip_rate_pass": true,
+    "drop_top1_pass": true,
+    "finite": true,
+    "output_nrmse_pass": true,
+    "pass": true
+  },
+  "metrics": {
+    "clean_top1": 77.58,
+    "clip_rate": 2.604166666666667e-07,
+    "drop_top1": -0.010000000000005116,
+    "injected_top1": 77.59,
+    "input_quant_mse": 1.4238896475095922e-05,
+    "kl_clean_to_injected": 6.892591749783606e-06,
+    "logit_mse": 0.00016274969324003906,
+    "original_weight_values": 38400,
+    "output_mse": 0.00016274969652295112,
+    "output_nrmse": 0.003394796220492578,
+    "per_target": {
+      "head": {
+        "clip_rate": 2.604166666666667e-07,
+        "continuous_quantizer": true,
+        "count": 393216.0,
+        "executions": 313,
+        "input_quant_mse": 1.4238896475095922e-05,
+        "input_values": 3840000.0,
+        "integer_mae": 0.2781117757161458,
+        "integer_max_error": 0.5,
+        "maximum": 4.0,
+        "minimum": 0.0,
+        "output_mse": 0.00016274969652295112,
+        "output_nrmse": 0.003394796220492578,
+        "output_values": 1000000.0
+      }
+    },
+    "table_fp32_kib": 38400.0,
+    "table_scalar_entries": 9830400,
+    "table_to_weight_value_ratio": 256.0,
+    "targets_executed": 1,
+    "targets_requested": 1
+  },
+  "targets": [
+    "head"
+  ]
+}

@@ -176,7 +176,10 @@ Supported:
 - explicit hierarchical fallback behavior;
 - compact subspace-decoupled reconstruction under an entry-count proxy;
 - same-architecture CIFAR-100 T=4 classification stability across independent
-  QKFormer training seeds/checkpoints.
+  QKFormer training seeds/checkpoints;
+- exploratory scalar-level substitution fidelity for all 32 Conv1d/Conv2d/
+  Linear outputs in one CIFAR-100 `T=1` checkpoint under a transparently
+  post-result, user-approved 0.50-pp gate.
 
 Not supported:
 
@@ -435,9 +438,36 @@ drop exceeds the preregistered 0.25-point gate despite very small local error.
 The likely boundary is simultaneous BN/LIF threshold sensitivity to changed
 floating-point accumulation order.
 
-Per the stop rule, MLP, patch embedding, classifier, and cumulative
-`all_affine` experiments were not launched. See
+At the original stop point, MLP, patch embedding, classifier, and cumulative
+`all_affine` had not been launched. The later user-approved amendment and
+continuation are recorded below. See
 `results/qk_all_affine_qkv_boundary_20260619.md`.
+
+### User-Approved All-Affine Continuation
+
+After observing the Q/K/V row, the user accepted 0.45 pp as practically
+near-lossless and authorized a uniform 0.50-pp continuation gate. The original
+Q/K/V 0.25-pp preregistration status remains `FAIL`; its amended operational
+status is `USER-ACCEPTED PASS`.
+
+| Category | Targets | Clean | LUT | Drop | NRMSE | FP32 values | Status |
+|---|---:|---:|---:|---:|---:|---:|---|
+| Q/K/V | 10 | 77.58 | 77.13 | 0.45 | 0.00012029 | 30,528 KiB | amended pass |
+| MLP | 8 | 77.58 | 77.63 | -0.05 | 0.00011311 | 85,248 KiB | pass |
+| patch embedding | 9 | 77.58 | 77.47 | 0.11 | 0.00012767 | 83,376 KiB | pass |
+| classifier | 1 | 77.58 | 77.59 | -0.01 | 0.00339480 | 38,400 KiB | pass |
+| cumulative all-affine | 32 | 77.58 | 77.98 | -0.40 | 0.00013521 | 248,208 KiB | pass |
+
+Positive deltas are no-loss fluctuations, not accuracy gains. The cumulative
+row replaces every Conv1d, Conv2d, and Linear output in the evaluated
+QKFormer CIFAR-100 `T=1` checkpoint. It leaves BN/LIF, pooling, residual
+addition, and SSA matrix products unchanged, and the hooks still execute the
+original operators.
+
+The 248,208-KiB FP32 value footprint is approximately 242.4 MiB and 9.47 times
+the original weight-value count. This supports operator-substitution fidelity,
+not compactness, latency, energy, SRAM, or hardware acceleration. See
+`results/qk_all_affine_continuation_20260619.md`.
 
 ## Raw Evidence Policy
 
