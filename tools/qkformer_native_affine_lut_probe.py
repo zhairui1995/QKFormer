@@ -43,6 +43,8 @@ class NativeScalarLevelLUT(torch.nn.Module):
         integer_max: int,
         uniform_bits: int,
         input_chunk: int,
+        folded_weight: Optional[torch.Tensor] = None,
+        folded_bias: Optional[torch.Tensor] = None,
     ) -> None:
         super().__init__()
         if not isinstance(module, (torch.nn.Conv1d, torch.nn.Conv2d, torch.nn.Linear)):
@@ -62,7 +64,8 @@ class NativeScalarLevelLUT(torch.nn.Module):
         if isinstance(module, torch.nn.Linear):
             self.in_features = int(module.in_features)
             self.out_features = int(module.out_features)
-            self.register_buffer("weight_flat", module.weight.detach().clone())
+            weight = module.weight.detach() if folded_weight is None else folded_weight.detach()
+            self.register_buffer("weight_flat", weight.clone())
         else:
             self.in_channels = int(module.in_channels)
             self.out_channels = int(module.out_channels)
@@ -73,9 +76,12 @@ class NativeScalarLevelLUT(torch.nn.Module):
             self.groups = int(module.groups)
             if self.groups != 1:
                 raise ValueError(f"grouped convolutions are not supported: {name}")
-            self.register_buffer("weight_flat", module.weight.detach().reshape(module.out_channels, -1).clone())
+            weight = module.weight.detach() if folded_weight is None else folded_weight.detach()
+            self.register_buffer("weight_flat", weight.reshape(module.out_channels, -1).clone())
 
-        if module.bias is None:
+        if folded_bias is not None:
+            self.register_buffer("bias_value", folded_bias.detach().clone())
+        elif module.bias is None:
             self.register_buffer("bias_value", torch.empty(0))
         else:
             self.register_buffer("bias_value", module.bias.detach().clone())
@@ -250,9 +256,55 @@ def set_submodule(root: torch.nn.Module, name: str, module: torch.nn.Module) -> 
     setattr(parent, child_name, module)
 
 
-def count_remaining_original_targets(model: torch.nn.Module, target_names) -> Tuple[int, int]:
+def paired_bn_name(name: str) -> Optional[str]:
+    if not name.endswith("_conv"):
+        return None
+    return name[:-5] + "_bn"
+
+
+def lookup_paired_bn(model: torch.nn.Module, name: str) -> Optional[torch.nn.Module]:
+    bn_name = paired_bn_name(name)
+    if bn_name is None:
+        return None
+    try:
+        bn = model.get_submodule(bn_name)
+    except AttributeError:
+        return None
+    if isinstance(bn, (torch.nn.BatchNorm1d, torch.nn.BatchNorm2d)):
+        return bn
+    return None
+
+
+def fold_bn_parameters(
+    module: torch.nn.Module,
+    bn: torch.nn.Module,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    if not isinstance(module, (torch.nn.Conv1d, torch.nn.Conv2d)):
+        raise TypeError(f"BN folding only supports conv modules, got {type(module)}")
+    if not isinstance(bn, (torch.nn.BatchNorm1d, torch.nn.BatchNorm2d)):
+        raise TypeError(f"unsupported BN type: {type(bn)}")
+    weight = module.weight.detach().clone()
+    if module.bias is None:
+        bias = torch.zeros(weight.shape[0], dtype=weight.dtype, device=weight.device)
+    else:
+        bias = module.bias.detach().clone()
+    running_mean = bn.running_mean.detach().to(device=weight.device, dtype=weight.dtype)
+    running_var = bn.running_var.detach().to(device=weight.device, dtype=weight.dtype)
+    if bn.affine:
+        gamma = bn.weight.detach().to(device=weight.device, dtype=weight.dtype)
+        beta = bn.bias.detach().to(device=weight.device, dtype=weight.dtype)
+    else:
+        gamma = torch.ones_like(running_mean)
+        beta = torch.zeros_like(running_mean)
+    scale = gamma / torch.sqrt(running_var + float(bn.eps))
+    folded_weight = weight * scale.reshape(-1, *([1] * (weight.dim() - 1)))
+    folded_bias = (bias - running_mean) * scale + beta
+    return folded_weight, folded_bias
+
+
+def attach_remaining_original_counter(model: torch.nn.Module, target_names):
     remaining = 0
-    calls = 0
+    counter = {"calls": 0}
     handles = []
     target_set = set(target_names)
     for name, module in model.named_modules():
@@ -261,10 +313,25 @@ def count_remaining_original_targets(model: torch.nn.Module, target_names) -> Tu
         if isinstance(module, (torch.nn.Conv1d, torch.nn.Conv2d, torch.nn.Linear)):
             remaining += 1
             def hook(_module, _inputs, _output):
-                nonlocal calls
-                calls += 1
+                counter["calls"] += 1
             handles.append(module.register_forward_hook(hook))
-    return remaining, calls
+    return remaining, counter, handles
+
+
+def attach_remaining_bn_counter(model: torch.nn.Module, bn_names):
+    remaining = 0
+    counter = {"calls": 0}
+    handles = []
+    target_set = set(bn_names)
+    for name, module in model.named_modules():
+        if name not in target_set:
+            continue
+        if isinstance(module, (torch.nn.BatchNorm1d, torch.nn.BatchNorm2d)):
+            remaining += 1
+            def hook(_module, _inputs, _output):
+                counter["calls"] += 1
+            handles.append(module.register_forward_hook(hook))
+    return remaining, counter, handles
 
 
 def replace_targets(
@@ -274,9 +341,16 @@ def replace_targets(
     integer_max: int,
     uniform_bits: int,
     input_chunk: int,
+    fold_bn: bool,
 ) -> Dict[str, NativeScalarLevelLUT]:
     wrappers: Dict[str, NativeScalarLevelLUT] = {}
     for name, module in list(targets.items()):
+        folded_weight = None
+        folded_bias = None
+        if fold_bn:
+            bn = lookup_paired_bn(model, name)
+            if bn is not None:
+                folded_weight, folded_bias = fold_bn_parameters(module, bn)
         wrapper = NativeScalarLevelLUT(
             name=name,
             module=module,
@@ -284,8 +358,14 @@ def replace_targets(
             integer_max=integer_max,
             uniform_bits=uniform_bits,
             input_chunk=input_chunk,
+            folded_weight=folded_weight,
+            folded_bias=folded_bias,
         )
         set_submodule(model, name, wrapper)
+        if fold_bn:
+            bn_name = paired_bn_name(name)
+            if bn_name is not None and lookup_paired_bn(model, name) is not None:
+                set_submodule(model, bn_name, torch.nn.Identity())
         wrappers[name] = wrapper
     return wrappers
 
@@ -422,9 +502,24 @@ def run(args) -> Dict[str, object]:
         integer_max=args.integer_max,
         uniform_bits=args.uniform_bits,
         input_chunk=args.input_chunk,
+        fold_bn=args.fold_bn,
     )
-    remaining_original_targets, original_target_eval_calls = count_remaining_original_targets(native_model, native_targets.keys())
-    metrics = evaluate(clean_model, native_model, validation_loader, device, wrappers, args.max_eval_batches)
+    remaining_original_targets, original_counter, original_handles = attach_remaining_original_counter(
+        native_model, native_targets.keys()
+    )
+    folded_bn_names = [
+        name
+        for name in (paired_bn_name(target_name) for target_name in native_targets)
+        if name is not None
+    ]
+    remaining_folded_bn_targets, bn_counter, bn_handles = attach_remaining_bn_counter(native_model, folded_bn_names)
+    try:
+        metrics = evaluate(clean_model, native_model, validation_loader, device, wrappers, args.max_eval_batches)
+    finally:
+        for handle in original_handles + bn_handles:
+            handle.remove()
+    original_target_eval_calls = int(original_counter["calls"])
+    folded_bn_eval_calls = int(bn_counter["calls"])
     gate = {
         "clean_baseline_pass": abs(metrics["clean_top1"] - args.expected_clean_top1) <= args.clean_tolerance,
         "drop_top1_pass": metrics["drop_top1"] <= args.max_drop,
@@ -432,6 +527,8 @@ def run(args) -> Dict[str, object]:
         "all_native_targets_executed": metrics["targets_executed"] == metrics["targets_requested"],
         "original_target_modules_removed": remaining_original_targets == 0,
         "original_target_eval_calls_zero": original_target_eval_calls == 0,
+        "folded_bn_modules_removed": (not args.fold_bn) or remaining_folded_bn_targets == 0,
+        "folded_bn_eval_calls_zero": (not args.fold_bn) or folded_bn_eval_calls == 0,
         "finite": all(
             math.isfinite(float(metrics[key]))
             for key in ("clean_top1", "native_top1", "clip_rate", "logit_mse")
@@ -454,6 +551,10 @@ def run(args) -> Dict[str, object]:
         "input_ranges": ranges,
         "remaining_original_targets": remaining_original_targets,
         "original_target_eval_calls": original_target_eval_calls,
+        "fold_bn": bool(args.fold_bn),
+        "folded_bn_targets": folded_bn_names if args.fold_bn else [],
+        "remaining_folded_bn_targets": remaining_folded_bn_targets if args.fold_bn else None,
+        "folded_bn_eval_calls": folded_bn_eval_calls if args.fold_bn else None,
         "metrics": metrics,
         "gate": gate,
     }
@@ -480,6 +581,7 @@ def main() -> None:
     parser.add_argument("--integer-max", type=int, default=7)
     parser.add_argument("--uniform-bits", type=int, default=8)
     parser.add_argument("--input-chunk", type=int, default=4)
+    parser.add_argument("--fold-bn", action="store_true")
     parser.add_argument("--max-drop", type=float, default=1.50)
     parser.add_argument("--max-clip-rate", type=float, default=0.0001)
     parser.add_argument("--expected-clean-top1", type=float, default=77.78)
@@ -499,6 +601,9 @@ def main() -> None:
                 "clip_rate": payload["metrics"]["clip_rate"],
                 "remaining_original_targets": payload["remaining_original_targets"],
                 "original_target_eval_calls": payload["original_target_eval_calls"],
+                "fold_bn": payload["fold_bn"],
+                "remaining_folded_bn_targets": payload["remaining_folded_bn_targets"],
+                "folded_bn_eval_calls": payload["folded_bn_eval_calls"],
             },
             sort_keys=True,
         )

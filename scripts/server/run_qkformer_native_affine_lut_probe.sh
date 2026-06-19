@@ -57,6 +57,11 @@ TS="$(date +%Y%m%d_%H%M%S)"
 RESULT_DIR="$ROOT/results/qk_native_affine_${CATEGORY}_${ATTEMPT}_c100_t${TIME_STEP}_${TS}"
 mkdir -p "$RESULT_DIR"
 
+EXTRA_ARGS=()
+if [[ "${QK_NATIVE_AFFINE_FOLD_BN:-0}" == "1" ]]; then
+  EXTRA_ARGS+=(--fold-bn)
+fi
+
 "$PYTHON" tools/qkformer_native_affine_lut_probe.py \
   --root "$ROOT" \
   --family cifar100 \
@@ -80,6 +85,7 @@ mkdir -p "$RESULT_DIR"
   --clean-tolerance "$CLEAN_TOLERANCE" \
   --seed 42 \
   --local-cuda-index 0 \
+  "${EXTRA_ARGS[@]}" \
   2>&1 | tee "$RESULT_DIR/run.log"
 
 echo "[qk-native-affine] result_dir=$RESULT_DIR"
