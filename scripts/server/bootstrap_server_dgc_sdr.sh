@@ -25,17 +25,20 @@ PYTHON_BIN="$ENV_PREFIX/bin/python"
 "$PYTHON_BIN" -m pip install \
   "timm==0.6.12" \
   "PyYAML>=6,<7" \
-  "tensorboard>=2.12,<3"
+  "tensorboard>=2.12,<3" \
+  "cupy-cuda11x==11.4.0"
 
 "$PYTHON_BIN" - <<'PY'
 import torch
 import torchvision
 import timm
 import yaml
+import cupy
 from spikingjelly.clock_driven import functional
 
 print(f"[sdr-env] torch={torch.__version__} cuda={torch.version.cuda}")
 print(f"[sdr-env] torchvision={torchvision.__version__} timm={timm.__version__}")
 print(f"[sdr-env] pyyaml={yaml.__version__} cuda_available={torch.cuda.is_available()}")
+print(f"[sdr-env] cupy={cupy.__version__}")
 print(f"[sdr-env] gpu_count={torch.cuda.device_count()}")
 PY
