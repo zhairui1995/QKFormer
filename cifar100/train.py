@@ -271,6 +271,10 @@ parser.add_argument('--seed', type=int, default=42, metavar='S',
                     help='random seed (default: 42)')
 parser.add_argument('--log-interval', type=int, default=1000, metavar='N',
                     help='how many batches to wait before logging training status')
+parser.add_argument('--max-train-batches', type=int, default=0, metavar='N',
+                    help='maximum train batches per epoch; 0 uses the full loader')
+parser.add_argument('--max-eval-batches', type=int, default=0, metavar='N',
+                    help='maximum validation batches; 0 uses the full loader')
 parser.add_argument('--recovery-interval', type=int, default=0, metavar='N',
                     help='how many batches to wait before writing recovery checkpoint')
 parser.add_argument('--checkpoint-hist', type=int, default=10, metavar='N',
@@ -682,6 +686,8 @@ def train_one_epoch(
     last_idx = len(loader) - 1
     num_updates = epoch * len(loader)
     for batch_idx, (input, target) in enumerate(loader):
+        if args.max_train_batches > 0 and batch_idx >= args.max_train_batches:
+            break
         last_batch = batch_idx == last_idx
         data_time_m.update(time.time() - end)
         if not args.prefetcher:
@@ -783,6 +789,8 @@ def validate(model, loader, loss_fn, args, amp_autocast=suppress, log_suffix='')
     last_idx = len(loader) - 1
     with torch.no_grad():
         for batch_idx, (input, target) in enumerate(loader):
+            if args.max_eval_batches > 0 and batch_idx >= args.max_eval_batches:
+                break
             last_batch = batch_idx == last_idx
             if not args.prefetcher:
                 input = input.cuda()

@@ -17,6 +17,8 @@ EPOCHS="${QKFORMER_CIFAR100_TRAIN_EPOCHS:-400}"
 BATCH_SIZE="${QKFORMER_CIFAR100_TRAIN_BATCH_SIZE:-64}"
 VAL_BATCH_SIZE="${QKFORMER_CIFAR100_VAL_BATCH_SIZE:-64}"
 WORKERS="${QKFORMER_CIFAR100_TRAIN_WORKERS:-8}"
+MAX_TRAIN_BATCHES="${QKFORMER_CIFAR100_MAX_TRAIN_BATCHES:-0}"
+MAX_EVAL_BATCHES="${QKFORMER_CIFAR100_MAX_EVAL_BATCHES:-0}"
 TIME_STEP="${QKFORMER_LUT_TIME_STEP:-1}"
 SEED="${QKFORMER_CIFAR100_TRAIN_SEED:-42}"
 EXPERIMENT="${QKFORMER_CIFAR100_TRAIN_EXPERIMENT:-qkformer_cifar100_t${TIME_STEP}_seed${SEED}}"
@@ -34,10 +36,14 @@ mkdir -p "$RESULT_DIR"
   echo "[qk-c100-train] commit=$(git rev-parse --short HEAD)"
   echo "[qk-c100-train] python=$PYTHON_BIN"
   echo "[qk-c100-train] data_dir=$QKFORMER_LUT_CIFAR100_DATA_DIR"
-  echo "[qk-c100-train] epochs=$EPOCHS batch_size=$BATCH_SIZE val_batch_size=$VAL_BATCH_SIZE workers=$WORKERS time_step=$TIME_STEP seed=$SEED experiment=$EXPERIMENT"
+  echo "[qk-c100-train] epochs=$EPOCHS batch_size=$BATCH_SIZE val_batch_size=$VAL_BATCH_SIZE workers=$WORKERS max_train_batches=$MAX_TRAIN_BATCHES max_eval_batches=$MAX_EVAL_BATCHES time_step=$TIME_STEP seed=$SEED experiment=$EXPERIMENT"
 
-  bash scripts/server/install_qkformer_lut_deps.sh
-  bash scripts/server/link_cifar100_data.sh
+  if [[ "${QKFORMER_SKIP_DEP_INSTALL:-0}" != "1" ]]; then
+    bash scripts/server/install_qkformer_lut_deps.sh
+  fi
+  if [[ "${QKFORMER_SKIP_DATA_LINK:-0}" != "1" ]]; then
+    bash scripts/server/link_cifar100_data.sh
+  fi
   qk_lut_log_gpu "$PYTHON_BIN" "qk-c100-train"
 
   cd "$ROOT/cifar100"
@@ -52,7 +58,9 @@ mkdir -p "$RESULT_DIR"
     --seed "$SEED" \
     --batch-size "$BATCH_SIZE" \
     --val-batch-size "$VAL_BATCH_SIZE" \
-    --workers "$WORKERS"
+    --workers "$WORKERS" \
+    --max-train-batches "$MAX_TRAIN_BATCHES" \
+    --max-eval-batches "$MAX_EVAL_BATCHES"
 
   cd "$ROOT"
   find "$RESULT_DIR" \( -name "*.pth" -o -name "*.pth.tar" \) -print | sort > "$RESULT_DIR/checkpoint_manifest.txt"
