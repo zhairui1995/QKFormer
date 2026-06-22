@@ -1,44 +1,90 @@
 \section{Related Work}
 \label{sec:related}
 
-\paragraph{Spiking Transformers.}
-Spiking Transformers combine the sequence modeling capacity of Transformers
-with the event-driven computation of SNNs. Spikformer introduced spike-form
-self-attention for directly trained spiking Transformers~\cite{zhou2023spikformer}.
-Spike-driven Transformer removes floating-point multiplication from spike-form
-attention~\cite{yao2023spikedriven}, and SpikingResformer combines spiking
-attention with a multistage convolutional hierarchy~\cite{shi2024spikingresformer}.
-QKFormer further develops this line with hierarchical spike-form Q-K attention
-based on binary token/channel vectors~\cite{zhou2024qkformer}. Our work is not a
-replacement for these architectures; it asks whether QKFormer's existing
-binary states form useful, auditable lookup addresses.
+\paragraph{Spiking Transformer attention.}
+Spikformer introduced spike-form self-attention for directly trained spiking
+Transformers~\cite{zhou2023spikformer}. Spike-driven Transformer removes
+floating-point multiplication from spike-form attention
+~\cite{yao2023spikedriven}, SpikingResformer develops dual spike
+self-attention~\cite{shi2024spikingresformer}, and QKFormer uses hierarchical
+binary token/channel Q-K attention~\cite{zhou2024qkformer}. These works design
+accurate spiking backbones. QK-LUTFormer asks a different question: whether
+their internal discrete states are reproducible response addresses under
+matched negative controls.
 
-\paragraph{Transformer-to-SNN conversion.}
-ANN-to-SNN conversion has been successful for convolutional networks, but
-Transformer attention introduces additional difficulty because token
-interactions depend on softmax normalization and continuous query--key scores.
-Recent conversion work such as SpikedAttention directly addresses attention
-conversion for Transformers~\cite{hwang2024spikedattention}. In contrast, this
-paper begins from a spiking Transformer whose attention already exposes binary
-Q/K structure, and asks whether that structure can index auditable lookup
-prototypes and controlled downstream probes.
+\paragraph{LUT and quantized arithmetic inference.}
+MADDNESS and LUT-NN replace dense arithmetic with centroid- or
+code-indexed table access~\cite{blalock2021maddness,tang2023lutnn}.
+Transformer lookup modules such as LookupFFN and MemoryFormer similarly target
+feed-forward computation~\cite{zeng2023lookupffn,wang2024memoryformer}. Their
+main objective is arithmetic substitution. Our central test is instead whether
+an architecture's existing Q/K spike state carries address-specific response
+information, and whether that information remains valid after thresholded
+dynamics.
 
-\paragraph{Lookup and compositional memory.}
-Learned lookup has been used to replace arithmetic with centroid-indexed table
-access in MADDNESS and LUT-NN~\cite{blalock2021maddness,tang2023lutnn}, while
-Product-Key Memory factorizes a large key space into compositional
-subkeys~\cite{lample2019large}. Product quantization decomposes a vector space
-into a Cartesian product of lower-dimensional codebooks, while additive
-quantization reconstructs vectors as sums of codewords from multiple
-codebooks~\cite{jegou2011product,babenko2014additive}. LookupFFN and MemoryFormer study table-based
-replacements for Transformer feed-forward
-computation~\cite{zeng2023lookupffn,wang2024memoryformer}. Our setting differs in both target and
-claim: we audit binary states already present inside spike-form Q-K attention
-and reconstruct local module responses rather than replacing dense ANN layers.
-The subspace QK-LUT is closest in spirit to compositional memory and
-multi-codebook quantization, but it partitions an existing discrete address by
-QKFormer semantics and stores conditional response residuals rather than
-quantizing input vectors. It is also evaluated against same-entry shuffled
-controls. Because lookup can still lose input-dependent context, we treat
-downstream replacement as a separate gate rather than infer it from
-reconstruction alone.
+\paragraph{Compositional codebooks and associative memory.}
+Product-Key Memory factorizes retrieval into compositional
+subkeys~\cite{lample2019large}; product and additive quantization reconstruct
+vectors from multiple lower-dimensional codebooks
+~\cite{jegou2011product,babenko2014additive}. QK-LUTFormer shares the idea of
+compositional lookup but does not learn an arbitrary partition of a continuous
+embedding. Its subtables follow QKFormer semantics---token/channel, Q/gate,
+and K---and store zero-mean conditional response residuals with explicit
+support thresholds and shuffled-subspace controls.
+
+\paragraph{SNN dynamics calibration and conversion.}
+ANN-to-SNN conversion must preserve activation statistics across temporal
+threshold dynamics, and Transformer conversion is additionally complicated by
+continuous query--key interactions and normalization. SpikedAttention is one
+example of addressing this conversion problem~\cite{hwang2024spikedattention}.
+We begin from a natively spiking model rather than converting an ANN. TCSLU
+uses moment and time/channel calibration for a narrower purpose: restoring the
+dynamic current contract after semantic lookup, before the original BN/LIF
+path.
+
+\begin{table*}[t]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\renewcommand{\arraystretch}{1.15}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{p{0.18\textwidth}p{0.22\textwidth}cccp{0.22\textwidth}}
+\toprule
+Research direction & Address/state source & Semantic alignment test &
+Explicit miss handling & Dynamic calibration & End-to-end role \\
+\midrule
+Spiking-attention architectures
+& Architecture-specific Q/K, SSA, or spike states
+& No & No & Architecture-specific
+& Design the backbone and its attention interaction. \\
+
+Arithmetic LUT inference
+& Learned centroids or quantized activation codes
+& Usually no & Implementation-specific & Usually no
+& Replace dense arithmetic with indexed table access. \\
+
+Compositional codebooks and memory
+& Learned subkeys or continuous-vector partitions
+& Retrieval objective & Method-dependent & No
+& Scale memory or compress vector reconstruction. \\
+
+SNN conversion and calibration
+& Converted ANN activations and temporal states
+& No Q/K address test & Not a lookup focus & Yes
+& Preserve activation and threshold behavior after conversion. \\
+
+\textbf{QK-LUTFormer (ours)}
+& \textbf{Code-faithful binary Q/K, gate, token/channel, and population fields}
+& \textbf{Aligned vs.\ shuffled/coarse/random controls}
+& \textbf{Global-residual hierarchy}
+& \textbf{TCSLU time/channel moments}
+& \textbf{Audit addressability and test bounded current replacement.} \\
+\bottomrule
+\end{tabular}
+}
+\caption{Positioning by scientific function rather than cross-dataset
+accuracy. QK-LUTFormer combines semantic-address controls, explicit support
+fallback, compositional residual lookup, and dynamic current calibration.
+It does not claim to invent LUT inference or spiking attention.}
+\label{tab:related-work-positioning}
+\end{table*}

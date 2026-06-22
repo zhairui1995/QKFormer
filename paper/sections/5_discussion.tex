@@ -1,71 +1,68 @@
 \section{Discussion}
 \label{sec:discussion}
 
-\paragraph{What the reconstruction result establishes.}
-Correct Q/K-derived addresses improve held-out local response reconstruction
-beyond global, token/channel, candidate/background, and matched shuffled
-controls. The shuffled failures are important: they preserve table capacity
-but break address--prototype semantics. E5 further makes unsupported addresses
-visible through explicit fallback levels, while E7 shows that the useful signal
-can be composed from smaller semantic subtables rather than a monolithic
-Cartesian table.
+\paragraph{Semantic-addressability principle.}
+The strongest evidence is not that a LUT can reproduce arithmetic, but that
+correct Q/K state--response alignment predicts held-out responses beyond
+global, coarse, random, and shuffled controls. Binary state alone is therefore
+insufficient; the address must preserve architecture-specific semantics. The
+mixed-radix tuple has no hash collision, yet it can still alias distinct
+continuous contexts. Conditional variance and shuffled controls quantify this
+remaining ambiguity rather than assuming a binary code is automatically a
+meaningful key.
 
-\paragraph{Why the entry proxy is limited.}
-The entry-count and FP32 value-array analyses isolate the storage associated
-with supported scalar prototypes. They do not include keys, indices, counters,
-padding, allocator overhead, memory traffic, or control logic. Consequently,
-the observed 8.83\% and 20.54\% entry fractions support compact table
-composition, not measured SRAM, latency, area, or energy savings. Those claims
-require an implementation-level hardware or simulator study.
+\paragraph{Dynamic-contract principle.}
+Local reconstruction and downstream fidelity are different requirements.
+Static prototypes can preserve a response mode while shifting its
+time/channel moments. BN and LIF thresholds can amplify that shift, especially
+over multiple time steps. TCSLU addresses this second requirement by restoring
+the statistics of the current presented to the stateful path. In this sense,
+semantic addressing determines \emph{what} to retrieve and dynamic calibration
+determines whether the retrieved response remains compatible with spiking
+dynamics.
 
-\paragraph{What current replacement adds.}
-The end-to-end classifier results close part of the
-reconstruction-to-replacement gap: calibrated Q/K lookup preserves QKFormer
-accuracy across CIFAR-10/100 and $T=1/4$, and remains close to clean inference
-when two early attention currents are replaced together. The aligned control
-also remains strongest after calibration. The grouped binary-pattern
-decomposition extends the result to all four attention projection currents,
-but it uses more table values than the original projection weights and leaves
-Q/K/V projections, MLPs, and BN/LIF dynamics unchanged. It therefore
-establishes projection replacement fidelity, not complete-network LUT
-execution or cross-architecture transfer.
+\paragraph{Why explicit backoff matters.}
+Unseen and low-support addresses are unavoidable in a finite calibration set.
+Returning an unsupported prototype would turn uncertainty into an unreported
+error. Global-residual lookup instead defines a valid coarse prediction, and
+the hierarchy records how often finer semantics are trusted. E5 shows that
+this mechanism is reliable but not sufficiently compact by itself; E7 is
+needed to retain semantic gain under the entry budget.
 
-\paragraph{What the Spikformer boundary establishes.}
-The matched Spikformer intervention transfers only partially. Learned
-temporal+channel calibration recovers $9.88$ points over static lookup
-($66.47\%\rightarrow76.35\%$), but remains $11.81$ points below the
-$88.16\%$ clean model. This negative result indicates that QKFormer's
-near-lossless current contract does not automatically transfer to SSA currents
-with different temporal and channel geometry. The missing Spikformer semantic,
-robustness, and multi-current controls remain visible as \tbd{} cells rather than
-being inferred from QKFormer.
+\paragraph{Reconstruction is not classification.}
+The E1 and E7 results establish local conditional structure, not accuracy
+improvement. End-to-end replacement is therefore evaluated as a separate gate.
+The calibrated rows show that local structure can be used without materially
+damaging the frozen classifier in the tested QKFormer settings. Small positive
+accuracy differences are treated as no-loss fluctuations. This separation is
+important because historical trainable adapters could adapt around broken
+address assignments and therefore did not provide a clean semantic test.
 
-\paragraph{Why cross-architecture generalization is not yet claimed.}
-One positive architecture and one boundary architecture establish
-architecture dependence, not broad replacement generality. A defensible
-cross-architecture claim requires at least one additional architecture to pass
-the same fixed clean/static/calibrated protocol, plus matched address-breaking
-controls and robustness checks. Keeping these tables separate prevents the
-positive QKFormer result from becoming an unsupported universal Spiking
-Transformer claim.
+\paragraph{Architecture-conditioned boundary.}
+Unmodified Spikformer remains far from lossless replacement despite
+temporal/channel calibration. After changing its SSA interaction to a
+QKFormer-like $\operatorname{gate}(Q)\odot K$ contract, the replacement gap
+shrinks substantially. This intervention supports lookup compatibility as an
+architectural property. It does not show that fine Q/K addresses always
+dominate coarse state: in the modified Spikformer, aligned lookup beats
+shuffling but is effectively tied with token/channel. The present principle is
+therefore bounded to QK-compatible interactions, not all spiking neurons.
 
-\paragraph{From projection-current to all-affine fidelity.}
-A follow-up replaced all ten Q/K/V projections simultaneously
-with scalar-level LUT decompositions. The local projection error was small
-(aggregate NRMSE $1.20\times10^{-4}$) and clipping was zero, yet full-validation
-Acc@1 fell by $0.45$ points. Increasing the integer table range from 8 to 16
-levels produced the same result because all observed inputs were already exact
-integers no larger than four. This passes the final project-level
-$0.50$-point near-lossless criterion. The residual difference suggests that
-small changes in floating-point accumulation order can be amplified by
-downstream BN/LIF thresholds.
+\paragraph{Event-data implementation boundary.}
+The CIFAR10-DVS study contains two valid LUT-only deployments. Route 1 reaches
+$83.9\%$ and remains the strongest result in the fixed route family. Route 3
+reaches $81.7\%$ from an $81.2\%$ from-scratch SpiLiFormer teacher while
+bypassing the original projection, showing that the replacement mechanism can
+execute on a second architecture. The official $86.7\%$ clean result was not
+reproduced, however, and neither route reaches the registered $84.0\%$ gate.
+Route 3 is therefore bounded cross-architecture implementation evidence, not a
+strong absolute-accuracy or broad-generalization result.
 
-MLP, patch-embedding, classifier, and a
-cumulative substitution of all 32 convolutional/linear operators then remained
-within that gate; the cumulative row changed Acc@1 from $77.58\%$ to
-$77.98\%$ and had aggregate NRMSE $1.35\times10^{-4}$. We treat positive
-deltas as no-loss fluctuation. This exploratory row supports operator-output
-substitution fidelity, but not a compact design: its FP32 table values occupy
-248,208 KiB, $9.47\times$ the original weight-value count. BN/LIF, pooling,
-residual addition, and SSA matrix products remain unchanged, and the hook still
-executes each original operator.
+\paragraph{Analytical cost versus measured systems behavior.}
+Supported-entry and metadata-aware byte counts make the table accounting more
+honest, but they still omit cache behavior, alignment, address generation,
+control logic, and memory traffic. Likewise, grouped and native operator
+audits establish numerical and classification fidelity for specified operator
+classes, not a hardware speedup. Claims about latency, SRAM, area, or energy
+require an implementation that removes the original computation and measures
+the resulting system.

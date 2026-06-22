@@ -1,33 +1,36 @@
 \begin{abstract}
 Spiking Transformers expose binary internal states, but it remains unclear
-whether their query--key patterns form reliable and compact lookup-table (LUT)
-addresses. We study this question in QKFormer through a negative-controlled
-pipeline covering address feasibility, held-out response reconstruction,
-support-aware fallback, and subspace decomposition. Correct Q/K-addressed
-prototypes reduce held-out response MSE by $3.71\%$ on CIFAR-10 and $4.42\%$
+whether those states form reliable lookup-table (LUT) addresses or merely
+convenient binary codes. We introduce QK-LUTFormer, a negative-controlled
+framework for studying lookup addressability in spiking attention. It combines
+code-faithful Q/K addresses, global-residual prototypes, explicit
+support-aware backoff, compact semantic subtables, and a
+Temporal-Channel Calibrated Semantic Lookup Unit (TCSLU) that restores the
+current statistics presented to downstream BN/LIF dynamics. Correct Q/K
+alignment reduces held-out response MSE by $3.71\%$ on CIFAR-10 and $4.42\%$
 on CIFAR-100, compared with $2.79\%$ and $3.42\%$ for coarse token/channel
-lookup. Shuffling the address--prototype alignment instead degrades MSE by
-$17.83\%$ and $15.82\%$, showing that table capacity alone does not explain the
-effect. Existing checkpoint and calibration-subset studies preserve this
-ordering. To avoid a monolithic address table, we introduce a
-subspace-decoupled estimator that composes token/channel, Q/gate, and K
-residual subtables. In the canonical CIFAR-100 seed-42 analysis, TC+Q/gate and
-TC+QK retain $87.58\%$ and $94.31\%$ of full-address reconstruction gain while
-using $8.83\%$ and $20.54\%$ of the compact address-space entry count. Their
-matched shuffled-subspace controls are worse than the global mean. These
-results support compact, interpretable Q/K lookup-addressability for local
-response reconstruction. In an end-to-end current-replacement diagnostic,
-calibrated Q/K lookup preserves QKFormer accuracy within $0.52$ percentage
-points on CIFAR-10/100 at $T=1$ and $T=4$, including a two-stage CIFAR-10
-replacement within $0.27$ points. For all four attention projections, an exact
-2-bit grouped spike-pattern LUT preserves CIFAR-100 accuracy within $0.06$
-points at both $T=1$ and $T=4$, using 2,664 KiB of FP32 table values.
-Across five fixed calibration subsets, aligned current lookup ranks first in
-all five runs; its paired advantages over global and token/channel controls
-have 95\% intervals that exclude zero. Transfer to Spikformer-4-384w is only
-partial: temporal+channel calibration improves static replacement from
-$66.47\%$ to $76.35\%$, versus an $88.16\%$ clean baseline. We retain this as
-an architecture-dependent boundary rather than claiming cross-architecture
-generalization, measured SRAM, latency, energy, ImageNet, or production
+lookup, while shuffled alignment degrades MSE by $17.83\%$ and $15.82\%$.
+A subspace-decoupled TC+QK estimator retains $94.31\%$ of the full-address
+reconstruction gain using $20.54\%$ of the compact address-space entry count;
+its matched shuffled control is worse than the global mean. These results show
+that the predictive structure is address-aligned and compositionally compact.
+Local reconstruction alone is insufficient for spiking inference, however:
+static lookup can shift current statistics that are amplified by thresholded
+dynamics. TCSLU closes this gap, preserving QKFormer accuracy within $0.44$
+percentage points on CIFAR-10/100 at $T=1$ and $T=4$. Across five fixed
+calibration subsets, aligned lookup ranks first and has paired 95\% intervals
+excluding zero against global and token/channel controls. Finally, an
+interaction-level intervention shows that lookup compatibility is conditioned
+on a discrete QK contract: adapting Spikformer to a
+$\operatorname{gate}(Q)\odot K$ interaction reduces the calibrated replacement
+drop to $1.38$ points, whereas the unmodified architecture remains a mismatch
+boundary. On CIFAR10-DVS, a LUT-only QKFormer deployment reaches $83.9\%$,
+while a separately trained SpiLiFormer-2-256 LUT transfer reaches $81.7\%$
+from its paired $81.2\%$ teacher. The latter demonstrates executable
+cross-architecture substitution but remains below the registered $84.0\%$
+gate because the from-scratch teacher did not reproduce the published
+$86.7\%$. The evidence supports a semantic-addressability and dynamic-contract
+principle for QK-compatible spiking attention, not a general law of spiking
+neurons or a claim of measured SRAM, latency, energy, ImageNet, or production
 hardware gains.
 \end{abstract}

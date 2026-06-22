@@ -1,6 +1,6 @@
 # QK-LUTFormer Next-Session Handoff
 
-Updated: 2026-06-18
+Updated: 2026-06-22
 
 ## Start Here
 
@@ -34,6 +34,21 @@ claim needs forensic verification.
   latency, or energy evidence.
 - Existing seed-43/44 checkpoints, metrics, reports, and gate artifacts remain
   valid and may be read, downloaded, audited, summarized, or archived.
+
+## CIFAR10-DVS Completed Status
+
+- The original fixed route queue recorded Route 3 as not launched because the
+  official release lacked a CIFAR10-DVS checkpoint.
+- A later user-authorized extension is now complete: SpiLiFormer-2-256 was
+  trained from scratch for 130 effective epochs and reached 81.2% best clean
+  Acc@1, below the paper-reported 86.7%.
+- Its fixed 12-epoch first-FF-LiDiff LUT-only transfer reached 81.7% at epoch
+  7, +0.5 pp over the paired clean teacher, on all 1,000 validation samples.
+- Per-time/per-channel current normalization was enabled and the replaced
+  `proj_conv` was not retained or executed.
+- Route 1 remains the best deployment at 83.9%. No route passed 84.0%.
+- Use Route 1 as the main event-data result and Route 3 as bounded
+  cross-architecture implementation/limitation evidence.
 
 ## Seed Policy
 
@@ -153,6 +168,29 @@ Current conclusion file:
   because T>1 BN/LIF temporal state and cross-channel current geometry amplify
   LUT mismatch. Treat Spikformer as discussion evidence, not a second positive
   backbone.
+
+New QK-contract Spikformer ablation:
+
+- Training: `results/spikformer_qk_contract_qk_sum_ft_20260619_102213`.
+- Clean adapted checkpoint: 87.54% Acc@1.
+- Aligned static / learned temporal+channel: 81.53% / 86.16%.
+- Final matched `LR=3e-3` controls: shuffled 85.83%, token/channel 86.18%.
+- This recovers 88.3% of the original Spikformer replacement gap while losing
+  only 0.62 points of clean accuracy, so the QK-style interaction contract is
+  a promising transferable architecture principle.
+- Aligned beats shuffled but not token/channel. Claim alignment sensitivity,
+  not superiority over coarse state or broad cross-architecture generalization.
+- Memo: `results/spikformer_qk_contract_transfer_20260619.md`.
+
+Aligned-only exploratory LR rerun:
+
+- Fixed matrix: `1e-2`, `3e-3`, `1e-3`; no intermediate-point search.
+- Acc@1: 85.83%, **86.16%**, 85.76%.
+- Best exploratory Aligned result: 86.16% at LR `3e-3`, drop 1.38 points from
+  the 87.54% adapted clean model.
+- Shuffled and Token/channel were rerun with the same LR. Promote the Aligned
+  paper row to 86.16%; final ordering is token/channel 86.18, aligned 86.16,
+  shuffled 85.83.
 
 ## TCSLU AAAI2027 Track
 

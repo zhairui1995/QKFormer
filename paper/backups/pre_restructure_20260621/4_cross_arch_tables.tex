@@ -21,8 +21,7 @@ QKFormer & CIFAR-100 & 1 & stage1 TSSA & 77.69 & 75.94 & 77.57 & 0.12 & Complete
 QKFormer & CIFAR-100 & 4 & stage1 TSSA & 81.09 & 68.02 & 80.65 & 0.44 & Completed \\
 Spikformer-4-384w & CIFAR-10 & 4 & SSA current & 88.16 & 66.47 & 76.35 & 11.81 & Mismatch probe \\
 QK-contract Spikformer & CIFAR-10 & 4 & all SSA currents & 87.54 & 81.53 & 86.16 & 1.38 & QK-contract transfer \\
-QKFormer Route 1 & CIFAR10-DVS & 16 & stage1 TSSA & 82.30 & \textit{N/A} & 83.90 & -1.60 & Complete below gate \\
-SpiLiFormer Route 3 & CIFAR10-DVS & 16 & first FF-LiDiff & 81.20 & \textit{N/A} & 81.70 & -0.50 & Complete boundary \\
+CIFAR10-DVS QKFormer & CIFAR10-DVS & 16 & stage1 TSSA & \tbd & \tbd & \tbd & \tbd & Opened \\
 SpikingResformer & \tbd & \tbd & DSSA current & \tbd & \tbd & \tbd & \tbd & Pending \\
 \bottomrule
 \end{tabular}
@@ -32,12 +31,10 @@ calibrated Acc@1 in percentage points; negative values are treated as no-loss
 fluctuations. Completed rows contain measured full-validation results. The
 original Spikformer row is retained as a measured contract-mismatch probe,
 while QK-contract Spikformer is the positive modified-backbone transfer
-ablation under a compatible QK interaction contract. CIFAR10-DVS Route 1 is
-the best event-data deployment; Route 3 is a completed LUT-only
-cross-architecture boundary whose from-scratch teacher did not reproduce the
-published clean accuracy. Neither route passes 84.0\%. The SpikingResformer
-row is pending. These interventions replace selected currents, not complete
-networks.}
+ablation under a compatible QK interaction contract. The CIFAR10-DVS row marks
+the opened event-data experiment and remains unreported until the server run
+finishes. The SpikingResformer row is pending. These interventions replace
+selected currents, not complete networks.}
 \label{tab:cross_arch_generalization}
 \end{table*}
 
@@ -59,8 +56,7 @@ QKFormer, CIFAR-10 $T=4$ & \textbf{95.81} & 95.31 & 95.45 & 95.63 & 95.52 & +0.1
 QKFormer, CIFAR-100 $T=1$ & \textbf{77.57} & 76.43 & 76.35 & 77.37 & 76.63 & +0.20 \\
 Spikformer-4-384w, CIFAR-10 $T=4$ & 76.35 & \tbd & \tbd & \tbd & \tbd & mismatch probe \\
 QK-contract Spikformer, CIFAR-10 $T=4$ & 86.16 & 85.83 & \textbf{86.18} & \tbd & \tbd & -0.02 \\
-QKFormer Route 1, CIFAR10-DVS & 83.90 & \textit{N/A} & \textit{N/A} & \textit{N/A} & \textit{N/A} & aligned-only route \\
-SpiLiFormer Route 3, CIFAR10-DVS & 81.70 & \textit{N/A} & \textit{N/A} & \textit{N/A} & \textit{N/A} & aligned-only route \\
+CIFAR10-DVS QKFormer & \tbd & \tbd & \tbd & \tbd & \tbd & opened \\
 SpikingResformer & \tbd & \tbd & \tbd & \tbd & \tbd & \tbd \\
 \bottomrule
 \end{tabular}
@@ -72,9 +68,7 @@ runs. The CIFAR-100 row is a single full-validation matched-control rerun under
 the same seed-42 checkpoint and 128-batch calibration budget; its aligned
 advantage is relative to the strongest matched control in that row, global
 mean.
-The CIFAR10-DVS deployment routes were registered as aligned-only adaptations,
-so unmatched controls are \textit{N/A}, not missing results. Original
-Spikformer and SpikingResformer controls are pending, not zero. On the
+Original Spikformer and SpikingResformer controls are pending, not zero. On the
 modified QK-contract Spikformer, all completed cells use gate LR $3\times
 10^{-3}$. Aligned beats shuffled by 0.33 points and trails token/channel by
 0.02 points; fine-address benefit beyond coarse state is therefore unresolved.
@@ -160,17 +154,14 @@ SpikingResformer~\cite{shi2024spikingresformer} & DSSA & ImageNet-1K & 4 & \tbd 
 Meta-SpikeFormer~\cite{yao2024metaspikeformer} & SDSA & ImageNet-1K & \tbd & 55M & 80.0 & No & No \\
 TCSLU-QKFormer (ours) & selected-current LUT & CIFAR-100 & 1 / 4 & \tbd & 77.57 / 80.65 & Yes & Yes \\
 TCSLU-Spikformer (ours) & SSA-current LUT & CIFAR-10 & 4 & \tbd & 76.35 & Yes & Yes (mismatch probe) \\
-QK-LUTFormer Route 1 (ours) & LUT-only stage1 current & CIFAR10-DVS & 16 & \tbd & 83.90 & Yes & Trainable time/channel \\
-SpiLiFormer Route 3 (ours) & LUT-only first FF-LiDiff & CIFAR10-DVS & 16 & 1.70M & 81.70 & Yes & Trainable time/channel \\
 \bottomrule
 \end{tabular}
 }
 \caption{Peer Spiking Transformer context. Published rows reproduce reported
 paper metrics and retain citations; datasets are not directly comparable.
-Our rows report selected-current or LUT-only deployment results rather than
-new SOTA backbones. Route 3 does not reproduce the published 86.7\% clean
-SpiLiFormer accuracy. Parameters, ImageNet results, and power for other method
-rows remain \tbd{}. No measured power is reported; efficiency statements
-elsewhere are analytical proxies only.}
+Our rows report selected-current replacement diagnostics rather than new
+backbones. Parameters, ImageNet results, and power for our method remain
+\tbd{}. No measured power is reported; efficiency statements elsewhere are
+analytical proxies only.}
 \label{tab:peer_comparison}
 \end{table*}

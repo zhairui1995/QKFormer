@@ -1,0 +1,85 @@
+\section{Supplementary Replacement Audits}
+\label{sec:supp_replacement}
+
+This appendix retains completeness experiments that are useful for auditing the
+scope of LUT substitution but are not part of the semantic-addressability
+claim.
+
+\subsection{Grouped Binary-Pattern Projection LUT}
+
+The compact response-prototype address cannot uniquely recover every projection
+current when all four attention projections are replaced together. For this
+boundary experiment, a binary input $\mathbf x$ is partitioned into $M$ groups
+of $g$ bits. For group $m$ and binary pattern $p$, we precompute
+\begin{equation}
+  \mathcal T_m[p]=\mathbf W_m\mathbf b(p),
+\end{equation}
+and reconstruct the projection as
+\begin{equation}
+  \hat{\mathbf y}=\mathbf b_{\mathrm{proj}}+
+  \sum_{m=1}^{M}\mathcal T_m[p_m(\mathbf x)].
+\end{equation}
+The diagnostic evaluates $g\in\{2,4,8\}$ without training. The hook version
+still executes the original convolution before substituting its output, so the
+experiment tests fidelity rather than measured runtime removal.
+
+\begin{table}[h]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+Method & $T{=}1$ Acc. & $\Delta_1$ & $T{=}4$ Acc. & $\Delta_4$ & FP32 KiB \\
+\midrule
+Clean hook & 77.78 & 0.00 & 81.09 & 0.00 & -- \\
+Prototype TCSLU & 56.28 & -21.50 & 54.08 & -27.01 & 93.7 \\
+Grouped LUT, 8 bit & 77.73 & -0.05 & 81.15 & +0.06 & 42,624 \\
+Grouped LUT, 4 bit & 77.74 & -0.04 & 81.11 & +0.02 & 5,328 \\
+Grouped LUT, 2 bit & 77.72 & -0.06 & 81.09 & 0.00 & 2,664 \\
+\bottomrule
+\end{tabular}
+}
+\caption{All-attention projection-current fidelity on CIFAR-100. Small
+positive deltas are no-loss fluctuations.}
+\label{tab:supp_grouped_projection}
+\end{table}
+
+\subsection{Native Affine, BN, and LIF Transition LUTs}
+
+The stricter native audit replaces each frozen Conv1d/Conv2d/Linear module with
+a scalar lookup-and-accumulate operator, folds paired inference BatchNorm
+parameters into the affine tables, and replaces each MultiStepLIF update with a
+finite transition table over membrane and input states. Integer-valued LIF
+inputs retain exact integer addresses to avoid recurrent clipping introduced by
+decoding them through a floating-point grid.
+
+\begin{table}[h]
+\centering
+\footnotesize
+\begin{tabular}{lrrrr}
+\toprule
+Setting & Clean & LUT & Drop & LIF clip \\
+\midrule
+CIFAR-100 $T=1$ & 77.58 & 77.38 & 0.20 & $2.45{\times}10^{-9}$ \\
+CIFAR-100 $T=4$ & 81.02 & 80.80 & 0.22 & $1.67{\times}10^{-9}$ \\
+\bottomrule
+\end{tabular}
+\caption{Native replacement of 32 affine operators, 31 paired inference BN
+modules, and 35 LIF transitions.}
+\label{tab:supp_native_lut}
+\end{table}
+
+Pooling, residual addition, SSA products/gating, and global or temporal
+reductions remain ordinary arithmetic. The audit therefore establishes
+operator-class fidelity, not complete-network replacement.
+
+\subsection{Historical All-Affine Output Substitution}
+
+Before the native audit, a hook-level study substituted Q/K/V, MLP,
+patch-embedding, classifier, and cumulative affine outputs. Q/K/V incurred a
+0.45-point drop; MLP, patch embedding, and classifier changed accuracy by
+$-0.05$, $+0.11$, and $-0.01$ points under the clean-minus-LUT convention.
+The cumulative 32-operator row produced a no-loss fluctuation. Its FP32 table
+values occupied approximately 242.4 MiB, 9.47 times the original weight-value
+count. These rows are retained as historical fidelity evidence, not as the
+compact method or a storage claim.

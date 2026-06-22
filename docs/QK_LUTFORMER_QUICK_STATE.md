@@ -1,6 +1,6 @@
 # QK-LUTFormer Quick State
 
-Updated: 2026-06-18
+Updated: 2026-06-22
 
 Purpose: low-token bootstrap. Read
 `results/EXPERIMENT_RESULTS_SUMMARY.md` first, then this file. Open historical
@@ -22,6 +22,21 @@ epoch gates pass, and aligned Q/K LUT has the highest mean Acc@1 in every gate.
 This is protocol-scoped downstream evidence, not cross-architecture or
 cross-dataset generalization. Existing seed-43/44 results remain valid; the
 default policy is to avoid launching new seed-43/44 experiments.
+
+### CIFAR10-DVS Route Package
+
+- Route 1 remains the best valid LUT-only deployment: 82.3% paired teacher to
+  83.9% Acc@1 on all 1,000 validation samples.
+- The original fixed queue did not launch Route 3 because no official
+  SpiLiFormer CIFAR10-DVS checkpoint was available.
+- After explicit user authorization, the Route-3 extension trained
+  SpiLiFormer-2-256 from scratch for 130 effective epochs. Best clean Acc@1 was
+  81.2%, so the reported 86.7% was not reproduced.
+- The fixed 12-epoch LUT-only transfer reached 81.7% at epoch 7, +0.5 points
+  over its paired teacher. Current normalization was enabled and the replaced
+  `proj_conv` was absent from the deployment path.
+- Neither route reached the 84.0% gate. Route 3 is bounded cross-architecture
+  implementation evidence, not broad generalization.
 
 ## Main Evidence
 
@@ -149,6 +164,28 @@ QKFormer T=1 and T=4 match the semantic lookup-current contract in this
 single-layer diagnostic; Spikformer T=4 exposes an unsolved temporal/channel
 dynamics mismatch and should be treated as a boundary discussion, not a
 parallel positive mainline.
+
+QK-contract architecture ablation (2026-06-19):
+
+- Replacing Spikformer SSA interaction with QKFormer-like `gate(Q) * K` and
+  fine-tuning for 60 fixed epochs gives 87.54% clean Acc@1.
+- Static aligned LUT reaches 81.53%; learned temporal+channel calibration at
+  `LR=3e-3` reaches 86.16%, a 1.38-point drop.
+- Matched `LR=3e-3` controls: shuffled 85.83%, token/channel 86.18%.
+- Verdict: strong evidence that the QK interaction contract transfers. Aligned
+  beats shuffled by 0.33 points but is effectively tied with token/channel
+  (-0.02 points), so fine-address benefit beyond coarse state is inconclusive.
+- Do not launch QK-max or any further tuning sweep from this cell. See
+  `results/spikformer_qk_contract_transfer_20260619.md`.
+
+Explicit user-requested Aligned-only LR check:
+
+- LR `1e-2` repeat: 85.83%.
+- LR `3e-3`: **86.16%**, 1.38-point drop, current exploratory maximum.
+- LR `1e-3`: 85.76%.
+- Shuffled and Token/channel have now received the same selected LR and
+  protocol. Promote 86.16% to the paper Aligned row, while retaining the
+  matched ordering `token/channel 86.18 > aligned 86.16 > shuffled 85.83`.
 
 ## TCSLU AAAI2027 Track
 

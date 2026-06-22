@@ -1,0 +1,46 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+QKFormer's binary Q/K states form reproducible lookup addresses for local
+response reconstruction. Correct alignment consistently beats coarse and
+shuffled controls, support-aware backoff exposes lookup misses, and
+subspace-decoupled tables preserve most full-address gain below a 25\% compact
+address-space entry budget. The canonical seed-42 analysis retains 87.58\% of
+full-address gain with TC+Q/gate and 94.31\% with TC+QK, using 8.83\% and
+20.54\% entry fractions. These results support a compact and auditable
+response-reconstruction method. Calibrated Q/K lookup further preserves
+QKFormer end-to-end accuracy within $0.44$ percentage points on CIFAR-10/100 at
+$T=1/4$, and a two-stage current replacement remains within $0.27$ points.
+An exact 2-bit grouped spike-pattern LUT further replaces all four attention
+projection currents while keeping CIFAR-100 within $0.06$ points at $T=1/4$.
+Across five fixed calibration subsets, aligned current lookup ranks first in
+all five runs; paired 95\% intervals exclude zero against both global and
+token/channel controls. The cross-architecture study centers on a
+QK-contract Spikformer ablation: after adapting the SSA interaction to a
+QK-compatible $\operatorname{gate}(Q)\odot K$ contract, calibrated lookup
+reaches $86.16\%$ from an $87.54\%$ clean baseline. This is above shuffled
+($85.83\%$) and effectively tied with token/channel ($86.18\%$), supporting
+structure-conditioned transfer and alignment sensitivity. The unmodified
+Spikformer row is retained only as a contract-mismatch probe, where calibration
+improves static lookup from $66.47\%$ to $76.35\%$. Together, QKFormer and
+QK-contract Spikformer support bounded, contract-conditioned TCSLU transfer
+within QK-compatible spiking-attention contracts.
+The main results establish attention-projection replacement fidelity. An
+all-Q/K/V follow-up tests a broader boundary: two integer-range
+settings both lose $0.45$ Acc@1 points despite aggregate projection NRMSE of
+$1.20\times10^{-4}$ and pass the final $0.50$-point criterion. An exploratory
+cumulative substitution of all 32 convolutional/linear outputs remains within
+the gate. The final native audit strengthens this result: all 32 learned
+affine operators, all paired inference BN modules, and all 35 LIF state
+transitions are removed from the evaluation graph and replaced by LUT-native
+operators, with full-validation drops of only $0.20$ and $0.22$ points at
+$T=1$ and $T=4$. This supports complete LUT-native replacement for the learned
+affine/BN/LIF-transition portion of the evaluated QKFormer.
+Broader generalization beyond QK-compatible attention still requires another
+unmodified architecture to pass the fixed matched-control protocol. Event-data
+generalization is now being tested through CIFAR10-DVS and remains pending
+until that run produces full logs and metrics. A complete full-graph QKFormer
+LUT wrapper would still need pooling, residual addition, SSA matrix
+products/gating, and global or temporal reductions to be replaced and measured.
+Hardware efficiency, ImageNet-scale replacement evaluation, and production
+full-graph execution also remain future validation targets.

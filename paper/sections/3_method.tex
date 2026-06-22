@@ -1,19 +1,49 @@
-\section{Method}
+\section{QK-LUTFormer Method}
 \label{sec:method}
 
-\subsection{Q/K Address Construction}
+\subsection{Lookup-Addressability Formulation}
+\label{sec:addressability_formulation}
+
+Let $s=(Q,K,G,h,t,c)$ denote the discrete internal state available at a
+spiking-attention response, including query and key spikes, a Q-derived gate,
+head, time, token, and channel context. QK-LUTFormer studies whether a
+deterministic map
+\begin{equation}
+  a=\phi(s)
+\end{equation}
+turns that state into a useful response address. We call an address family
+\emph{lookup-addressable} when it satisfies four progressively stronger
+conditions:
+\begin{enumerate}
+  \item \textbf{Occupancy}: addresses are repeatedly observed rather than
+  dominated by singletons.
+  \item \textbf{Conditional predictiveness}: address-conditioned prototypes
+  improve held-out reconstruction beyond global and coarse controls.
+  \item \textbf{Support reliability}: unseen or weakly supported addresses are
+  exposed and handled by an explicit fallback rule.
+  \item \textbf{Dynamic fidelity}: the retrieved current preserves downstream
+  behavior after the stateful BN/LIF path.
+\end{enumerate}
+The first three conditions concern the address representation and estimator.
+The fourth is deliberately separate: local reconstruction does not imply that
+small distribution shifts will survive thresholded spiking dynamics.
+
+\subsection{Code-Faithful Semantic Q/K Addresses}
 \label{sec:qk_address}
 
-We target QKFormer attention modules and hook their binary Q/K spikes and
-token/channel gating signals. Crucially, we do \emph{not} use an entire
-$d$-dimensional Q/K vector as one $2^{2d}$ address. Each scalar module response
-is indexed by a compact local state. For Token-QK attention, the address is
+We construct addresses from discrete states already present in QKFormer rather
+than introducing learned anchor neurons. In particular, the current method
+does not encode firing order among selected anchor neurons. It also does not
+use an entire $d$-dimensional Q/K vector as one $2^{2d}$ truth-table address.
+Each scalar response is indexed by a compact local state.
+
+For Token-QK attention, the semantic tuple is
 \begin{equation}
  a^{\mathrm{TQK}}=(h,b_t(i),b_c(j),g_q(h,i),k(h,j,i)),
 \end{equation}
 where $h$ is the head, $b_t$ and $b_c$ are token and within-head channel bins,
-$g_q$ is the binary Q-derived token gate, and $k$ is the corresponding K spike.
-For spike-form self-attention, we use
+$g_q$ is the binary Q-derived token gate, and $k$ is the corresponding K
+spike. For spike-form self-attention, we use
 \begin{equation}
 \begin{aligned}
  a^{\mathrm{SSA}}=(&h,b_t(i),b_c(j),q_{hij},k_{hij},\\
@@ -22,171 +52,153 @@ For spike-form self-attention, we use
 \end{aligned}
 \end{equation}
 which adds local Q/K bits and quantized population counts. With eight token
-bins, eight channel bins, four population bins, and eight heads, these spaces
-contain 2,048 and 32,768 possible addresses, respectively. Throughout the
-paper, ``full address'' means all fields of this compact construction, not a
-raw full-vector bit pattern. The address is used only as a diagnostic or probe
-index; the original QKFormer backbone is unchanged.
+bins, eight channel bins, four population bins, and eight heads, the two
+spaces contain 2,048 and 32,768 possible addresses.
 
-\subsection{Feasibility Diagnostics}
-\label{sec:e0e1}
+The fields are packed with a deterministic mixed-radix map. Distinct field
+tuples therefore do not incur hash collisions. The relevant failure modes are
+instead \emph{quantization aliasing}, where different continuous contexts
+share a discrete tuple, and \emph{support sparsity}, where a valid address is
+unseen or weakly represented during calibration. Throughout the paper,
+``full address'' refers to all fields of this compact construction, not a raw
+full-vector bit pattern.
 
-The first diagnostic stage measures whether addresses are usable. We report
-address coverage, singleton fraction, and conditional response variance for
-captured module responses. High coverage and low singleton fraction indicate
-that many address buckets are populated by repeated observations rather than
-isolated examples.
+\subsection{Global-Residual Lookup and Support-Aware Backoff}
+\label{sec:global_residual_backoff}
 
-The second diagnostic stage uses split-aware reconstruction. We calibrate
-address-wise response prototypes on training batches and evaluate held-out
-validation reconstruction MSE. We compare address LUT prototypes with global
-mean and candidate/background means, a coarse token/channel LUT that removes
-the Q/K detail bits, and a same-capacity shuffled-address LUT that permutes
-prototype values among observed addresses. This stage tests whether the
-fine-grained Q/K address is predictive beyond generic smoothing, positional
-gating, and table capacity.
-
-\subsection{Hierarchical and Subspace-Decoupled QK-LUT}
-\label{sec:e5_backoff}
-
-A monolithic LUT over raw Q/K vectors would be vulnerable to dimensionality
-explosion. The compact address above already removes that exponential
-dependence; we further test whether even this bounded space can be stored more
-economically. For each module, we
-construct a support-aware lookup hierarchy:
+For a calibration response $y$, let $\mu=\mathbb{E}[y]$ be the global response
+mean, $n_a$ the support count of address $a$, and
 \begin{equation}
-  \begin{aligned}
-  \mathrm{global}
-  &\rightarrow \mathrm{token/channel}
-  \rightarrow {+}\mathrm{Q/gate} \\
-  &\rightarrow {+}\mathrm{K}
-  \rightarrow \mathrm{full\ address}.
-  \end{aligned}
+  R_a=\mathbb{E}[y\mid a]-\mu
 \end{equation}
-Each level has its own prototype table and count threshold. At validation time,
-lookup starts from the finest full-address table. If the corresponding bucket is
-unseen or below the minimum support count, the prediction backs off to the next
-coarser supported level, and eventually to the global mean. We record the
-selected level for every validation sample, so missed or weakly supported
-addresses cannot silently masquerade as successful full-address lookup.
-
-The hierarchy is evaluated as a reconstruction mechanism rather than as a
-hardware or accuracy claim. The compact full-address table is treated as an oracle
-upper-bound control, token/channel lookup as the coarsest structured baseline,
-and shuffled full-address lookup as an alignment negative control. We report
-held-out MSE, fallback fractions, active entries, and effective table size.
-This accounting is deliberately conservative: if the hierarchy needs many
-supported entries in the compact address space, we do not count it as solving
-LUT compression even if reconstruction improves.
-
-The backoff hierarchy answers whether misses can be handled transparently, but
-it still stores multiple increasingly specific address tables. To test a more
-compact alternative, we also factor the response estimator into additive
-subspace residual tables. Let $\mu$ be the global response mean and let
-$\pi_{\mathrm{tc}}(a)$, $\pi_{\mathrm{q}}(a)$, and $\pi_{\mathrm{k}}(a)$ denote
-the token/channel, Q-or-gate, and K-specific sub-address projections. The
-subspace LUT predicts
+its address-conditioned residual. With minimum support $m$, the basic
+global-residual estimator is
 \begin{equation}
-  \hat{y}(a)=
-  \mu
-  + \frac{1}{|\mathcal{S}|}
-  \sum_{s\in\mathcal{S}}
-  R_s\!\left[\pi_s(a)\right],
+  \hat y(a)=\mu+\mathbb{I}[n_a\geq m]R_a.
+  \label{eq:global_residual}
 \end{equation}
-where each $R_s$ stores a zero-mean residual prototype compiled from calibration
-responses and omitted when its support count is below threshold. We evaluate
-two settings: $\mathcal{S}=\{\mathrm{tc},\mathrm{q}\}$ and
-$\mathcal{S}=\{\mathrm{tc},\mathrm{q},\mathrm{k}\}$. This changes nominal table
-growth from a product over compact address fields to a sum over low-dimensional
-sub-address tables. If $\mathcal{G}_s$ is the address domain of subtable $s$,
-the monolithic Cartesian table has nominal entry count
-$\prod_s |\mathcal{G}_s|$, whereas the additive decomposition uses
-$\sum_s |\mathcal{G}_s|$. For $M$ balanced binary subspaces over $D$ bits,
-this changes exponential growth from $2^D$ to $M2^{D/M}$. A
-shuffled-subspace control preserves the same residual values and entry count
-but breaks their address alignment.
+An unsupported address therefore returns the global estimate instead of an
+unvalidated prototype.
 
-Our compression budget is an \emph{entry-count budget}. We count supported
-scalar prototype entries across all component tables and normalize by the
-number of supported entries in the compact full-address table. Under the fixed
-scalar precision used here, this count is proportional to trainable parameter
-count and idealized prototype storage, but it is not a measurement of packed
-bytes, SRAM footprint, latency, or energy. The $25\%$ gate therefore asks
-whether subspace decomposition preserves reconstruction with at most one
-quarter as many supported scalar entries; hardware claims require a separate
-implementation-level evaluation.
+We extend this rule into a semantic hierarchy:
+\begin{equation}
+\begin{aligned}
+ \mathrm{full}
+ \rightarrow \mathrm{TC+QK}
+ \rightarrow \mathrm{TC+Q}
+ \rightarrow \mathrm{TC}
+ \rightarrow \mathrm{global},
+\end{aligned}
+\label{eq:backoff_chain}
+\end{equation}
+where TC denotes token/channel context. Lookup starts at the most specific
+available level and backs off until its support threshold is met. The selected
+level is recorded for every evaluation response, so an unsupported fine
+address cannot silently masquerade as a successful full-address lookup.
+
+This hierarchy is an uncertainty-handling mechanism, not by itself a
+compression result. It can store several increasingly specific tables, so we
+report fallback fractions, supported entries, and effective size alongside
+held-out reconstruction.
+
+\subsection{Subspace-Decoupled Residual LUT}
+\label{sec:subspace_lut}
+
+To avoid materializing a Cartesian full-address table, we decompose the
+residual by semantic subspaces. Let
+$\pi_{\mathrm{tc}}(a)$, $\pi_{\mathrm{q}}(a)$, and
+$\pi_{\mathrm{k}}(a)$ project the address onto token/channel, Q-or-gate, and K
+fields. For a selected set of subtables $\mathcal S$, the estimator is
+\begin{equation}
+  \hat y(a)=\mu+
+  \frac{1}{|\mathcal S|}
+  \sum_{s\in\mathcal S}
+  \mathbb{I}[n_s(\pi_s(a))\geq m]
+  R_s[\pi_s(a)].
+  \label{eq:subspace_residual}
+\end{equation}
+We evaluate TC+Q/gate and TC+QK compositions. Unsupported residuals contribute
+zero, preserving the global fallback in Eq.~\ref{eq:global_residual}.
+
+If $\mathcal G_s$ is the domain of subtable $s$, a monolithic Cartesian table
+scales as $\prod_s|\mathcal G_s|$, whereas the decomposition stores
+$\sum_s|\mathcal G_s|$ entries. For $M$ balanced binary subspaces over $D$
+bits, the nominal growth changes from $2^D$ to $M2^{D/M}$. A matched
+shuffled-subspace control retains the same residual values and entry count but
+permutes their address assignment.
+
+Our compactness gate is defined over supported scalar entries. Prototype-only
+and metadata-inclusive byte counts are reported as analytical storage proxies;
+they are not measurements of GPU memory, packed SRAM, latency, or energy.
 
 \begin{figure*}[t]
   \centering
-  \includegraphics[width=\textwidth]{figures/fig2_address_controls.pdf}
-  \caption{Negative-control protocol for address semantics. Correct-address
-  lookup retrieves the response prototype calibrated for the same Q/K-derived
-  address, whereas the shuffled control preserves table values and capacity but
-  permutes the address--prototype mapping. Coarse token/channel,
-  candidate/background, and global controls test whether reconstruction can be
-  explained without fine Q/K address detail.}
+  \includegraphics[width=0.95\textwidth]{figures/fig2_address_controls.pdf}
+  \caption{Negative-control protocol for semantic addressability.
+  Correct-address lookup retrieves an aligned conditional residual. Shuffled
+  lookup preserves values and capacity while breaking address assignment.
+  Token/channel, candidate/background, and global controls remove progressively
+  more Q/K detail. Unsupported addresses fall back explicitly rather than
+  being counted as fine-address hits.}
   \label{fig:address-controls}
 \end{figure*}
 
-\subsection{End-to-End Current Replacement Diagnostic}
-\label{sec:e2}
+\subsection{TCSLU Dynamic Calibration}
+\label{sec:tcslu}
 
-The replacement diagnostic substitutes the selected QKFormer attention
-projection current with a hard Q/K-address lookup while the remainder of the
-network executes unchanged. A static table returns the calibration-set mean
-current for each supported address. The calibrated variant, referred to as
-TCSLU in the experiment artifacts, applies moment and channel calibration to
-restore the current distribution before the original BN/LIF path and retains
-the support-aware fallback rule for missing addresses. Calibration uses 128
-training batches, and classification is then evaluated on the complete
-validation split with no backbone optimization.
-
-We compare aligned addresses against shuffled address--prototype assignments,
-coarse token/channel means, a global mean, and a same-size random table. We
-also expand the intervention from \texttt{stage1.0.tssa} to
-\texttt{stage1.0.tssa}+\texttt{stage2.0.tssa}. This evaluates classification
-end to end, but the intervention remains a local current replacement rather
-than replacement of every attention block or the complete QKFormer network.
-
-\paragraph{Grouped binary-pattern projection LUT.}
-The compact prototype address cannot uniquely recover every SSA projection
-current. For all-attention projection replacement, we instead exploit the
-binary input to each 1$\times$1 projection. Let $\mathbf{x}$ be partitioned
-into $M$ groups of $g$ bits. For group $m$ and binary pattern $p$, we
-precompute
+Static semantic lookup returns a prototype current $\tilde y$, but its
+time/channel statistics can differ from the original current even when local
+MSE is small. TCSLU, the Temporal-Channel Calibrated Semantic Lookup Unit,
+calibrates these statistics before the original BN/LIF path. For time step $t$
+and channel $c$,
 \begin{equation}
-  \mathcal{T}_{m}[p] = \mathbf{W}_{m}\mathbf{b}(p),
+  \hat y_{t,c}
+  =\gamma_{t,c}\tilde y_{t,c}+\beta_{t,c},
+  \label{eq:tcslu}
 \end{equation}
-where $\mathbf{W}_{m}$ contains the corresponding input columns of the frozen
-projection and $\mathbf{b}(p)$ decodes the pattern. The projection current is
-then reconstructed as
+with calibration initialization
 \begin{equation}
-  \hat{\mathbf{y}} =
-  \mathbf{b}_{\mathrm{proj}} +
-  \sum_{m=1}^{M}\mathcal{T}_{m}[p_m(\mathbf{x})].
+  \gamma_{t,c}=
+  \frac{\sigma^{\mathrm{orig}}_{t,c}}
+       {\sigma^{\mathrm{lut}}_{t,c}+\epsilon},
+  \qquad
+  \beta_{t,c}=
+  \mu^{\mathrm{orig}}_{t,c}
+  -\gamma_{t,c}\mu^{\mathrm{lut}}_{t,c}.
 \end{equation}
-This replaces multiplication by pattern-indexed vector lookup and
-accumulation. We evaluate $g\in\{2,4,8\}$ without training. The diagnostic hook
-still executes the original convolution before substituting its output, so it
-tests numerical and classification fidelity rather than measured runtime.
+The moments are estimated on training batches and classification is evaluated
+on the complete validation split without optimizing the QKFormer backbone.
+The implementation supports moment, temporal-only, channel-only, and combined
+calibration modes; the combined TCSLU path retains support-aware fallback.
 
-\subsection{Downstream Validation Scope}
-\label{sec:e3}
+The complete conceptual flow is
+\begin{equation}
+\begin{aligned}
+\text{semantic address}
+&\rightarrow \text{global residual/backoff}\\
+&\rightarrow \text{subspace lookup}\\
+&\rightarrow \text{temporal-channel calibration}\\
+&\rightarrow \text{BN/LIF}.
+\end{aligned}
+\end{equation}
+Thus address semantics determine what response pattern is retrieved, while
+dynamic calibration determines whether that pattern is compatible with the
+stateful spiking path.
 
-Local response reconstruction does not establish classifier improvement. We
-therefore report current-replacement fidelity as a separate validation problem,
-not as the basis of the compact LUT method verdict. The current study freezes
-the backbone, preserves the full-validation protocol, and uses matched semantic
-controls.
+\subsection{Evaluation Scope and Analytical Complexity}
+\label{sec:method_scope}
 
-\paragraph{Cross-architecture protocol.}
-We separately intercept the SSA projection current in Spikformer-4-384w
-\cite{zhou2023spikformer}, before its original BN/LIF path, and evaluate the
-same clean, static, and calibrated-current sequence on CIFAR-10 at $T=4$.
-Because QKFormer and Spikformer expose different attention topology and state
-geometry, this is a matched intervention protocol rather than an assertion
-that their address encodings are identical. A result is considered positive
-cross-architecture transfer only if the calibrated replacement is near-lossless
-under fixed controls. Otherwise, the measured row is retained as an
-architecture-dependent boundary. Current-level hooks do not constitute
-complete model replacement.
+The primary end-to-end intervention replaces selected QKFormer attention
+projection currents while leaving the rest of the network unchanged. We compare
+aligned lookup with shuffled, token/channel, global, and same-size random
+controls under fixed calibration and validation protocols. A separate
+QK-contract Spikformer intervention tests whether lookup fidelity depends on
+the attention interaction rather than assuming identical address encodings
+across architectures.
+
+Entry counts, prototype bytes, metadata-aware bytes, and lookup/MAC ratios are
+analytical proxies. They exclude memory hierarchy, address-generation cost,
+control flow, measured cycles, and energy. Grouped projection and native
+affine/BN/LIF replacement audits test operator-class fidelity and are summarized
+as a completeness boundary in the main paper; their construction and detailed
+rows are moved to Appendix~\ref{sec:supp_replacement}.

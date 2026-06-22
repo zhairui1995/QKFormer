@@ -26,6 +26,8 @@ claims.
 | Seed-42 E7 component/footprint ablation | Explain the compact method with one fixed analysis cell | Include as the main method table and Figure 5 |
 | Calibrated QKFormer current replacement | Close part of the reconstruction-to-classification fidelity gap | Include as downstream support, not the method verdict |
 | All-attention grouped projection LUT | Show simultaneous fidelity across all four attention projection currents | Include as completeness evidence; do not present as standalone novelty |
+| CIFAR10-DVS Route 1 | Main completed event-data deployment result, 82.3 -> 83.9 on 1,000 samples | Include as bounded event-data evidence; disclose that the 84.0% gate was missed |
+| CIFAR10-DVS SpiLiFormer Route 3 | LUT-only second-architecture implementation, 81.2 -> 81.7 | Include in robustness/discussion; disclose failed 86.7% clean reproduction |
 
 ## Supplementary Material
 
@@ -61,3 +63,6 @@ claims.
   verdict.
 - **Do not claim:** measured SRAM/latency/energy, ImageNet generalization, or a
   production full-LUT QKFormer replacement.
+- **Event-data boundary:** Route 1 is the strongest valid deployment at 83.9%.
+  Route 3 is completed bounded cross-architecture implementation evidence, not
+  a result above 84.0% or a reproduction of SpiLiFormer's 86.7%.

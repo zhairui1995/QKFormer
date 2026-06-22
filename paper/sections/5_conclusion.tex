@@ -1,33 +1,26 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-QKFormer's binary Q/K states form reproducible lookup addresses for local
-response reconstruction. Correct alignment consistently beats coarse and
-shuffled controls, support-aware backoff exposes lookup misses, and
-subspace-decoupled tables preserve most full-address gain below a 25\% compact
-address-space entry budget. The canonical seed-42 analysis retains 87.58\% of
-full-address gain with TC+Q/gate and 94.31\% with TC+QK, using 8.83\% and
-20.54\% entry fractions. These results support a compact and auditable
-response-reconstruction method. Calibrated Q/K lookup further preserves
-QKFormer end-to-end accuracy within $0.52$ percentage points on CIFAR-10/100 at
-$T=1/4$, and a two-stage current replacement remains within $0.27$ points.
-An exact 2-bit grouped spike-pattern LUT further replaces all four attention
-projection currents while keeping CIFAR-100 within $0.06$ points at $T=1/4$.
-Across five fixed calibration subsets, aligned current lookup ranks first in
-all five runs; paired 95\% intervals exclude zero against both global and
-token/channel controls. The matched Spikformer experiment shows only partial
-transfer: calibration improves static lookup from $66.47\%$ to $76.35\%$, but
-the result remains $11.81$ points below clean accuracy and is therefore an
-architecture-dependent boundary.
-The main results establish attention-projection replacement fidelity. An
-all-Q/K/V follow-up tests a broader boundary: two integer-range
-settings both lose $0.45$ Acc@1 points despite aggregate projection NRMSE of
-$1.20\times10^{-4}$ and pass the final $0.50$-point criterion. An exploratory
-cumulative substitution of all 32
-convolutional/linear outputs remains within the gate, but requires 248,208 KiB
-of FP32 table values and leaves BN/LIF, pooling, residual addition, and SSA
-matrix products intact.
-Cross-architecture generalization still requires another architecture to pass
-the fixed matched-control protocol. Measured hardware efficiency,
-ImageNet-scale replacement evaluation, and a production full-LUT wrapper also
-remain future validation targets.
+QK-LUTFormer identifies two conditions for lookup-addressable spiking
+attention. First, the internal discrete state must preserve semantic
+address--response alignment: correct Q/K tuples predict held-out responses,
+whereas coarse and shuffled controls do not recover the same structure.
+Second, the retrieved response must preserve the dynamic current contract seen
+by downstream BN/LIF state. Global-residual backoff makes unsupported lookup
+explicit, subspace-decoupled residual tables retain most full-address gain
+under a bounded entry budget, and TCSLU restores time/channel statistics for
+end-to-end current replacement.
+
+The completed QKFormer experiments support this chain across datasets, time
+steps, calibration subsets, and independent checkpoints. The QK-contract
+Spikformer intervention further shows that lookup fidelity depends on the
+attention interaction, while unmodified Spikformer defines a useful mismatch
+boundary. On CIFAR10-DVS, the best LUT-only deployment reaches $83.9\%$, and
+a SpiLiFormer transfer reaches $81.7\%$ from its paired $81.2\%$ teacher with
+the original projection bypassed. Because the from-scratch SpiLiFormer did not
+reproduce the published clean accuracy and neither event route passed the
+$84.0\%$ gate, this evidence remains bounded. Overall, the findings support a
+compact and auditable framework for QK-compatible spiking attention. They do
+not establish a universal principle for spiking neurons, measured hardware
+efficiency, ImageNet performance, strong event-data accuracy, unrestricted
+architecture transfer, or a complete production full-graph replacement.

@@ -117,3 +117,14 @@ Not supported:
 - broad lossless replacement across Spiking Transformer architectures;
 - a completed low-rank channel-adapter or trained full TCSLU implementation
   beyond the current calibrated/gated diagnostic rows.
+
+## Later CIFAR10-DVS Deployment Update
+
+The later event-data route package is complete and supersedes any statement
+that CIFAR10-DVS or SpiLiFormer Route 3 is unfinished. Route 1 reaches 83.9%
+LUT-only Acc@1 from an 82.3% teacher. A user-authorized Route-3 extension
+trained SpiLiFormer-2-256 from scratch to 81.2% and completed a fixed 12-epoch
+LUT-only transfer to 81.7% (+0.5 pp). Both use the complete 1,000-sample
+validation split, per-time/per-channel current normalization, and bypass the
+replaced projection. Neither passes the 84.0% gate, and the Route-3 clean run
+does not reproduce the published 86.7%.

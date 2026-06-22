@@ -1,0 +1,90 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{What the reconstruction result establishes.}
+Correct Q/K-derived addresses improve held-out local response reconstruction
+beyond global, token/channel, candidate/background, and matched shuffled
+controls. The shuffled failures are important: they preserve table capacity
+but break address--prototype semantics. E5 further makes unsupported addresses
+visible through explicit fallback levels, while E7 shows that the useful signal
+can be composed from smaller semantic subtables rather than a monolithic
+Cartesian table.
+
+\paragraph{Why the entry proxy is limited.}
+The entry-count and FP32 value-array analyses isolate the storage associated
+with supported scalar prototypes. They do not include keys, indices, counters,
+padding, allocator overhead, memory traffic, or control logic. Consequently,
+the observed 8.83\% and 20.54\% entry fractions support compact table
+composition, not measured SRAM, latency, area, or energy savings. Those claims
+require an implementation-level hardware or simulator study.
+
+\paragraph{What current replacement adds.}
+The end-to-end classifier results close part of the
+reconstruction-to-replacement gap: calibrated Q/K lookup preserves QKFormer
+accuracy across CIFAR-10/100 and $T=1/4$, and remains close to clean inference
+when two early attention currents are replaced together. The aligned control
+also remains strongest after calibration. The grouped binary-pattern
+decomposition extends the result to all four attention projection currents,
+but it uses more table values than the original projection weights and, by
+itself, still targets projection currents rather than the whole runtime graph.
+The later native audit closes the learned affine/BN/LIF-transition portion of
+that gap, while residual additions, pooling, SSA matrix products/gating, and
+global reductions remain outside the current replacement set. The evidence
+therefore establishes strong QKFormer replacement fidelity for specified
+operator classes, not measured hardware execution or unrestricted
+cross-architecture transfer.
+
+\paragraph{What the Spikformer mismatch probe establishes.}
+The unmodified Spikformer intervention is retained as a compact compatibility
+probe, not as the center of the transfer story. Learned temporal+channel
+calibration recovers $9.88$ points over static lookup
+($66.47\%\rightarrow76.35\%$), showing that calibration is useful even when the
+SSA current geometry differs from QKFormer. The remaining gap identifies the
+interaction contract that the positive QK-contract ablation then tests.
+Missing unmodified-Spikformer semantic, robustness, and multi-current controls
+remain visible as \tbd{} cells rather than being inferred from QKFormer.
+
+\paragraph{What the QK-contract ablation adds.}
+Replacing every SSA interaction with a QKFormer-like
+$\operatorname{gate}(Q)\odot K$ contract preserves $87.54\%$ clean accuracy
+and raises the learned temporal+channel lookup result to $86.16\%$, reducing
+the original replacement drop by $10.43$ points. This is strong evidence that
+lookup compatibility depends on interaction structure. It is not evidence
+that the fine semantic address dominates all controls: shuffled address reaches
+$85.83\%$ and token/channel mean reaches $86.18\%$ under the same
+$3\times10^{-3}$ gate learning rate. Aligned is sensitive to correct address
+assignment but remains indistinguishable from coarse token/channel state at
+this accuracy resolution.
+
+\paragraph{Scope of cross-architecture generalization.}
+The QKFormer and QK-contract Spikformer results support bounded
+cross-architecture generalization: TCSLU transfers across distinct backbones
+when their attention interactions expose a compatible discrete QK contract.
+The unmodified Spikformer probe shows that this capability is
+architecture-conditioned. The newly opened CIFAR10-DVS run tests whether the
+same contract remains useful on event data; evidence from another unmodified
+attention family, together with matched controls and robustness checks, would
+be required to broaden the claim beyond QK-compatible spiking attention.
+
+\paragraph{From projection-current to native operator replacement.}
+A follow-up first replaced all ten Q/K/V projections simultaneously with
+scalar-level LUT decompositions. The local projection error was small
+(aggregate NRMSE $1.20\times10^{-4}$), clipping was zero, and full-validation
+Acc@1 fell by $0.45$ points. We therefore count the Q/K/V row as passing the
+final project-level near-lossless criterion. MLP, patch-embedding, classifier,
+and a cumulative substitution of all 32 convolutional/linear operators also
+remained within gate.
+
+The final audit moves beyond output hooks. It replaces all 32
+Conv/Linear affine operators with native scalar lookup-and-accumulate modules,
+folds 31 paired inference BN modules into those tables, and replaces all 35
+LIF state transitions with finite transition LUTs. On CIFAR-100 full
+validation, the resulting graph changes Acc@1 from $77.58\%$ to $77.38\%$ at
+$T=1$ and from $81.02\%$ to $80.80\%$ at $T=4$, with aggregate LIF clipping
+below $3\times10^{-9}$. This supports a strong completeness claim for the
+learned affine, BN, and LIF-transition operator classes in the evaluated
+QKFormer. It is not yet a complete full-graph QKFormer replacement: pooling,
+residual addition, SSA matrix products/gating, and global/spatial/temporal
+reductions remain ordinary arithmetic, and the table sizes remain fidelity
+evidence rather than storage, latency, energy, or hardware-acceleration
+measurements.

@@ -1,0 +1,83 @@
+\section{Introduction}
+\label{sec:intro}
+
+Spiking neural networks (SNNs) are attractive for event-driven and low-power
+inference, but modern visual recognition increasingly depends on Transformer
+attention. Directly translating dense softmax attention into spikes is
+difficult: attention weights depend on continuous query--key scores and on
+row-wise normalization over all tokens. Recent spiking Transformers therefore
+often redesign attention rather than convert standard attention literally.
+
+QKFormer~\cite{zhou2024qkformer} is a strong example of this design direction.
+Its spike-form Q-K attention uses binary vectors to model token or channel
+importance and obtains a hierarchical spiking Transformer. This design raises a
+different question from standard ANN-to-SNN conversion: if Q/K spike vectors
+are already binary, can they form a useful discrete address space for lookup
+modules?
+
+This paper studies that question through QK-LUTFormer. We do not claim a pure
+LUT hardware replacement for the full QKFormer block. Instead, we test whether
+Q/K binary addresses explain attention-module responses better than coarse and
+alignment-breaking controls. To address the dimensionality concern of direct
+full-vector lookup, we evaluate two bounded lookup mechanisms: a support-aware
+hierarchy that makes misses explicit, and a subspace-decoupled residual LUT
+that composes smaller token/channel, Q/gate, and K subtables instead of
+materializing a monolithic full-address table.
+
+Correct compact addresses consistently reconstruct held-out responses better
+than token/channel and shuffled controls across datasets, checkpoints, time
+steps, and calibration budgets. Support-aware backoff makes misses observable,
+while subspace decomposition preserves most of the full-address gain below a
+fixed entry budget. We keep downstream classification outside the core method
+claim, but separately test whether calibrated current-level lookup preserves
+the frozen classifier end to end. We then ask whether the same replacement
+principle transfers beyond QKFormer. A QK-contract Spikformer ablation keeps
+the target backbone close to Spikformer while giving its SSA interaction the
+same discrete $\operatorname{gate}(Q)\odot K$ contract that TCSLU addresses.
+The unmodified Spikformer run is retained only as a compact contract-mismatch
+probe. We describe the resulting evidence as cross-architecture
+generalization for QK-compatible spiking-attention contracts, with event-data
+generalization reserved for the registered CIFAR10-DVS experiment.
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/fig0_method_differentiation.pdf}
+  \caption{Positioning of QK-LUTFormer relative to adjacent research
+  directions. Spiking-attention models expose binary internal states, LUT and
+  codebook methods replace arithmetic, and static response probes test local
+  substitution. Our contribution connects these directions through semantic
+  Q/K addressing, matched negative controls, explicit lookup backoff, compact
+  subspace composition, temporal/channel calibration, and a native
+  operator-class replacement audit. The evidence remains distinct from
+  measured hardware efficiency or complete full-graph replacement.}
+  \label{fig:method-differentiation}
+\end{figure*}
+
+Our contributions are:
+\begin{itemize}
+  \item We define code-faithful compact Q/K addresses for QKFormer and a
+  negative-controlled audit of occupancy, conditional variance, and held-out
+  response reconstruction. The audit replicates across CIFAR-10/CIFAR-100,
+  time steps, calibration seeds, and independent checkpoints.
+  \item We introduce support-aware hierarchical backoff and a
+  subspace-decoupled QK-LUT. The latter replaces product-size lookup with a sum
+  of semantic subtables and passes a predeclared 25\% supported-entry gate.
+  \item We evaluate calibrated Q/K-address lookup as an end-to-end
+  current-replacement diagnostic on QKFormer CIFAR-10/100 at $T=1$ and $T=4$,
+  with aligned, shuffled, coarse, random, and global controls. Aligned lookup
+  ranks first across five fixed calibration subsets, with paired 95\%
+  intervals excluding zero against global and token/channel controls. As a
+  completeness test, an exact grouped spike-pattern decomposition replaces all
+  four attention projection currents while preserving CIFAR-100 accuracy
+  within $0.06$ points at both time steps. A stricter native execution audit
+  then removes all 32 Conv/Linear affine operators, all paired inference BN
+  modules, and all 35 LIF state transitions from the runtime graph, preserving
+  CIFAR-100 accuracy within $0.22$ points at $T=1/4$.
+  \item We provide traceable entry-count, gain-retention, and idealized
+  value-array analyses, plus a QK-contract Spikformer transfer experiment with
+  an unmodified Spikformer contract-mismatch probe. Together they support
+  bounded transfer within QK-compatible attention contracts,
+  while separating this claim and analytical proxies from measured SRAM,
+  latency, energy, event-data generalization, and unrestricted architecture
+  claims.
+\end{itemize}

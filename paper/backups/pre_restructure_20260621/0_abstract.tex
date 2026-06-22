@@ -1,0 +1,44 @@
+\begin{abstract}
+Spiking Transformers expose binary internal states, but it remains unclear
+whether their query--key patterns form reliable and compact lookup-table (LUT)
+addresses. We study this question in QKFormer through a negative-controlled
+pipeline covering address feasibility, held-out response reconstruction,
+support-aware fallback, and subspace decomposition. Correct Q/K-addressed
+prototypes reduce held-out response MSE by $3.71\%$ on CIFAR-10 and $4.42\%$
+on CIFAR-100, compared with $2.79\%$ and $3.42\%$ for coarse token/channel
+lookup. Shuffling the address--prototype alignment instead degrades MSE by
+$17.83\%$ and $15.82\%$, showing that table capacity alone does not explain the
+effect. Existing checkpoint and calibration-subset studies preserve this
+ordering. To avoid a monolithic address table, we introduce a
+subspace-decoupled estimator that composes token/channel, Q/gate, and K
+residual subtables. In the canonical CIFAR-100 seed-42 analysis, TC+Q/gate and
+TC+QK retain $87.58\%$ and $94.31\%$ of full-address reconstruction gain while
+using $8.83\%$ and $20.54\%$ of the compact address-space entry count. Their
+matched shuffled-subspace controls are worse than the global mean. These
+results support compact, interpretable Q/K lookup-addressability for local
+response reconstruction. In an end-to-end current-replacement diagnostic,
+calibrated Q/K lookup preserves QKFormer accuracy within $0.44$ percentage
+points on CIFAR-10/100 at $T=1$ and $T=4$, including a two-stage CIFAR-10
+replacement within $0.27$ points. For all four attention projections, an exact
+2-bit grouped spike-pattern LUT preserves CIFAR-100 accuracy within $0.06$
+points at both $T=1$ and $T=4$, using 2,664 KiB of FP32 table values.
+In a stricter native-operator audit, all 32 Conv/Linear affine operators,
+their 31 paired inference BN modules, and all 35 LIF state transitions are
+removed from the evaluation graph and replaced by LUT-native operators,
+preserving CIFAR-100 accuracy within $0.20$ and $0.22$ points at $T=1$ and
+$T=4$, respectively.
+Across five fixed calibration subsets, aligned current lookup ranks first in
+all five runs; its paired advantages over global and token/channel controls
+have 95\% intervals that exclude zero. To test transfer beyond the native
+QKFormer backbone, we evaluate Spikformer variants with and without the
+QK-compatible interaction contract. The unmodified SSA geometry is retained as
+a compact mismatch probe, where temporal+channel calibration recovers static
+replacement from $66.47\%$ to $76.35\%$. More importantly, adapting the SSA
+interaction to a QK-compatible contract yields $86.16\%$ calibrated replacement
+from an $87.54\%$ clean baseline and exceeds a matched shuffled control by
+$0.33$ points. These results support bounded, contract-conditioned transfer for
+QK-compatible spiking-attention contracts. Broader Spiking Transformer and
+event-data generalization is being evaluated separately, and the present
+evidence does not support measured SRAM, latency, energy, ImageNet, or
+production full-graph hardware gains.
+\end{abstract}

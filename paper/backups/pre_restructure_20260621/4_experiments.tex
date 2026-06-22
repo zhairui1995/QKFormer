@@ -1,0 +1,523 @@
+\section{Experiments}
+\label{sec:experiments}
+
+\subsection{Setup}
+\label{sec:setup}
+
+We evaluate the QKFormer CIFAR architecture~\cite{zhou2024qkformer} on CIFAR-10
+and CIFAR-100. CIFAR-10 includes one $T=4$ checkpoint and three independently
+trained $T=1$ checkpoints. CIFAR-100 includes $T=1$ and $T=4$ checkpoints. New
+component and footprint analysis uses the seed-42 CIFAR-100 $T=1$ checkpoint;
+existing multi-seed rows are retained only as completed robustness evidence.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+Checkpoint & Time steps & Best Acc@1 & Final Acc@1 \\
+\midrule
+QKFormer CIFAR-10 & 4 & 96.08 & 95.73 \\
+QKFormer CIFAR-10 & 1 & 95.20 & 94.64 \\
+QKFormer CIFAR-10 seed 43 & 1 & 95.04 & 94.76 \\
+QKFormer CIFAR-10 seed 44 & 1 & 95.08 & 94.54 \\
+QKFormer CIFAR-100 seed 42 & 1 & 77.76 & 77.40 \\
+QKFormer CIFAR-100 seed 42 & 4 & 81.23 & 81.16 \\
+\bottomrule
+\end{tabular}
+}
+\caption{QKFormer baselines used for QK-LUTFormer diagnostics. Accuracy is
+reported in percent on the corresponding validation split.}
+\label{tab:qkformer_baselines}
+\end{table}
+
+\subsection{Address Feasibility}
+\label{sec:address_feasibility}
+
+Table~\ref{tab:e0_feasibility} reports Q/K address occupancy diagnostics. The
+$T=1$ checkpoints keep similar address coverage to $T=4$ while generally lowering
+conditional response variance, making $T=1$ a useful stress setting for testing
+whether the address boundary itself carries structure.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+Setting & Coverage & Singleton frac. & Cond. var. \\
+\midrule
+$T=4$ & 0.5993 & 0.0865 & 0.0713 \\
+$T=1$ & 0.5805 & 0.0794 & 0.0549 \\
+$T=1$ seed 43 & 0.5789 & 0.0822 & 0.0498 \\
+$T=1$ seed 44 & 0.5840 & 0.0805 & 0.0529 \\
+CIFAR-100 $T=1$ & 0.5900 & 0.0768 & 0.0747 \\
+CIFAR-100 $T=4$ & 0.6128 & 0.0790 & 0.0894 \\
+\bottomrule
+\end{tabular}
+}
+\caption{E0 address feasibility diagnostics. Lower conditional variance
+indicates that responses are more predictable within Q/K-derived buckets.}
+\label{tab:e0_feasibility}
+\end{table}
+
+\subsection{Split-Aware Reconstruction}
+\label{sec:e1_results}
+
+Table~\ref{tab:e1_recon} shows held-out response reconstruction. Address LUT
+prototypes reduce MSE relative to the global mean on both datasets, by
+$3.71\%$ on CIFAR-10 and $4.42\%$ on CIFAR-100. Each value is the mean over
+three randomized 128-batch calibration subsets evaluated on the complete
+validation split; the standard deviations are only $0.0038$ and $0.0042$
+percentage points, respectively.
+The mean reduction is largest in stage1 ($10.04\%$), remains positive in
+stage2 ($3.96\%$), and is $1.85\%$ in stage3. The address LUT also consistently
+beats the coarse token/channel LUT ($3.42\%$ overall), while shuffled address
+alignment worsens MSE by $15.82\%$. Candidate/background means remain nearly
+identical to the global mean.
+The independently trained CIFAR-100 $T=4$ checkpoint preserves the same
+ordering: address lookup reduces MSE by $2.84\%$, compared with $2.24\%$ for
+token/channel lookup, while shuffled alignment degrades it by $13.74\%$.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lccccc}
+\toprule
+Dataset & Global & Cand./back. & Token/channel & Address LUT & Rel. reduction \\
+\midrule
+CIFAR-10 & 0.07129 & 0.07127 & 0.06926 & \textbf{0.06861} & \textbf{3.71} \\
+CIFAR-100 & 0.07853 & 0.07850 & 0.07613 & \textbf{0.07547} & \textbf{4.42} \\
+CIFAR-100 $T=4$ & 0.09314 & 0.09312 & 0.09120 & \textbf{0.09072} & \textbf{2.84} \\
+\bottomrule
+\end{tabular}
+}
+\caption{E1 split-aware reconstruction on held-out validation batches. MSE is
+aggregated over the instrumented modules; relative reduction is reported in
+percent against the corresponding global mean baseline. The first two rows
+report means over three randomized calibration subsets and full validation;
+the CIFAR-100 $T=4$ row is the registered 128-batch calibration run.}
+\label{tab:e1_recon}
+\end{table}
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig3_e1_reconstruction.pdf}
+  \caption{E1 held-out response reconstruction under address controls. (a)
+  Correct Q/K addresses consistently reduce MSE more than coarse token/channel
+  lookup across three CIFAR-10 checkpoints and three CIFAR-100 calibration
+  seeds. (b) Shuffling the address--prototype alignment makes reconstruction
+  worse than the global mean baseline, showing that the result is not explained
+  by table capacity alone. Values are relative MSE reductions against the
+  global mean and are read directly from result JSON files.}
+  \label{fig:e1-reconstruction}
+\end{figure*}
+
+For CIFAR-10, the address, token/channel, candidate/background, and shuffled
+relative reductions are $3.7080\%$, $2.7941\%$, $0.0329\%$, and $-17.8260\%$.
+The corresponding CIFAR-100 values are $4.4247\%$, $3.4246\%$, $0.0356\%$,
+and $-15.8216\%$. The ordering holds for every calibration seed and in all
+three stages on both datasets, supporting an address-specific reconstruction
+claim rather than a generic table-capacity effect.
+
+We additionally repeat the same full-validation reconstruction control on
+three independently trained CIFAR-10 $T=1$ checkpoints
+(Table~\ref{tab:e1_checkpoints}). Address LUT reduction varies with the
+backbone, but it exceeds the token/channel control for every checkpoint. The
+mean address advantage over token/channel is $1.1318$ percentage points.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\begin{tabular}{lccc}
+\toprule
+Training seed & Address & Token/channel & Shuffled \\
+\midrule
+42 & 3.7597 & 2.8026 & -18.8859 \\
+43 & 5.9361 & 4.4966 & -17.5642 \\
+44 & 4.6503 & 3.6514 & -17.0855 \\
+\bottomrule
+\end{tabular}
+\caption{Relative E1 MSE reduction (percent) on independently trained CIFAR-10
+$T=1$ checkpoints. Each row uses the same randomized 128-batch calibration
+protocol and full validation.}
+\label{tab:e1_checkpoints}
+\end{table}
+
+Table~\ref{tab:e1_calibration} measures calibration data efficiency on
+CIFAR-100 over calibration seeds 42--44. Eight batches already recover
+$3.78\%$ relative MSE reduction, approximately $85\%$ of the $4.48\%$ obtained
+with 512 batches. Address LUT remains above token/channel for every size and
+seed, and mean validation address hit rate exceeds $99.79\%$ even at the
+smallest setting.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\begin{tabular}{rccc}
+\toprule
+Calib. batches & Address & Token/channel & Hit rate \\
+\midrule
+8 & 3.7840 & 3.3258 & 99.7982 \\
+32 & 4.2671 & 3.4027 & 99.9558 \\
+128 & 4.4247 & 3.4246 & 99.9907 \\
+512 & 4.4752 & 3.4386 & 99.9981 \\
+\bottomrule
+\end{tabular}
+\caption{CIFAR-100 E1 calibration-size sweep, averaged over calibration seeds
+42--44. Address and token/channel values are relative MSE reductions in
+percent; hit rate is the percentage of validation samples whose address has
+sufficient calibration support.}
+\label{tab:e1_calibration}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/fig4_calibration_sweep.pdf}
+  \caption{CIFAR-100 calibration-size sweep for E1 reconstruction. (a)
+  Correct Q/K addresses remain above token/channel lookup from 8 to 512
+  calibration batches. (b) The validation address hit rate is high even at 8
+  batches and saturates with more calibration data. Curves show means over
+  calibration seeds 42--44; error bars show population standard deviations.}
+  \label{fig:calibration-sweep}
+\end{figure}
+
+\subsection{Hierarchical Backoff Under Calibration Scarcity}
+\label{sec:e5_results}
+
+Table~\ref{tab:e5_backoff} evaluates the support-aware hierarchical backoff
+LUT on CIFAR-100 $T=1$ with calibration sizes from 1 to 512 batches and
+calibration seeds 42--44. The hierarchy is explicit about fallback behavior:
+the fallback fractions sum to one for every run, and no validation sample is
+silently assigned to an unsupported missing address. From 8 batches onward,
+hierarchical backoff beats token/channel lookup for every seed and retains at
+least $80\%$ of the full-address reconstruction gain. Shuffled full-address
+lookup remains strongly worse than the correct hierarchy at every size,
+confirming that address--prototype alignment matters.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{rccccc}
+\toprule
+Calib. & Hier. & Full addr. & Token/ch. & Shuffled & Eff. entries \\
+\midrule
+1 & 0.3178 & 0.4179 & 2.5493 & -32.2973 & 0.3305 \\
+2 & 2.1445 & 2.1789 & 3.0002 & -26.0841 & 0.3566 \\
+4 & 3.1962 & 3.2150 & 3.2261 & -24.9300 & 0.3808 \\
+8 & 3.7742 & 3.7840 & 3.3258 & -20.7501 & 0.4040 \\
+32 & 4.2667 & 4.2671 & 3.4027 & -18.0293 & 0.4477 \\
+128 & 4.4248 & 4.4247 & 3.4246 & -15.8216 & 0.4822 \\
+512 & 4.4752 & 4.4752 & 3.4386 & -13.5117 & 0.5107 \\
+\bottomrule
+\end{tabular}
+}
+\caption{E5 hierarchical backoff reconstruction on CIFAR-100 $T=1$. Values are
+mean relative MSE reductions in percent over calibration seeds 42--44. Effective
+entries are supported hierarchy entries divided by the compact full-address
+space; lower is better.}
+\label{tab:e5_backoff}
+\end{table}
+
+The hierarchical gate outcome is therefore \emph{partial}. The method passes
+the reconstruction and interpretability checks: 21/21 runs completed, the
+hierarchy beats token/channel for all calibration sizes $\geq 8$, shuffled
+lookup is always worse, fallback distributions are valid, and the hierarchy
+retains the full-address gain at practical calibration sizes. It fails the
+compact-table gate because effective supported entries are $40.4\%$--$51.1\%$
+of the compact full-address space for sizes $\geq 8$.
+
+Table~\ref{tab:e7_subspace} and Fig.~\ref{fig:e7-component} evaluate the
+subspace-decoupled residual LUT.
+The compact token/channel+Q/gate estimator beats token/channel lookup for every
+calibration size and seed while using only $8.83\%$ supported entries. Adding
+the K subtable remains below the $25\%$ entry budget and retains most of the
+full-address gain. Both subspace variants beat their shuffled-subspace controls
+in every run, showing that the gain depends on aligned Q/K sub-address
+semantics rather than merely on residual table values.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrrrrrr}
+\toprule
+Estimator & Red. & Shuf. & Entries & Frac. & Ret. & FP32 KiB \\
+\midrule
+Token/channel & 3.4253 & -- & 2,052 & 2.95 & 77.42 & 8.0 \\
+TC+Q/gate & 3.8749 & -1.8908 & 6,148 & 8.83 & 87.58 & 24.0 \\
+TC+QK & 4.1727 & -1.6600 & 14,303 & 20.54 & 94.31 & 55.9 \\
+Full address & 4.4243 & -- & 19,258 & 27.66 & 100.00 & 75.2 \\
+\bottomrule
+\end{tabular}
+}
+\caption{E7 component ablation on CIFAR-100 $T=1$, seed 42, with 128
+calibration batches and full validation. Reduction, shuffled control, entry
+fraction, and gain retention are percentages. Entries include four global
+fallback scalars. FP32 KiB counts prototype values only and excludes keys,
+indices, counters, alignment, and hardware metadata.}
+\label{tab:e7_subspace}
+\end{table}
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figures/fig5_e7_component_ablation.pdf}
+  \caption{Seed-42 E7 component ablation. Aligned TC+Q/gate and TC+QK retain
+  most full-address reconstruction gain, while matched shuffled-subspace
+  controls fall below the global mean. Both aligned variants remain below the
+  25\% compact-address entry gate. KiB values count FP32 prototype values only.}
+  \label{fig:e7-component}
+\end{figure*}
+
+The detailed component analysis is fixed to seed 42 rather than introducing a
+new random-seed sweep. Existing E7 results over calibration seeds 42--44 show
+the same aligned-over-token/channel and aligned-over-shuffled ordering at every
+tested calibration size. The new analysis therefore explains the composition
+and footprint of an already-established result rather than selecting a new
+favorable run.
+
+\subsection{End-to-End Current-Replacement Fidelity}
+\label{sec:e3_results}
+
+Table~\ref{tab:current_replacement_main} reports hard current replacement on
+the complete validation split. Every row uses the seed-42 checkpoint, 128
+calibration batches, the \texttt{stage1.0.tssa} target, and a 2,048-entry
+aligned Q/K table. Static lookup is already close on CIFAR-10 $T=1$ and $T=4$
+but drops by $13.07$ points on CIFAR-100 $T=4$. Moment/channel-calibrated lookup
+reduces the worst observed loss to $0.44$ points and keeps all four settings
+within $0.44$ points of the clean hook. The $+0.11$ CIFAR-10 $T=4$ difference
+is treated as no-loss fluctuation, not as an accuracy improvement.
+
+% Sources: results/tcslu_qkf_c10_t1_full_20260618_161423/summary.csv;
+% results/tcslu_qkf_c10_t4_full_20260618_161423_t4rerun/summary.csv;
+% results/qk_lutformer_cifar100_component_20260621_071630/matrix_summary.csv;
+% results/tcslu_qkf_c100_t4_full_20260618_104512/summary.csv.
+\begin{table}[H]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{llrrrr}
+\toprule
+Dataset & $T$ & Clean & Static LUT & Calibrated LUT & $\Delta$ cal. \\
+\midrule
+CIFAR-10  & 1 & 94.64 & 93.64 & 94.57 & -0.07 \\
+CIFAR-10  & 4 & 95.70 & 95.08 & \textbf{95.81} & +0.11 \\
+CIFAR-100 & 1 & 77.69 & 75.94 & 77.57 & -0.12 \\
+CIFAR-100 & 4 & 81.09 & 68.02 & 80.65 & -0.44 \\
+\bottomrule
+\end{tabular}
+}
+\caption{QKFormer end-to-end classification under stage1 current replacement.
+Acc@1 and $\Delta$ are percentages/percentage points; $\Delta$ is calibrated
+minus clean. ``Calibrated LUT'' is the moment/channel-calibrated aligned Q/K
+lookup used by TCSLU. Every row uses 2,048 prototype values (8.0 KiB FP32).
+These are local current replacements evaluated end to end, not complete-network
+LUT replacements.}
+\label{tab:current_replacement_main}
+\end{table}
+
+The aligned-address control is strongest under the fixed CIFAR-10 $T=4$ and
+CIFAR-100 $T=1$ protocols (Table~\ref{tab:current_replacement_controls}). On
+CIFAR-10 $T=4$, it reaches $95.81\%$ Acc@1, compared with $95.63\%$ for a
+global mean, $95.52\%$ for a same-size random table, $95.45\%$ for
+token/channel means, and $95.31\%$ after shuffling the address--prototype
+alignment. On the updated CIFAR-100 $T=1$ full-validation rerun, aligned TCSLU
+keeps the drop to $0.12$ points, compared with $0.32$ for global mean, $1.06$
+for same-size random, $1.26$ for shuffled address, and $1.34$ for
+token/channel. Thus calibration alone does not erase the semantic-address
+advantage.
+
+% Sources: results/tcslu_qkf_c10_t4_semantic_controls_20260618.md;
+% results/tcslu_qkf_c10_t4_control_replication_20260618_181345/replication_summary.csv;
+% results/qk_lutformer_cifar100_semantic_controls_20260621_071930/matrix_summary.csv.
+\begin{table}[H]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{llcc}
+\toprule
+Setting & Address/control & Static LUT & Calibrated LUT \\
+\midrule
+CIFAR-10 $T=4$ & Aligned Q/K & \textbf{95.08} & \textbf{95.81} \\
+CIFAR-10 $T=4$ & Global mean & 91.41 & 95.63 \\
+CIFAR-10 $T=4$ & Same-size random & 91.87 & 95.52 \\
+CIFAR-10 $T=4$ & Token/channel mean & 94.86 & 95.45 \\
+CIFAR-10 $T=4$ & Shuffled Q/K & 90.57 & 95.31 \\
+\midrule
+CIFAR-100 $T=1$ & Aligned Q/K & \textbf{75.94} & \textbf{77.57} \\
+CIFAR-100 $T=1$ & Global mean & 73.05 & 77.37 \\
+CIFAR-100 $T=1$ & Same-size random & 72.74 & 76.63 \\
+CIFAR-100 $T=1$ & Token/channel mean & 75.50 & 76.35 \\
+CIFAR-100 $T=1$ & Shuffled Q/K & 73.00 & 76.43 \\
+\bottomrule
+\end{tabular}
+}
+\caption{Semantic controls for QKFormer stage1 current replacement. Values are
+full-validation Acc@1 (\%). Each setting holds the checkpoint, calibration
+budget, target, validation split, and LUT size fixed while changing only the
+address/control construction.}
+\label{tab:current_replacement_controls}
+\end{table}
+
+We repeated the aligned, global-mean, and token/channel controls with five
+fixed 128-batch calibration subsets while holding the checkpoint, target,
+validation set, and hyperparameters constant. Mean Acc@1 is $95.820\%$,
+$95.630\%$, and $95.542\%$, respectively. The paired aligned-minus-global
+difference is $+0.190$ points with a 95\% interval of
+$[+0.037,+0.343]$, and aligned-minus-token/channel is $+0.278$ points
+with interval $[+0.014,+0.542]$. Both intervals exclude zero, and aligned
+lookup ranks first in all five subsets. This is statistically consistent
+evidence for aligned lookup under calibration-subset variation. In contrast,
+global-minus-token/channel is only $+0.088$ points with interval
+$[-0.045,+0.221]$, so we do not interpret that single-subset ordering as
+meaningful. The inference remains scoped to one checkpoint and one fixed
+validation set.
+
+The intervention also extends beyond a single target. Replacing stage1 and
+stage2 currents together gives $95.43\%$ Acc@1 versus $95.70\%$ clean, whereas
+the uncalibrated static table falls to $88.99\%$. Under mild corruption, the
+calibrated replacement differs from the corresponding clean-hook model by
+$0.01$ points for noise and $0.06$ points for brightness.
+Minimum support thresholds 1, 2, and 4 produce the same $95.81\%$ result because
+all 2,048 entries satisfy the thresholds under this calibration budget.
+
+The compact response-prototype LUT does not directly scale to all four
+attention projections. Simultaneously replacing
+\texttt{stage1.0.tssa}, \texttt{stage2.0.tssa},
+\texttt{stage3.0.ssa}, and \texttt{stage3.1.ssa} with calibrated prototypes
+reduces CIFAR-100 Acc@1 to $56.28\%$ at $T=1$ and $54.08\%$ at $T=4$.
+The grouped binary-pattern projection LUT removes this SSA approximation error
+(Table~\ref{tab:all_attention_projection_lut}). The 2-bit configuration keeps
+the aggregate current MSE near $2\times10^{-9}$ and preserves accuracy within
+$0.06$ points on both checkpoints.
+
+% Source: results/qk_grouped_projection_c100_all4_20260618.md.
+\begin{table}[H]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+Method & $T{=}1$ Acc. & $\Delta_1$ & $T{=}4$ Acc. & $\Delta_4$ & FP32 KiB \\
+\midrule
+Clean hook & 77.78 & 0.00 & 81.09 & 0.00 & -- \\
+Prototype TCSLU & 56.28 & -21.50 & 54.08 & -27.01 & 93.7 \\
+Grouped LUT, 8 bit & 77.73 & -0.05 & 81.15 & +0.06 & 42,624 \\
+Grouped LUT, 4 bit & 77.74 & -0.04 & 81.11 & +0.02 & 5,328 \\
+Grouped LUT, 2 bit & 77.72 & -0.06 & 81.09 & 0.00 & \textbf{2,664} \\
+\bottomrule
+\end{tabular}
+}
+\caption{All-attention projection-current replacement on QKFormer CIFAR-100.
+Both checkpoints use seed 42 and full validation. Deltas are LUT minus clean
+in percentage points; small positive values are no-loss fluctuations. FP32
+KiB counts table values only. The grouped LUT replaces every attention
+\texttt{proj\_conv} current, not Q/K/V projections, MLPs, BN/LIF, or the
+complete network.}
+\label{tab:all_attention_projection_lut}
+\end{table}
+
+We then move from hook-level current substitution to native operator-class
+replacement. Table~\ref{tab:native_affine_bn_lif_lut} reports the final
+CIFAR-100 seed-42 full-validation audit. The replacement graph executes all 32
+Conv/Linear affine LUTs and all 35 finite LIF transition LUTs; the original
+affine modules, their paired inference BN modules, and the original
+SpikingJelly LIF modules have zero evaluation calls. The final transition-LUT
+clipping rates are below $10^{-8}$, well under the registered $10^{-4}$ gate.
+
+% Source: results/qk_native_affine_bn_lif_transition_c100_20260619.md.
+\begin{table}[H]
+\centering
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+Setting & Clean Acc. & LUT Acc. & Drop & LIF clip & LIF FP32 KiB \\
+\midrule
+CIFAR-100 $T{=}1$ & 77.58 & 77.38 & 0.20 & $2.45{\times}10^{-9}$ & 16,976 \\
+CIFAR-100 $T{=}4$ & 81.02 & 80.80 & 0.22 & $1.67{\times}10^{-9}$ & 16,980 \\
+\bottomrule
+\end{tabular}
+}
+\caption{Native learned-affine, BN-folded, and finite LIF-transition LUT
+replacement. Both rows use seed 42 and full validation. The graph removes all
+32 Conv/Linear affine operators, all 31 paired inference BN modules, and all 35
+LIF state transitions from the evaluated runtime path. This establishes
+operator-class replacement fidelity for learned affine/BN/LIF components, not
+replacement of pooling, residual additions, SSA matrix products/gating, global
+reductions, or measured hardware execution.}
+\label{tab:native_affine_bn_lif_lut}
+\end{table}
+
+For one time step, the four original projections contain 2,359,296 MACs per
+sample. The 2-bit implementation performs 6,144 vector lookups, where each
+lookup returns all output-channel contributions for one input group. The
+lookup-count/MAC-count ratio is $0.002604$, while scalar table-value reads equal
+one half of the original MAC count. This is an analytical proxy that excludes
+address generation, accumulation, memory hierarchy, BN/LIF, and measured
+hardware cycles or energy.
+
+\subsection{QK-Contract Generalization}
+\label{sec:cross_arch_generalization}
+
+Table~\ref{tab:cross_arch_generalization} keeps completed QKFormer fidelity
+rows separate from the Spikformer compatibility study. On unmodified
+Spikformer-4-384w~\cite{zhou2023spikformer}, static SSA-current lookup reduces
+Acc@1 from $88.16\%$ to $66.47\%$, and learned temporal+channel calibration
+recovers accuracy to $76.35\%$. We retain this row as a compact mismatch probe:
+it shows that calibration helps even under incompatible SSA geometry, but it is
+not the architecture-transfer claim.
+
+We additionally modify every SSA interaction to follow a QKFormer-like
+$\operatorname{gate}(Q)\odot K$ contract and fine-tune from the same
+checkpoint. This QK-contract Spikformer retains $87.54\%$ clean accuracy and
+improves calibrated lookup replacement to $86.16\%$ (1.38-point drop).
+Under the same gate learning rate, matched shuffled-address and token/channel
+controls reach $85.83\%$ and $86.18\%$, respectively. The ablation therefore
+supports transfer of the QK-style interaction structure and sensitivity to
+address alignment, while benefit beyond coarse token/channel state remains
+unresolved.
+
+Taken together with the QKFormer results, this constitutes cross-architecture
+generalization of TCSLU across two backbones whose attention interactions expose
+a compatible discrete QK contract. The unmodified Spikformer mismatch probe
+marks the current contract requirement rather than overturning the positive
+QK-contract transfer result. CIFAR10-DVS is registered as the next event-data
+generalization experiment; until that run completes, event-stream
+generalization remains a pending claim rather than a reported result.
+
+Table~\ref{tab:cross_arch_controls} exposes the missing matched controls rather
+than treating them as completed. Table~\ref{tab:replacement_robustness}
+separates completed QKFormer robustness rows from pending Spikformer cells.
+Table~\ref{tab:lookup_cost_proxy} reports metadata-aware analytical storage and
+operation-count proxies, and Table~\ref{tab:peer_comparison} places the
+replacement unit beside reported Spiking Transformer backbones without
+presenting unlike datasets as a direct accuracy ranking.
+
+\input{sections/4_cross_arch_tables}
+
+\subsection{Current Claim Boundary}
+\label{sec:claim_boundary}
+
+These experiments support the claim that Q/K binary addresses contain
+measurable response structure and that semantic subspace tables retain most of
+this structure under a fixed entry-count budget. They additionally establish
+near-lossless QKFormer current replacement under the reported single- and
+two-target protocols, and near-exact replacement of all four attention
+projection currents with grouped spike-pattern LUTs. The stricter native audit
+further removes the evaluated QKFormer's learned affine operators, paired
+inference BN modules, and LIF transitions from the runtime graph while staying
+within $0.22$ points on full validation. The QK-contract Spikformer ablation
+shows strong structure-conditioned recovery and sensitivity to address
+alignment, although its aligned row remains tied with the coarse token/channel
+control at the current accuracy resolution. This supports QK-contract-
+conditioned cross-architecture generalization. Generalization to event streams
+is the purpose of the newly opened CIFAR10-DVS run; broader unrestricted
+Spiking Transformer transfer still requires additional completed architectures
+under matched controls. The evidence does not support hardware speed, measured
+SRAM, energy reduction, ImageNet accuracy, replacement of pooling, residual
+addition, SSA matrix products/gating, or global reductions, or a production
+full-graph LUT wrapper.

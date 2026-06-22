@@ -18,6 +18,13 @@ the independently trained seed-42/43/44 QKFormer checkpoints. This is
 protocol-scoped secondary evidence, not cross-architecture or cross-dataset
 generalization.
 
+The CIFAR10-DVS deployment package is complete below its 84.0% stop gate.
+Route 1 reaches 83.9% LUT-only Acc@1 and remains the main event-data result.
+After explicit user authorization, Route 3 trained SpiLiFormer-2-256 from
+scratch and completed the fixed LUT transfer: 81.2% clean and 81.7% LUT-only.
+This is bounded implementation evidence; it does not reproduce the published
+86.7% clean result or establish broad architecture generalization.
+
 ## Evidence Included
 
 ### E1

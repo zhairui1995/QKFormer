@@ -11,12 +11,12 @@ Rows marked `planned` are preregistered targets, not results.
 | QKFormer | CIFAR-10 | 1 | static_aligned_lut_hard | 94.6289 | 93.8965 | 0.7324 | 1.0000 | 8.0 | static LUT baseline |
 | QKFormer | CIFAR-10 | 1 | moment_matched_lut_hard | 94.6289 | 94.5801 | 0.0488 | 1.0000 | 8.0 | QKFormer near-lossless motivation |
 | Spikformer-4-384w | CIFAR-10 | 4 | current_learned_temporal_channel_gate_hard | 88.1600 | 76.2800 | 11.8800 |  |  | T>1 temporal-channel mismatch boundary |
-| QKFormer | CIFAR-100 | 1 | qkformer_current_alpha_0 | 77.7800 | 77.7800 | 0.0000 | 1.0000 | 8.0 | completed full-validation clean hook |
-| QKFormer | CIFAR-100 | 1 | qkformer_current_static_aligned_lut_hard | 77.7800 | 75.5500 | 2.2300 | 1.0000 | 8.0 | completed full-validation static LUT |
-| QKFormer | CIFAR-100 | 1 | qkformer_current_moment_matched_lut_hard | 77.7800 | 77.2600 | 0.5200 | 1.0000 | 8.0 | completed full-validation moment LUT |
-| QKFormer | CIFAR-100 | 1 | qkformer_current_temporal_matched_lut_hard | 77.7800 | 63.8500 | 13.9300 | 1.0000 | 8.0 | completed full-validation temporal-only LUT |
-| QKFormer | CIFAR-100 | 1 | qkformer_current_channel_matched_lut_hard | 77.7800 | 77.2600 | 0.5200 | 1.0000 | 8.0 | completed full-validation channel LUT |
-| QKFormer | CIFAR-100 | 1 | qkformer_current_tcslu_moment_temporal_channel_backoff_hard | 77.7800 | 77.2600 | 0.5200 | 1.0000 | 8.0 | completed full-validation TCSLU |
+| QKFormer | CIFAR-100 | 1 | qkformer_current_alpha_0 | 77.6900 | 77.6900 | 0.0000 | 1.0000 | 8.0 | completed full-validation clean hook |
+| QKFormer | CIFAR-100 | 1 | qkformer_current_static_aligned_lut_hard | 77.6900 | 75.9400 | 1.7500 | 1.0000 | 8.0 | completed full-validation static LUT |
+| QKFormer | CIFAR-100 | 1 | qkformer_current_moment_matched_lut_hard | 77.6900 | 77.5700 | 0.1200 | 1.0000 | 8.0 | completed full-validation moment LUT |
+| QKFormer | CIFAR-100 | 1 | qkformer_current_temporal_matched_lut_hard | 77.6900 | 64.0200 | 13.6700 | 1.0000 | 8.0 | completed full-validation temporal-only LUT |
+| QKFormer | CIFAR-100 | 1 | qkformer_current_channel_matched_lut_hard | 77.6900 | 77.5700 | 0.1200 | 1.0000 | 8.0 | completed full-validation channel LUT |
+| QKFormer | CIFAR-100 | 1 | qkformer_current_tcslu_moment_temporal_channel_backoff_hard | 77.6900 | 77.5700 | 0.1200 | 1.0000 | 8.0 | completed full-validation TCSLU |
 | QKFormer | CIFAR-100 | 4 | qkformer_current_alpha_0 | 81.0900 | 81.0900 | 0.0000 | 1.0000 | 8.0 | completed full-validation clean hook |
 | QKFormer | CIFAR-100 | 4 | qkformer_current_static_aligned_lut_hard | 81.0900 | 68.0200 | 13.0700 | 1.0000 | 8.0 | completed full-validation static LUT |
 | QKFormer | CIFAR-100 | 4 | qkformer_current_moment_matched_lut_hard | 81.0900 | 80.6500 | 0.4400 | 1.0000 | 8.0 | completed full-validation moment LUT |
@@ -29,6 +29,12 @@ Rows marked `planned` are preregistered targets, not results.
 | Spikformer-4-384w | CIFAR-10 | 4 | current_static_temporal_gate_hard | 88.1600 | 62.1500 | 26.0100 | 0.999971 | 362.7617 | completed full-validation static temporal gate |
 | Spikformer-4-384w | CIFAR-10 | 4 | current_learned_temporal_gate_hard | 88.1600 | 71.3600 | 16.8000 | 0.999998 | 362.0859 | completed full-validation learned temporal gate |
 | Spikformer-4-384w | CIFAR-10 | 4 | current_learned_temporal_channel_gate_hard | 88.1600 | 76.3500 | 11.8100 | 0.999995 | 361.8984 | completed full-validation learned temporal+channel gate |
+| QK-contract Spikformer | CIFAR-10 | 4 | current_alpha_1 | 87.5400 | 81.5300 | 6.0100 | 1.000000 | 380.1250 | modified-backbone static aligned LUT |
+| QK-contract Spikformer | CIFAR-10 | 4 | current_learned_temporal_channel_gate_hard | 87.5400 | 86.1600 | 1.3800 | 1.000000 | 380.1250 | final matched LR=3e-3 aligned row |
+| QK-contract Spikformer | CIFAR-10 | 4 | shuffled_address_current_learned_temporal_channel_gate_hard | 87.5400 | 85.8300 | 1.7100 | 0.510142 | 380.1250 | matched LR=3e-3 shuffled control; aligned leads by 0.33 pp |
+| QK-contract Spikformer | CIFAR-10 | 4 | token_channel_mean_current_learned_temporal_channel_gate_hard | 87.5400 | 86.1800 | 1.3600 | 1.000000 | 12.0000 | matched LR=3e-3 token-channel control; 0.02 pp above aligned |
+| QKFormer Route 1 | CIFAR10-DVS | 16 | lut_only_global_plus_address_residual_currentnorm | 82.3000 | 83.9000 | -1.6000 | 0.999989 |  | best valid event-data deployment; below 84.0 gate |
+| SpiLiFormer-2-256 | CIFAR10-DVS | 16 | lut_only_global_plus_address_residual_currentnorm | 81.2000 | 81.7000 | -0.5000 | 0.999994 |  | LUT-only exceeds paired from-scratch teacher by 0.5 pp; clean 86.7 not reproduced |
 
 ## Metadata-Inclusive Lookup Cost Proxy
 
@@ -50,7 +56,7 @@ This table is analytical accounting only, not a measured SRAM, latency, energy, 
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | qkf_c100_t1_current | QKFormer | CIFAR-100 | 1 | static;moment;temporal_gate;channel_gate;TCSLU | Acc@1 drop + local MSE + logit KL | shuffled_address;token_channel_mean;global_mean | TCSLU drop <= moment drop and aligned beats shuffled/token controls |
 | qkf_c100_t4_current | QKFormer | CIFAR-100 | 4 | static;moment;temporal_gate;channel_gate;TCSLU | Acc@1 drop + spike-rate drift | shuffled_address;token_channel_mean;global_mean | TCSLU reduces drop vs static and moment LUT |
-| spik_c10_t4_tcslu | Spikformer-4-384w | CIFAR-10 | 4 | static;moment;temporal_gate;channel_gate;TCSLU | Acc@1 drop + BN/LIF shift | shuffled_address;token_channel_mean;global_mean | TCSLU materially improves over retained 76.28% injected boundary |
+| spik_c10_t4_tcslu | Spikformer-4-384w | CIFAR-10 | 4 | static;moment;temporal_gate;channel_gate;TCSLU | Acc@1 drop + BN/LIF shift | shuffled_address;token_channel_mean;global_mean | TCSLU materially improves over retained 76.28% injected mismatch-probe row |
 
 ## Ablation Registry
 
@@ -66,7 +72,8 @@ This table is analytical accounting only, not a measured SRAM, latency, energy, 
 | calib_subset_robustness | QKFormer | CIFAR-100 | three fixed calibration subsets | worst-case drop | same method across subsets | TCSLU worst case remains within registered gate |
 | support_threshold_robustness | QKFormer | CIFAR-100 | min_support 1;2;4 | drop/hit/fallback tradeoff | same methods for every threshold | report all thresholds without test selection |
 | mild_corruption | QKFormer | CIFAR-100 | noise;brightness severity 1/2 | hit-rate drift + spike-rate drift | clean validation baseline | TCSLU degrades more gracefully than static LUT |
-| cifar10_dvs_optional | CIFAR10-DVS model | CIFAR10-DVS | static;moment;TCSLU | Acc drop + spike-rate drift | static LUT | only run if loader and pretrained/evaluable model are stable |
+| cifar10_dvs_route1 | QKFormer Route 1 | CIFAR10-DVS | global residual LUT;per-time/channel normalization | LUT-only Acc@1 + paired delta | paired clean teacher | LUT-only Acc@1 >=84.0 |
+| cifar10_dvs_route3 | SpiLiFormer-2-256 | CIFAR10-DVS | global residual LUT;support-aware backoff;per-time/channel normalization | LUT-only Acc@1 + paired delta | paired from-scratch clean teacher | LUT-only Acc@1 >=84.0 |
 
 ## Peer Spiking Transformer Context
 
