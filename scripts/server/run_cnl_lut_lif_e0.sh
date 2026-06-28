@@ -13,9 +13,14 @@ fi
 PYTHON_BIN="${CNL_LUT_LIF_PYTHON:-/home/lbz/miniconda/envs/sdr/bin/python}"
 DATA_DIR="${CNL_LUT_LIF_DATA_DIR:-/home/datasets}"
 CHECKPOINT="${CNL_LUT_LIF_CHECKPOINT:-/home/lbz/pretrained_models/qk_lutformer_retained_20260619/qkformer_cifar100_t4_seed42_model_best.pth.tar}"
+FAMILY="${CNL_LUT_LIF_FAMILY:-cifar100}"
+NUM_CLASSES="${CNL_LUT_LIF_NUM_CLASSES:-}"
+TIME_STEP="${CNL_LUT_LIF_TIME_STEP:-4}"
+DROP_THRESHOLD="${CNL_LUT_LIF_DROP_THRESHOLD:-2.06}"
+INCLUDE_FAILED_DENSE_E1="${CNL_LUT_LIF_INCLUDE_FAILED_DENSE_E1:-0}"
 RUN_MODE="${CNL_LUT_LIF_RUN_MODE:-full}"
 STAMP="$(date +%Y%m%d_%H%M%S)"
-RESULT_DIR="${CNL_LUT_LIF_RESULT_DIR:-$ROOT/results/cnl_lut_lif_e0_c100_t4_seed42_${RUN_MODE}_${STAMP}}"
+RESULT_DIR="${CNL_LUT_LIF_RESULT_DIR:-$ROOT/results/cnl_lut_lif_main_${FAMILY}_t${TIME_STEP}_seed42_${RUN_MODE}_${STAMP}}"
 
 if [[ ! -x "$PYTHON_BIN" ]]; then
   echo "[cnl-lut-lif] python not found: $PYTHON_BIN" >&2
@@ -35,12 +40,20 @@ COMMON=(
   --data-dir "$DATA_DIR"
   --checkpoint "$CHECKPOINT"
   --result-dir "$RESULT_DIR"
+  --family "$FAMILY"
   --local-cuda-index 0
-  --time-step 4
+  --time-step "$TIME_STEP"
   --state-bits 6
   --input-bits 6
   --seed 42
+  --drop-threshold "$DROP_THRESHOLD"
 )
+if [[ -n "$NUM_CLASSES" ]]; then
+  COMMON+=(--num-classes "$NUM_CLASSES")
+fi
+if [[ "$INCLUDE_FAILED_DENSE_E1" == "1" ]]; then
+  COMMON+=(--include-failed-dense-e1)
+fi
 
 if [[ "$RUN_MODE" == "smoke" ]]; then
   EXTRA=(

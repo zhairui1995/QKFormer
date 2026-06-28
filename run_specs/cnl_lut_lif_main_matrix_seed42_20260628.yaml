@@ -1,0 +1,133 @@
+schema_version: 1
+run_id: cnl_lut_lif_main_matrix_seed42_20260628
+status: planned_running
+owner: zhairui
+created_at: 2026-06-28
+
+question:
+  hypothesis: >-
+    Across retained QKFormer CIFAR-10/CIFAR-100 seed-42 checkpoints at T=1 and
+    T=4, current-normalized LUT-LIF improves the all-LIF replacement tradeoff
+    over a same-precision post-hoc dense transition LUT or a matched quantized
+    arithmetic LIF, without changing bit-width, seed, checkpoint, stage, or
+    training schedule.
+  strongest_alternative_explanation: >-
+    The CNL-LUT-LIF E0 improvement is specific to CIFAR-100 T=4, or the
+    temporal/channel current normalization improves a local current diagnostic
+    without producing a better paired network-level replacement than the
+    matched post-hoc and quantized controls.
+  claim_id_unlocked: CNL-LUT-LIF-H2-MAIN-COMPARISON-MATRIX
+  route_challenge_allowed: true
+
+environment:
+  host: 192.168.70.60
+  repo_root: /home/lbz/mac_agent/sdr-lutattn-qkformer-lut-cnl-run
+  code_sync: public_github_branch
+  github_branch: zhairui1995/QKFormer:codex/cnl-lut-lif-e0-run
+  git_commit_or_snapshot: TODO_fill_after_push
+  conda_environment: sdr
+  python: /home/lbz/miniconda/envs/sdr/bin/python
+  gpu_count: 1_per_run
+
+protocol:
+  seed: 42
+  calibration_batches: 128
+  evaluation_samples: full_validation
+  batch_size: 32
+  workers: 4
+  state_bits: 6
+  input_bits: 6
+  targets: all_discovered_MultiStepLIFNode_targets
+  no_search:
+    - no_learning_rate_sweep
+    - no_bit_width_sweep
+    - no_checkpoint_sweep
+    - no_stage_sweep
+    - no_seed_sweep
+    - no_validation_checkpoint_selection
+
+runs:
+  - run_key: c100_t1_seed42
+    family: cifar100
+    num_classes: 100
+    time_step: 1
+    checkpoint: /home/lbz/pretrained_models/qk_lutformer_retained_20260619/qkformer_cifar100_t1_seed42_model_best.pth.tar
+    drop_threshold_pp: 2.06
+  - run_key: c100_t4_seed42
+    family: cifar100
+    num_classes: 100
+    time_step: 4
+    checkpoint: /home/lbz/pretrained_models/qk_lutformer_retained_20260619/qkformer_cifar100_t4_seed42_model_best.pth.tar
+    drop_threshold_pp: 2.06
+    include_failed_dense_e1_boundary: true
+  - run_key: c10_t1_seed42
+    family: cifar10
+    num_classes: 10
+    time_step: 1
+    checkpoint: /home/lbz/pretrained_models/qk_lutformer_retained_20260619/qkformer_cifar10_t1_seed42_model_best.pth.tar
+    drop_threshold_pp: 1.00
+  - run_key: c10_t4_seed42
+    family: cifar10
+    num_classes: 10
+    time_step: 4
+    checkpoint: /home/lbz/pretrained_models/qk_lutformer_retained_20260619/qkformer_cifar10_t4_seed42_model_best.pth.tar
+    drop_threshold_pp: 1.00
+
+controls_per_run:
+  - original_frozen_LIF_teacher
+  - posthoc_dense_transition_LUT_6bit
+  - quantized_arithmetic_LIF_6bit
+  - CNL_LUT_LIF_without_temporal_channel_normalization
+  - CNL_LUT_LIF_with_temporal_channel_normalization
+
+metrics:
+  primary:
+    - full_validation_Acc_at_1
+    - paired_Acc_at_1_drop
+    - paired_logit_MSE_per_sample
+  diagnostics:
+    - current_MSE_before_normalization
+    - current_MSE_after_normalization
+    - normalization_clip_rate
+    - aggregate_transition_clip_rate
+    - executed_targets
+    - metadata_inclusive_bytes
+
+gates:
+  per_run_success:
+    - all_requested_targets_executed
+    - CNL_LUT_LIF_with_normalization_improves_over_posthoc_dense_LUT_on_Acc_drop_or_logit_MSE
+    - CNL_LUT_LIF_with_normalization_drop_below_same_run_posthoc_drop
+    - current_MSE_after_normalization_lt_no_normalization_current_MSE
+    - paired_drop_below_run_threshold
+  matrix_success:
+    - at_least_three_of_four_runs_pass_per_run_success
+    - no_run_has_nonfinite_or_missing_metrics
+    - every_run_executes_all_discovered_LIF_targets
+  failure:
+    - any_run_crashes_or_omits_artifacts
+    - CNL_LUT_LIF_improves_only_CIFAR100_T4_and_fails_all_other_settings
+
+claim_boundary:
+  can_claim_if_matrix_success:
+    - CNL_LUT_LIF_is_a_better_fixed_6bit_all_LIF_replacement_than_posthoc_LUT_on_most_evaluated_QKFormer_settings
+    - temporal_channel_current_normalization_improves_current_fidelity_under_the_fixed_protocol
+  cannot_claim:
+    - hardware_latency_energy_or_SRAM_benefit
+    - broad_architecture_generalization
+    - seed_stability_beyond_seed42
+    - bit_width_robustness
+    - superiority_when_accuracy_delta_is_within_protocol_noise_without_logit_or_current_support
+
+artifacts:
+  remote_result_dirs: TODO_fill_after_runs
+  local_result_dirs: TODO_fill_after_download
+  aggregate_table: results/cnl_lut_lif_main_matrix_seed42_20260628/summary_matrix.csv
+  aggregate_report: results/cnl_lut_lif_main_matrix_seed42_20260628/report.md
+
+integrity:
+  no_external_upload_of_results: true
+  notes: >-
+    Code may be synchronized through the public GitHub branch, but raw result
+    artifacts should be downloaded locally and not pushed without explicit
+    confirmation.

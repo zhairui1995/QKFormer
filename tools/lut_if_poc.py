@@ -43,23 +43,27 @@ def set_seed(seed: int) -> None:
 
 
 def model_config(args) -> Dict[str, object]:
+    family = str(getattr(args, "family", "cifar100"))
+    num_classes_value = getattr(args, "num_classes", None)
+    num_classes = int(num_classes_value) if num_classes_value is not None else (100 if family == "cifar100" else 10)
     return {
-        "family": "cifar100",
+        "family": family,
         "img_size": 32,
         "patch_size": 4,
         "dim": args.dim,
         "num_heads": 8,
         "mlp_ratio": 4,
         "in_channels": 3,
-        "num_classes": 100,
+        "num_classes": num_classes,
         "layer": args.layer,
         "time_step": args.time_step,
     }
 
 
 def loader_config(args, split: str, shuffle: bool) -> Dict[str, object]:
+    family = str(getattr(args, "family", "cifar100"))
     return {
-        "mode": "cifar100",
+        "mode": family,
         "data_dir": args.data_dir,
         "split": split,
         "batch_size": args.batch_size,

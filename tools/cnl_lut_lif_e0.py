@@ -32,7 +32,7 @@ from tools.qkformer_native_affine_lut_probe import (
 )
 
 
-FAILED_DENSE_LUT_IF_E1 = {
+FAILED_DENSE_LUT_IF_E1_C100_T4 = {
     "candidate_top1": 78.42,
     "drop_top1": 2.60,
     "logit_mse_per_sample": 56.616154718017576,
@@ -371,7 +371,7 @@ Status: **{gate['verdict']}**
 
 ## Scope
 
-- QKFormer CIFAR-100, seed {metrics['protocol']['seed']}, T={metrics['protocol']['time_step']}
+- QKFormer {metrics['protocol']['family']}, seed {metrics['protocol']['seed']}, T={metrics['protocol']['time_step']}
 - All discovered MultiStepLIF targets, fixed {metrics['protocol']['state_bits']}-bit state/input transition LUT
 - Current-normalization ablation only; no bit-width, seed, checkpoint, stage, or learning-rate search
 
@@ -384,16 +384,17 @@ Status: **{gate['verdict']}**
 ## Gate
 
 - Beats post-hoc dense LUT on Acc@1 drop or logit MSE: **{gate['beats_posthoc_on_top1_or_logit_mse']}**
-- Drop below 2.06 pp: **{gate['drop_below_posthoc_e1']}**
+- Drop below the same-run post-hoc dense LUT: **{gate['drop_below_same_run_posthoc']}**
+- Drop below the external registered threshold: **{gate['drop_below_external_threshold']}**
 - Current MSE improves over no-normalization: **{gate['current_mse_improves_over_no_norm']}**
 - All requested targets executed: **{gate['all_requested_targets_executed']}**
 
 ## Claim Boundary
 
 This run can only test whether current-normalized lookup current improves the
-registered all-LIF replacement tradeoff on the retained QKFormer CIFAR-100 T=4
-seed-42 setting. It does not establish hardware efficiency, compactness beyond
-metadata accounting, or broad architecture generalization.
+registered all-LIF replacement tradeoff on this retained QKFormer setting. It
+does not establish hardware efficiency, compactness beyond metadata accounting,
+or broad architecture generalization.
 """
 
 
@@ -486,26 +487,36 @@ def run(args) -> Dict[str, object]:
         cnl["candidate_top1"] > posthoc["candidate_top1"]
         or cnl["logit_mse_per_sample"] < posthoc["logit_mse_per_sample"]
     )
-    drop_below_posthoc_e1 = cnl["drop_top1"] < args.posthoc_e1_drop
+    drop_below_same_run_posthoc = cnl["drop_top1"] < posthoc["drop_top1"]
+    drop_below_external_threshold = cnl["drop_top1"] < args.drop_threshold
     current_mse_improves = (
         cnl_diag["current_mse_after_normalization"]
         < no_norm_diag["current_mse_after_normalization"]
     )
     smoke_mode = args.max_eval_batches is not None
     smoke_pass = bool(all_targets_executed)
-    gate_pass = bool(beats_posthoc and drop_below_posthoc_e1 and current_mse_improves and all_targets_executed)
+    gate_pass = bool(
+        beats_posthoc
+        and drop_below_same_run_posthoc
+        and drop_below_external_threshold
+        and current_mse_improves
+        and all_targets_executed
+    )
 
     summary_rows = [
         {"method": "posthoc_dense_transition_LUT_6bit", **posthoc},
         {"method": "quantized_arithmetic_LIF_6bit", **quant},
-        {"method": "dense_trainable_LUT_IF_E1_failed", **FAILED_DENSE_LUT_IF_E1},
         {"method": "CNL_LUT_LIF_without_normalization", **no_norm},
         {"method": "CNL_LUT_LIF_with_normalization", **cnl},
     ]
+    if args.include_failed_dense_e1:
+        summary_rows.insert(2, {"method": "dense_trainable_LUT_IF_E1_failed", **FAILED_DENSE_LUT_IF_E1_C100_T4})
     metrics = {
-        "experiment": "cnl_lut_lif_e0_c100_t4_seed42",
+        "experiment": f"cnl_lut_lif_main_{args.family}_t{args.time_step}_seed{args.seed}",
         "status": "completed",
         "protocol": {
+            "family": args.family,
+            "num_classes": args.num_classes,
             "seed": args.seed,
             "time_step": args.time_step,
             "state_bits": args.state_bits,
@@ -527,7 +538,6 @@ def run(args) -> Dict[str, object]:
         "results": {
             "posthoc_dense_transition_LUT_6bit": posthoc,
             "quantized_arithmetic_LIF_6bit": quant,
-            "dense_trainable_LUT_IF_E1_failed": FAILED_DENSE_LUT_IF_E1,
             "CNL_LUT_LIF_without_normalization": no_norm,
             "CNL_LUT_LIF_with_normalization": cnl,
         },
@@ -544,11 +554,12 @@ def run(args) -> Dict[str, object]:
         "summary_rows": summary_rows,
         "gate": {
             "beats_posthoc_on_top1_or_logit_mse": beats_posthoc,
-            "drop_below_posthoc_e1": drop_below_posthoc_e1,
+            "drop_below_same_run_posthoc": drop_below_same_run_posthoc,
+            "drop_below_external_threshold": drop_below_external_threshold,
             "current_mse_improves_over_no_norm": current_mse_improves,
             "all_requested_targets_executed": all_targets_executed,
             "expected_targets": expected_targets,
-            "posthoc_e1_drop": args.posthoc_e1_drop,
+            "drop_threshold": args.drop_threshold,
             "smoke_mode": smoke_mode,
             "pass": smoke_pass if smoke_mode else gate_pass,
             "formal_full_gate_pass": gate_pass,
@@ -572,6 +583,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--data-dir", required=True)
     p.add_argument("--checkpoint", required=True)
     p.add_argument("--result-dir", required=True)
+    p.add_argument("--family", choices=["cifar10", "cifar100"], default="cifar100")
+    p.add_argument("--num-classes", type=int, default=None)
     p.add_argument("--local-cuda-index", type=int, default=0)
     p.add_argument("--time-step", type=int, default=4)
     p.add_argument("--dim", type=int, default=384)
@@ -583,7 +596,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--state-bits", type=int, default=6)
     p.add_argument("--input-bits", type=int, default=6)
     p.add_argument("--max-eval-batches", type=int, default=None)
-    p.add_argument("--posthoc-e1-drop", type=float, default=2.06)
+    p.add_argument("--drop-threshold", type=float, default=2.06)
+    p.add_argument("--include-failed-dense-e1", action="store_true")
     p.add_argument("--seed", type=int, default=42)
     return p
 
