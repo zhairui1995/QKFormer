@@ -1,0 +1,152 @@
+schema_version: 1
+run_id: cnl_lut_lif_e0_c100_t4_seed42
+status: planned_waiting_for_experiment
+owner: zhairui
+created_at: 2026-06-27
+
+question:
+  hypothesis: >-
+    On the retained QKFormer CIFAR-100 T=4 seed-42 checkpoint, a
+    current-normalized lookup LIF path can reduce the paired drop or paired
+    logit error of the completed 6-bit post-hoc dense transition LUT by
+    restoring the temporal/channel current contract before the fixed LIF
+    transition lookup.
+  strongest_alternative_explanation: >-
+    The dense LUT-IF failure is caused mainly by membrane-state drift or
+    precision/capacity limits that temporal/channel current normalization cannot
+    repair. Any apparent gain may come from extra current-affine parameters or
+    fallback behavior rather than a better lookup-neuron mechanism.
+  claim_id_unlocked: CNL-LUT-LIF-H1-CURRENT-CONTRACT
+  route_challenge_allowed: true
+
+environment:
+  host: default_qkformer_remote
+  connection_details: USE_DOCS_RUNBOOK
+  repo_root: /home/lbz/mac_agent/sdr-lutattn-qkformer-lut
+  git_commit_or_snapshot: TODO_remote_snapshot_before_run
+  conda_environment: sdr
+  python: /home/lbz/miniconda/envs/sdr/bin/python
+  gpu_ids: [TO_AUTO_SELECT_IDLE]
+  gpu_count: 1
+
+protocol:
+  dataset: CIFAR-100
+  data_root: /home/datasets
+  split: calibration_from_train__complete_validation_for_evidence
+  model: QKFormer_dim384_depth4_T4
+  checkpoint: /home/lbz/pretrained_models/qk_lutformer_retained_20260619/qkformer_cifar100_t4_seed42_model_best.pth.tar
+  method: >-
+    Replace the requested LIF-adjacent current path with support-aware lookup
+    current, apply temporal/channel current normalization initialized from
+    calibration moments, then feed the normalized current into a fixed/exportable
+    6-bit LUT-LIF transition. Do not directly train the full state-input
+    transition table.
+  targets:
+    primary: all_35_MultiStepLIFNode_targets_if_implemented
+    diagnostic_fallback: stage1_0_tssa_LIF_adjacent_current_path
+  state_bits: 6
+  input_bits: 6
+  seed: 42
+  calibration_batches: 128
+  evaluation_samples: 10000
+  search_prohibited:
+    - learning_rate_sweep
+    - bit_width_sweep
+    - checkpoint_sweep
+    - stage_sweep
+    - unregistered_seed_sweep
+    - validation_checkpoint_selection
+    - silent_retry
+
+controls:
+  completed_controls:
+    original_frozen_LIF:
+      top1: 81.02
+    posthoc_dense_transition_LUT_6bit:
+      top1: 78.96
+      drop_pp: 2.06
+      logit_mse_per_sample: 24.577839208984376
+    quantized_arithmetic_LIF_6bit:
+      top1: 78.90
+      drop_pp: 2.12
+      logit_mse_per_sample: 24.559827560424804
+    dense_trainable_LUT_IF_E1_failed:
+      top1: 78.42
+      drop_pp: 2.60
+      logit_mse_per_sample: 56.616154718017576
+  required_new_ablation:
+    - CNL_LUT_LIF_without_temporal_channel_normalization
+    - CNL_LUT_LIF_with_temporal_channel_normalization
+    - fallback_rate_and_support_counts_reported
+
+metrics:
+  primary:
+    - full_validation_Acc_at_1
+    - paired_Acc_at_1_drop
+    - paired_logit_MSE_per_sample
+  local_diagnostics:
+    - current_MSE_before_normalization
+    - current_MSE_after_normalization
+    - spike_rate_drift_per_target
+    - membrane_state_drift_if_available
+    - fallback_rate
+    - support_histogram
+  accounting:
+    - metadata_inclusive_bytes
+    - table_entries
+    - current_affine_parameter_count
+    - aggregate_transition_clip_rate
+  coverage:
+    - requested_targets
+    - executed_targets
+    - skipped_targets_with_reason
+
+gates:
+  smoke_success:
+    - all_requested_or_declared_diagnostic_targets_execute
+    - one_complete_validation_or_registered_smoke_subset_finishes
+    - no_nonfinite_current_state_loss_or_logits
+    - metrics_summary_log_and_report_are_written
+  success:
+    - CNL_LUT_LIF_improves_over_posthoc_dense_LUT_on_Acc_drop_or_logit_MSE
+    - paired_full_validation_drop_lt_2_06_points
+    - current_MSE_after_normalization_lt_current_MSE_before_normalization
+    - spike_rate_drift_nonworse_than_no_normalization
+  strong_success:
+    - paired_full_validation_drop_le_1_point
+    - CNL_LUT_LIF_beats_both_posthoc_dense_LUT_and_quantized_arithmetic_LIF_on_Acc_drop_or_logit_MSE
+  failure:
+    - requested_target_not_executed_without_declared_diagnostic_downgrade
+    - nonfinite_values
+    - no_improvement_over_no_normalization
+    - no_improvement_over_posthoc_dense_LUT_on_Acc_drop_or_logit_MSE
+    - paired_full_validation_drop_ge_2_06_points
+  stop:
+    - stop_after_first_registered_full_run
+    - no_hyperparameter_or_bit_width_search_after_failure
+    - require_causal_diagnosis_before_any_second_full_run
+
+claim_boundary:
+  can_claim_if_success:
+    - current_normalization_reduces_lookup_current_mismatch_under_this_protocol
+    - CNL_LUT_LIF_improves_the_registered_replacement_tradeoff_on_the_evaluated_QKFormer_setting
+  cannot_claim_from_this_run:
+    - hardware_latency_energy_or_SRAM_benefit
+    - broad_architecture_generalization
+    - compactness_without_metadata_inclusive_accounting
+    - superiority_from_accuracy_delta_within_protocol_noise
+
+artifacts:
+  expected_remote_result_dir: results/cnl_lut_lif_e0_c100_t4_seed42_YYYYMMDD_HHMMSS
+  expected_local_result_dir: results/cnl_lut_lif_e0_c100_t4_seed42_YYYYMMDD_HHMMSS
+  expected_report: report.md
+  expected_metrics: metrics.json
+  expected_summary: summary.csv
+
+integrity:
+  relation_to_previous_run: >-
+    This is a mechanism-change follow-up to the completed
+    lut_if_e1_c100_t4_seed42_20260626 NO-GO. It is not a search over the failed
+    dense transition objective.
+  no_external_upload: true
+  anonymous_ready: true

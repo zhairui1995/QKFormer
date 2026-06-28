@@ -1,0 +1,156 @@
+schema_version: 1
+run_id: lut_if_e1_c100_t4_seed42_20260626
+status: completed_no_go
+owner: zhairui
+created_at: 2026-06-26
+
+question:
+  hypothesis: >-
+    At matched 6-bit state and input precision, a trainable LUT-IF transition
+    module improves full-validation accuracy or paired logit fidelity over both
+    a post-hoc finite transition table and a quantized arithmetic LIF, while
+    keeping the paired accuracy drop within 1.00 percentage point.
+  strongest_alternative_explanation: >-
+    Any apparent gain comes from extra trainable parameters, distillation, or
+    soft interpolation rather than a useful learned discrete transition.
+  claim_id_unlocked: LUTIF-H1-INITIAL-POC
+  route_challenge_allowed: true
+
+environment:
+  host: default_qkformer_remote
+  connection_details: USE_DOCS_RUNBOOK
+  repo_root: /home/lbz/mac_agent/sdr-lutattn-qkformer-lut
+  git_commit_or_snapshot: remote_base_4e3d9db_plus_synced_uncommitted_lut_if_files
+  conda_environment: sdr
+  python: /home/lbz/miniconda/envs/sdr/bin/python
+  gpu_ids: [TO_AUTO_SELECT_IDLE]
+  gpu_count: 1
+
+protocol:
+  dataset: CIFAR-100
+  data_root: /home/datasets
+  split: train_for_calibration_and_training__complete_validation_for_evidence
+  model: QKFormer_dim384_depth4_T4
+  checkpoint: /home/lbz/pretrained_models/qk_lutformer_retained_20260619/qkformer_cifar100_t4_seed42_model_best.pth.tar
+  method: >-
+    Replace all MultiStepLIFNode modules with trainable dense LUT-IF transition
+    modules initialized from the corresponding LIF recurrence. Freeze the
+    backbone and optimize LUT values plus per-module thresholds.
+  controls:
+    - original_frozen_LIF
+    - posthoc_dense_transition_LUT_at_6bit_state_input_precision
+    - quantized_arithmetic_LIF_at_6bit_state_input_precision
+    - untrained_LUT_IF_initialization
+  seed: 42
+  command_or_server_script: scripts/server/run_lut_if_poc.sh
+  fixed_budget:
+    epochs: 3
+    calibration_batches: 32
+    train_batches_per_epoch: 128
+    evaluation_samples: 10000
+    wall_time_limit: observed_about_61_minutes
+  search_prohibited:
+    - learning_rate_sweep
+    - bit_width_sweep
+    - checkpoint_sweep
+    - stage_sweep
+    - unregistered_seed_sweep
+    - silent_retry
+
+metrics:
+  primary:
+    - full_validation_Acc_at_1
+    - paired_Acc_at_1_drop
+    - paired_logit_MSE_per_sample
+  secondary:
+    - teacher_to_candidate_KL_per_sample
+    - validation_cross_entropy
+    - training_convergence
+    - metadata_inclusive_bytes
+  snn_specific:
+    - aggregate_transition_clip_rate
+    - membrane_state_drift_TODO
+    - spike_mismatch_TODO
+    - time_steps
+
+training:
+  backbone_frozen: true
+  trainable:
+    - LUT_transition_values
+    - per_module_thresholds
+  optimizer: AdamW
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  loss:
+    task_cross_entropy: 1.0
+    teacher_KL: 0.5
+    table_delta_L2: 0.0001
+    neighbor_smoothness: 0.0001
+  amp: true
+
+gates:
+  smoke_success:
+    - all_requested_LIF_targets_are_replaced_and_executed
+    - one_forward_backward_update_completes_without_nonfinite_values
+    - metrics_summary_log_and_report_are_written
+  success:
+    - LUT_IF_beats_posthoc_on_Acc_at_1_or_logit_MSE
+    - LUT_IF_beats_quantized_arithmetic_on_Acc_at_1_or_logit_MSE
+    - paired_full_validation_Acc_at_1_drop_le_1_point
+  failure:
+    - nonfinite_loss_or_table_values
+    - requested_LIF_target_not_executed
+    - paired_full_validation_drop_gt_1_point
+    - no_improvement_over_both_controls
+  stop:
+    - stop_after_first_registered_full_run
+    - no_hyperparameter_sweep_after_failure
+    - require_new_causal_diagnosis_before_second_full_run
+
+artifacts:
+  remote_result_dir: results/lut_if_poc_c100_t4_seed42_full_20260627_100945
+  local_result_dir: results/lut_if_poc_c100_t4_seed42_full_20260627_100945
+  log_path: results/lut_if_poc_c100_t4_seed42_full_20260627_100945/launcher.log
+  summary_csv: results/lut_if_poc_c100_t4_seed42_full_20260627_100945/summary.csv
+  metrics_json: results/lut_if_poc_c100_t4_seed42_full_20260627_100945/metrics.json
+  report_md: results/lut_if_poc_c100_t4_seed42_full_20260627_100945/report.md
+  model_artifact_remote_only: results/lut_if_poc_c100_t4_seed42_full_20260627_100945/lut_if_best.pt
+
+result:
+  verdict: NO-GO
+  teacher_top1: 81.02
+  posthoc_dense_lut_top1: 78.96
+  posthoc_dense_lut_drop_pp: 2.06
+  posthoc_dense_lut_logit_mse_per_sample: 24.577839208984376
+  quantized_arithmetic_top1: 78.90
+  quantized_arithmetic_drop_pp: 2.12
+  quantized_arithmetic_logit_mse_per_sample: 24.559827560424804
+  lut_if_initial_top1: 78.77
+  lut_if_initial_drop_pp: 2.25
+  lut_if_initial_logit_mse_per_sample: 24.547121990966797
+  lut_if_final_top1: 78.42
+  lut_if_final_drop_pp: 2.60
+  lut_if_final_logit_mse_per_sample: 56.616154718017576
+  lut_if_final_kl_per_sample: 0.21609001514911652
+  modules_executed: 35
+  expected_modules: 35
+  table_entries: 143360
+  metadata_kib: 560.95703125
+  aggregate_clip_rate: 0.00145152287198844
+  gate_failures:
+    - did_not_beat_posthoc_on_Acc_at_1_or_logit_MSE
+    - did_not_beat_quantized_arithmetic_on_Acc_at_1_or_logit_MSE
+    - paired_full_validation_drop_exceeded_1_point
+
+integrity:
+  dataset_lock_verified: true
+  matched_controls_verified: true
+  all_failures_recorded: true
+  no_silent_retry: true
+  no_external_upload: true
+  notes: >-
+    Initial method proof of concept only. The registered full run failed its
+    gates and must not be used as a positive paper claim. The result suggests
+    this dense trainable LUT-IF training objective degrades paired fidelity
+    under the fixed budget. Any second run requires a new causal diagnosis,
+    not a hyperparameter, bit-width, checkpoint, stage, or seed search.
