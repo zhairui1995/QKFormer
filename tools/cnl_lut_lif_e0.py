@@ -40,22 +40,32 @@ FAILED_DENSE_LUT_IF_E1 = {
 
 
 class TCMoment:
-    def __init__(self) -> None:
+    def __init__(self, time_steps: int) -> None:
+        self.time_steps = int(time_steps)
         self.sum: Optional[torch.Tensor] = None
         self.sumsq: Optional[torch.Tensor] = None
         self.count: Optional[torch.Tensor] = None
 
-    @staticmethod
-    def _tc_flat(x: torch.Tensor) -> torch.Tensor:
+    def _tc_flat(self, x: torch.Tensor) -> torch.Tensor:
         value = x.detach().float().cpu()
         if value.ndim < 3:
             raise RuntimeError(f"expected time-major tensor with channel dimension, got {tuple(value.shape)}")
-        # MultiStepLIF inputs in this repo are time-major. The conventional
-        # channel axis is immediately after batch for both convolutional and
-        # token-map tensors used by QKFormer.
-        permute = [0, 2] + [dim for dim in range(value.ndim) if dim not in (0, 2)]
-        value = value.permute(*permute).contiguous()
-        return value.view(value.shape[0], value.shape[1], -1)
+        if value.shape[0] == self.time_steps:
+            # [T, B, C, ...]
+            permute = [0, 2] + [dim for dim in range(value.ndim) if dim not in (0, 2)]
+            value = value.permute(*permute).contiguous()
+            return value.view(value.shape[0], value.shape[1], -1)
+        if value.shape[0] % self.time_steps == 0:
+            # Some QKFormer attention paths flatten [T, B] into one leading
+            # axis before calling MultiStepLIF: [T*B, C, N].
+            batch = value.shape[0] // self.time_steps
+            channel = value.shape[1]
+            return value.reshape(self.time_steps, batch, channel, -1).permute(0, 2, 1, 3).reshape(
+                self.time_steps, channel, -1
+            )
+        raise RuntimeError(
+            f"cannot infer temporal layout for shape {tuple(value.shape)} with T={self.time_steps}"
+        )
 
     def update(self, x: torch.Tensor) -> None:
         flat = self._tc_flat(x)
@@ -108,8 +118,9 @@ def collect_current_moments(
     input_bits: int,
     batches: int,
 ) -> Tuple[int, Dict[str, Dict[str, torch.Tensor]]]:
-    teacher: Dict[str, TCMoment] = defaultdict(TCMoment)
-    lookup: Dict[str, TCMoment] = defaultdict(TCMoment)
+    args_time_steps = int(getattr(model, "_cnl_time_steps", 4))
+    teacher: Dict[str, TCMoment] = defaultdict(lambda: TCMoment(args_time_steps))
+    lookup: Dict[str, TCMoment] = defaultdict(lambda: TCMoment(args_time_steps))
     handles = []
     levels = 1 << int(input_bits)
 
@@ -157,10 +168,12 @@ class CurrentNormalizedLUTLIF(QuantizedTransitionLUT):
         *,
         moments: Mapping[str, torch.Tensor],
         normalize_current: bool,
+        time_steps: int,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.normalize_current = bool(normalize_current)
+        self.time_steps = int(time_steps)
         for key in ("ref_mean", "ref_std", "lut_mean", "lut_std"):
             self.register_buffer(key, moments[key].detach().float().clone())
         self.current_sse_before = 0.0
@@ -211,16 +224,23 @@ class CurrentNormalizedLUTLIF(QuantizedTransitionLUT):
         self.norm_input_count += int(fp32.numel())
         return index
 
-    def _normalize_step(self, step: int, decoded: torch.Tensor) -> torch.Tensor:
+    def _normalize_step(self, step: int, decoded: torch.Tensor, flattened_tb: bool, batch_size: int) -> torch.Tensor:
         if not self.normalize_current:
             return decoded
-        t = min(int(step), self.ref_mean.shape[0] - 1)
-        channel_count = decoded.shape[1] if decoded.ndim >= 2 else self.ref_mean.shape[1]
+        if flattened_tb:
+            t = min(int(step) // max(int(batch_size), 1), self.ref_mean.shape[0] - 1)
+            channel_count = decoded.shape[0]
+        else:
+            t = min(int(step), self.ref_mean.shape[0] - 1)
+            channel_count = decoded.shape[1] if decoded.ndim >= 2 else self.ref_mean.shape[1]
         if channel_count != self.ref_mean.shape[1]:
             raise RuntimeError(
                 f"channel mismatch in CNL-LUT-LIF: current has {channel_count}, moments have {self.ref_mean.shape[1]}"
             )
-        view_shape = [1, channel_count] + [1] * max(decoded.ndim - 2, 0)
+        if flattened_tb:
+            view_shape = [channel_count] + [1] * max(decoded.ndim - 1, 0)
+        else:
+            view_shape = [1, channel_count] + [1] * max(decoded.ndim - 2, 0)
         ref_mean = self.ref_mean[t].to(device=decoded.device, dtype=decoded.dtype).view(*view_shape)
         ref_std = self.ref_std[t].to(device=decoded.device, dtype=decoded.dtype).view(*view_shape)
         lut_mean = self.lut_mean[t].to(device=decoded.device, dtype=decoded.dtype).view(*view_shape)
@@ -238,12 +258,14 @@ class CurrentNormalizedLUTLIF(QuantizedTransitionLUT):
         else:
             v = self.v.to(device=x_seq.device, dtype=x_seq.dtype)
         spike_table, state_table = self._tables(x_seq.device, x_seq.dtype)
+        flattened_tb = bool(x_seq.shape[0] != self.time_steps and x_seq.shape[0] % self.time_steps == 0)
+        batch_size = int(x_seq.shape[0] // self.time_steps) if flattened_tb else int(x_seq.shape[1])
         spikes = []
         states = []
         for step in range(x_seq.shape[0]):
             original = x_seq[step]
             decoded = self._quantize_decode_current(original)
-            normalized = self._normalize_step(step, decoded)
+            normalized = self._normalize_step(step, decoded, flattened_tb, batch_size)
             self.current_sse_before += float((decoded.float() - original.detach().float()).square().sum().item())
             self.current_sse_after += float((normalized.detach().float() - original.detach().float()).square().sum().item())
             self.current_values += int(original.numel())
@@ -283,6 +305,7 @@ def replace_with_cnl_lut_lif(
     state_bits: int,
     input_bits: int,
     normalize_current: bool,
+    time_steps: int,
 ) -> Dict[str, CurrentNormalizedLUTLIF]:
     replacements: Dict[str, CurrentNormalizedLUTLIF] = {}
     for name, original in list(targets.items()):
@@ -299,6 +322,7 @@ def replace_with_cnl_lut_lif(
             bits=state_bits,
             moments=moments[name],
             normalize_current=normalize_current,
+            time_steps=time_steps,
         )
         replacement.to(next(model.parameters()).device)
         set_submodule(model, name, replacement)
@@ -386,6 +410,7 @@ def run(args) -> Dict[str, object]:
     clean, clean_checkpoint = build_model(root, args, device)
     freeze(clean)
     clean.eval()
+    setattr(clean, "_cnl_time_steps", int(args.time_step))
     calibration_batches, ranges, range_adjustments = build_ranges(clean, train_loader, device, args)
     clean_targets = discover_lif_targets(clean)
     moment_batches, moments = collect_current_moments(
@@ -426,6 +451,7 @@ def run(args) -> Dict[str, object]:
         state_bits=args.state_bits,
         input_bits=args.input_bits,
         normalize_current=False,
+        time_steps=args.time_step,
     )
     cnl_replacements = replace_with_cnl_lut_lif(
         cnl_model,
@@ -435,6 +461,7 @@ def run(args) -> Dict[str, object]:
         state_bits=args.state_bits,
         input_bits=args.input_bits,
         normalize_current=True,
+        time_steps=args.time_step,
     )
 
     posthoc = evaluate_pair(clean, posthoc_model, validation_loader, device, posthoc_replacements, args.max_eval_batches)
