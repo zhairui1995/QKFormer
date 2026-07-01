@@ -14,6 +14,7 @@ import torch
 import torch.nn as nn
 from torchvision import datasets, transforms
 
+from qkformer_lut.spikformer_qk_contract import apply_spikformer_qk_contract
 from run_cross_arch_lut_phase1 import build_cifar_sew_resnet34, reset_snn
 
 
@@ -79,7 +80,27 @@ def build_spikformer(repo: Path, num_classes: int) -> Tuple[nn.Module, Dict[str,
 
 def build_model(args, num_classes: int) -> Tuple[nn.Module, Dict[str, object]]:
     if args.track == "spikformer":
-        return build_spikformer(Path(args.repo_root).resolve(), num_classes)
+        model, report = build_spikformer(Path(args.repo_root).resolve(), num_classes)
+        if args.checkpoint:
+            payload = torch.load(str(Path(args.checkpoint).resolve()), map_location="cpu")
+            state = payload.get("state_dict") or payload.get("model") or payload
+            state = {str(k).replace("module.", "", 1): v for k, v in state.items() if torch.is_tensor(v)}
+            msg = model.load_state_dict(state, strict=False)
+            report.update(
+                {
+                    "init": "checkpoint",
+                    "checkpoint": str(Path(args.checkpoint).resolve()),
+                    "missing_keys": list(msg.missing_keys),
+                    "unexpected_keys": list(msg.unexpected_keys),
+                }
+            )
+        patch_report = apply_spikformer_qk_contract(
+            model,
+            mode=args.spikformer_attn_mode,
+            scope=args.spikformer_attn_scope,
+        )
+        report["qk_contract_patch"] = patch_report
+        return model, report
     if args.track == "sew_resnet34":
         model, report = build_cifar_sew_resnet34(Path(args.repo_root).resolve(), num_classes, None)
         report["init"] = "random_cifar_stem_head"
@@ -168,6 +189,21 @@ def main() -> None:
     parser.add_argument("--amp", action="store_true")
     parser.add_argument("--max-train-batches", type=int, default=0)
     parser.add_argument("--max-val-batches", type=int, default=0)
+    parser.add_argument("--checkpoint", default="")
+    parser.add_argument("--spikformer-attn-mode", choices=("original", "qk_sum", "qk_max"), default="original")
+    parser.add_argument("--spikformer-attn-scope", choices=("all", "first"), default="all")
+    parser.add_argument("--qklut-lif-native", action="store_true", default=False)
+    parser.add_argument(
+        "--qklut-lif-target-scope",
+        choices=("attention", "mlp", "attention_mlp", "qk", "all"),
+        default="attention",
+    )
+    parser.add_argument("--qklut-lif-name-regex", default="")
+    parser.add_argument("--qklut-lif-state-bits", type=int, default=6)
+    parser.add_argument("--qklut-lif-input-bits", type=int, default=8)
+    parser.add_argument("--qklut-lif-x-range", type=float, nargs=2, default=(-8.0, 8.0))
+    parser.add_argument("--qklut-lif-v-range", type=float, nargs=2, default=(0.0, 2.0))
+    parser.add_argument("--qklut-lif-surrogate-slope", type=float, default=2.0)
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -177,6 +213,28 @@ def main() -> None:
     num_classes = 100 if args.dataset == "cifar100" else 10
 
     model, init_report = build_model(args, num_classes)
+    native_qklut_lif_summary = None
+    if args.qklut_lif_native:
+        from lut_if.native import NativeQKLUTLIFConfig, apply_native_qklut_lif, native_qklut_lif_summary as summarize
+
+        modules = apply_native_qklut_lif(
+            model,
+            NativeQKLUTLIFConfig(
+                target_scope=args.qklut_lif_target_scope,
+                name_regex=args.qklut_lif_name_regex,
+                state_bits=args.qklut_lif_state_bits,
+                input_bits=args.qklut_lif_input_bits,
+                x_range=tuple(args.qklut_lif_x_range),
+                v_range=tuple(args.qklut_lif_v_range),
+                surrogate_slope=args.qklut_lif_surrogate_slope,
+                learn_threshold=True,
+            ),
+        )
+        if not modules:
+            raise RuntimeError("QK-LUT-LIF native mode selected no LIF targets")
+        native_qklut_lif_summary = summarize(modules)
+        init_report["native_qklut_lif"] = native_qklut_lif_summary
+        print(f"[cross-train] QK-LUT-LIF native summary: {native_qklut_lif_summary}", flush=True)
     model.to(device)
     train_loader = cifar_loader(Path(args.data_root).resolve(), args.dataset, "train", args.batch_size, args.workers)
     val_loader = cifar_loader(Path(args.data_root).resolve(), args.dataset, "validation", args.val_batch_size, args.workers)
@@ -237,6 +295,7 @@ def main() -> None:
         "python": sys.executable,
         "cuda_visible_devices": __import__("os").environ.get("CUDA_VISIBLE_DEVICES"),
         "init_report": init_report,
+        "native_qklut_lif_summary": native_qklut_lif_summary,
         "best_top1": best_top1,
         "best_epoch": best_epoch,
         "best_checkpoint": str(best_path),

@@ -1,0 +1,73 @@
+experiment: native_qklut_lif_spikformer_qk_contract_c10_t4_seed42
+status: planned
+date: 2026-07-01
+claim:
+  hypothesis: >
+    If QK-LUT-LIF is a reusable spiking Transformer module rather than a
+    QKFormer-only modification, it should at least execute and train inside a
+    QK-contract Spikformer block where the attention interaction is changed to
+    a QKFormer-like gate(Q) * K contract.
+  strongest_alternative: >
+    Spikformer may expose different temporal/channel dynamics, so the same
+    native LUT-LIF module may be executable but harmful or unstable. A smoke
+    pass alone would not establish transfer.
+  claim_unlocked_if_pass: >
+    QK-contract Spikformer is a viable cross-backbone substrate for a bounded
+    native QK-LUT-LIF pilot.
+  forbidden_claims:
+    - broad transfer to Spikformer or SpikeFormer
+    - superiority over Spikformer, SpikeFormer, QKFormer, or LL-ViT
+    - near-SOTA accuracy
+    - hardware speed, energy, SRAM, area, or latency
+model:
+  family: Spikformer
+  variant: Spikformer-4-384w with QK-contract attention
+  dataset: CIFAR-10
+  time_step: 4
+  seed: 42
+  baseline_attention_contract: qk_sum
+  native_module: QK-LUT-LIF attention LIF replacement
+  target_scope: attention
+  state_bits: 6
+  input_bits: 8
+  x_range: [-8.0, 8.0]
+  v_range: [0.0, 2.0]
+protocol:
+  smoke:
+    epochs: 1
+    max_train_batches: 8
+    max_val_batches: 4
+    batch_size: 16
+    val_batch_size: 16
+  pilot:
+    epochs: 30
+    max_train_batches: 0
+    max_val_batches: 0
+    batch_size: 64
+    val_batch_size: 128
+baselines:
+  - QK-contract Spikformer trained with the same runner, seed, dataset, T, and budget
+  - native QK-LUT-LIF QK-contract Spikformer
+metrics:
+  - train loss
+  - validation Acc@1
+  - QK-LUT-LIF module count and table entries
+  - checkpoint manifest and comparison.json
+gate:
+  smoke_pass:
+    - both baseline and native rows complete without non-finite failure
+    - native variant selects at least one attention LIF target
+    - validation runs for the fixed smoke batches
+  pilot_pass:
+    - native best Acc@1 is no worse than 1.50 percentage points below the matched QK-contract Spikformer baseline
+    - both rows use identical seed, attention contract, dataset, epoch, batch, and validation budgets
+  full_or_mainline_unlock:
+    - not applicable until QKFormer native pilots are interpreted
+no_sweep_policy:
+  - do not change learning rate, bit widths, target scope, seed, checkpoint, or epoch budget after seeing smoke/pilot results without a new run spec
+  - this is a transfer-substrate smoke, not evidence of broad transfer
+artifacts:
+  - result directory with launcher.log
+  - checkpoint_manifest.json and summary.csv for each row
+  - comparison.json
+  - result memo under lut_if_paper/

@@ -11,7 +11,7 @@ from .neuron import DenseLUTIFNeuron
 from .replace import set_submodule
 
 
-ATTENTION_MARKERS = (".tssa.", ".ssa.")
+ATTENTION_MARKERS = (".tssa.", ".ssa.", ".attn.")
 MLP_MARKERS = (".mlp.",)
 
 
