@@ -12,6 +12,7 @@ from .replace import set_submodule
 
 
 ATTENTION_MARKERS = (".tssa.", ".ssa.")
+MLP_MARKERS = (".mlp.",)
 
 
 @dataclass(frozen=True)
@@ -41,12 +42,17 @@ def _compile_regex(pattern: str) -> Pattern[str] | None:
 def _scope_match(name: str, scope: str, regex: Pattern[str] | None) -> bool:
     if regex is not None and regex.search(name) is None:
         return False
+    qualified = f".{name}."
     if scope == "all":
         return True
     if scope == "attention":
-        return any(marker in f".{name}." for marker in ATTENTION_MARKERS)
+        return any(marker in qualified for marker in ATTENTION_MARKERS)
+    if scope == "mlp":
+        return any(marker in qualified for marker in MLP_MARKERS)
+    if scope == "attention_mlp":
+        return any(marker in qualified for marker in ATTENTION_MARKERS + MLP_MARKERS)
     if scope == "qk":
-        return any(marker in f".{name}." for marker in ATTENTION_MARKERS) and name.endswith(
+        return any(marker in qualified for marker in ATTENTION_MARKERS) and name.endswith(
             ("q_lif", "k_lif", "attn_lif")
         )
     raise ValueError(f"unsupported QK-LUT-LIF native target scope: {scope}")

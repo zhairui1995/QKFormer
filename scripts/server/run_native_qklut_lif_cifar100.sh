@@ -13,9 +13,10 @@ if ! PYTHON_BIN="$(qk_lut_select_python)"; then
 fi
 
 MODE="${NATIVE_QKLUT_LIF_RUN_MODE:-smoke}"
+TARGET_SCOPE="${NATIVE_QKLUT_LIF_TARGET_SCOPE:-attention}"
 DATA_DIR="${QKFORMER_LUT_CIFAR100_DATA_DIR:-${QKFORMER_LUT_DATA_DIR:-$ROOT/data/cifar100}}"
 STAMP="$(date +%Y%m%d_%H%M%S)"
-RESULT_DIR="$ROOT/results/native_qklut_lif_attention_c100_t4_seed42_${MODE}_${STAMP}"
+RESULT_DIR="$ROOT/results/native_qklut_lif_${TARGET_SCOPE}_c100_t4_seed42_${MODE}_${STAMP}"
 mkdir -p "$RESULT_DIR"
 
 case "$MODE" in
@@ -59,10 +60,10 @@ run_row() {
   local row="$1"
   local extra_args=()
   local experiment="qkformer_c100_t4_seed${QKFORMER_TRAIN_SEED}_${row}_${MODE}"
-  if [[ "$row" == "native_qklut_lif_attention" ]]; then
+  if [[ "$row" == native_qklut_lif_* ]]; then
     extra_args=(
       --qklut-lif-native
-      --qklut-lif-target-scope attention
+      --qklut-lif-target-scope "$TARGET_SCOPE"
       --qklut-lif-state-bits 6
       --qklut-lif-input-bits 8
       --qklut-lif-x-range -8.0 8.0
@@ -97,6 +98,7 @@ run_row() {
   echo "[native-qklut-lif-c100] root=$ROOT"
   echo "[native-qklut-lif-c100] result_dir=$RESULT_DIR"
   echo "[native-qklut-lif-c100] mode=$MODE"
+  echo "[native-qklut-lif-c100] target_scope=$TARGET_SCOPE"
   echo "[native-qklut-lif-c100] commit=$CODE_COMMIT"
   echo "[native-qklut-lif-c100] python=$PYTHON_BIN"
   echo "[native-qklut-lif-c100] data_dir=$DATA_DIR"
@@ -108,7 +110,7 @@ run_row() {
     bash scripts/server/link_cifar100_data.sh
   qk_lut_log_gpu "$PYTHON_BIN" "native-qklut-lif-c100"
   run_row baseline_qkformer
-  run_row native_qklut_lif_attention
+  run_row "native_qklut_lif_${TARGET_SCOPE}"
   "$PYTHON_BIN" - "$RESULT_DIR" <<'PY'
 import csv
 import json

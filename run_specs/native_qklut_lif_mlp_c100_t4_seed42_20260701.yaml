@@ -1,0 +1,93 @@
+experiment: native_qklut_lif_mlp_c100_t4_seed42
+status: planned
+date: 2026-07-01
+claim:
+  hypothesis: >
+    LL-ViT reports that the transformer channel mixer is a high-impact location
+    for learned LUT neurons. In the spiking QKFormer setting, replacing only
+    MLP-scope LIF nodes with native trainable QK-LUT-LIF may be less disruptive
+    than attention-scope replacement while still testing whether LUT-LIF works
+    as a reusable module component.
+  strongest_alternative: >
+    The LL-ViT observation may not transfer to recurrent spiking LIF dynamics:
+    QKFormer MLP LIF nodes may be ordinary activation gates, and dense trainable
+    LUT-LIF tables may overfit or destabilize regardless of insertion site.
+  claim_unlocked_if_pass: >
+    An LL-ViT-inspired MLP-scope LUT-LIF insertion is trainable enough to merit
+    a matched pilot comparison against the attention-scope native QK-LUT-LIF
+    route.
+  forbidden_claims:
+    - LL-ViT reproduction
+    - superiority over LL-ViT, QKFormer, Spikformer, or SpikeFormer
+    - broad architecture transfer
+    - near-SOTA accuracy
+    - hardware speed, energy, SRAM, area, or latency
+    - success of RL-guided LUT-LIF policy search
+motivation:
+  closest_literature_signal:
+    paper: "LL-ViT: Edge Deployable Vision Transformers with Look Up Table Neurons"
+    source: "https://arxiv.org/abs/2511.00812"
+    used_as: "insertion-site hypothesis only, not an implementation dependency"
+model:
+  family: QKFormer
+  dataset: CIFAR-100
+  time_step: 4
+  seed: 42
+  native_module: QK-LUT-LIF MLP LIF replacement
+  target_scope: mlp
+  state_bits: 6
+  input_bits: 8
+  x_range: [-8.0, 8.0]
+  v_range: [0.0, 2.0]
+protocol:
+  smoke:
+    epochs: 1
+    max_train_batches: 8
+    max_eval_batches: 4
+    batch_size: 16
+    val_batch_size: 16
+    cooldown_epochs: 0
+  pilot:
+    epochs: 30
+    max_train_batches: 0
+    max_eval_batches: 0
+    batch_size: 64
+    val_batch_size: 64
+    cooldown_epochs: 0
+  full:
+    epochs: 400
+    max_train_batches: 0
+    max_eval_batches: 0
+    batch_size: 64
+    val_batch_size: 64
+    cooldown_epochs: 0
+baselines:
+  - original QKFormer trained with the same runner, seed, dataset, T, and budget
+  - native QK-LUT-LIF MLP-scope variant
+matched_context:
+  - compare pilot outcome to the separately registered attention-scope native QK-LUT-LIF route
+  - do not change learning rate, bit width, seed, checkpoint, or target scope after seeing smoke results without a new run spec
+metrics:
+  - train loss
+  - validation Acc@1 and Acc@5
+  - parameter count
+  - QK-LUT-LIF module count and table entries
+  - final checkpoint provenance
+gate:
+  smoke_pass:
+    - both baseline and MLP-scope native variant complete without non-finite loss
+    - native variant selects at least one MLP LIF target
+    - validation runs for the fixed smoke batches
+  pilot_pass:
+    - MLP-scope native best Acc@1 is no worse than 1.00 percentage point below the matched QKFormer baseline
+    - MLP-scope native training has no non-finite loss
+    - both rows use identical seed, augmentation, epoch, batch, and validation budgets
+  full_pass:
+    - MLP-scope native best Acc@1 is at least as high as the matched QKFormer baseline
+    - full validation is complete
+    - the result is repeated or justified before any architecture-transfer language
+artifacts:
+  - result directory with train logs
+  - args.yaml and summary.csv for each row
+  - comparison.json
+  - result memo under lut_if_paper/

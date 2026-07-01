@@ -312,7 +312,8 @@ parser.add_argument('--log-wandb', action='store_true', default=False,
                     help='log training and validation metrics to wandb')
 parser.add_argument('--qklut-lif-native', action='store_true', default=False,
                     help='replace selected native LIF nodes with trainable QK-LUT-LIF nodes before training')
-parser.add_argument('--qklut-lif-target-scope', default='attention', choices=('attention', 'qk', 'all'),
+parser.add_argument('--qklut-lif-target-scope', default='attention',
+                    choices=('attention', 'mlp', 'attention_mlp', 'qk', 'all'),
                     help='which LIF nodes to replace for native QK-LUT-LIF training')
 parser.add_argument('--qklut-lif-name-regex', default='',
                     help='optional regex filter applied after the target scope')
