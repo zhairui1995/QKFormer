@@ -66,6 +66,9 @@ with a small trainable correction.
    test or as a new preregistered native-training route.
 6. LL-ViT adaptation only after locating a runnable implementation and mapping
    its LUT-based channel-mixer interface to this paper's SNN/LUT-LIF setting.
+7. Native attention-scoped QK-LUT-LIF training from initialization on QKFormer
+   CIFAR-100 `T=4`, seed 42. `SMOKE-PASS`; pilot pending. See
+   `lut_if_paper/native_qklut_lif_attention_smoke_result_20260701.md`.
 
 ## Claim Boundary
 
@@ -114,3 +117,9 @@ are either (i) from-start or joint training with QK-LUT-LIF inserted into the
 backbone, (ii) an explicitly labeled cross-architecture boundary test on
 existing QK-contract Spikformer support, or (iii) locating a runnable LL-ViT
 implementation and preregistering a protocol-matched native-module test.
+
+The first from-start route has now been implemented as an attention-scoped
+native QK-LUT-LIF variant. Its registered smoke run passes, meaning the module
+can be inserted into QKFormer and optimized end-to-end. This is only a
+feasibility gate; the 30-epoch matched pilot must pass before the route can be
+treated as an architecture candidate.

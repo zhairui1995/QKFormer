@@ -66,7 +66,7 @@ Full gate:
 
 | Priority | Experiment | Claim defended | Cost | Dependency | Stop condition |
 | --- | --- | --- | --- | --- | --- |
-| P0 | smoke baseline + native attention QK-LUT-LIF | feasibility | low | code compiles on server | stop on any runtime/non-finite failure |
+| P0 | smoke baseline + native attention QK-LUT-LIF | feasibility | low | code compiles on server | `SMOKE-PASS`; see `native_qklut_lif_attention_smoke_result_20260701.md` |
 | P1 | 30-epoch pilot baseline + native | architecture viability | medium | P0 pass | stop after fixed pilot, no hidden sweep |
 | P2 | full 400-epoch baseline + native | main architecture claim | high | P1 pass and user-visible decision | stop after fixed full run |
 
@@ -76,3 +76,8 @@ No result is generated in this memo. The current implementation and run spec
 only create a route to test whether a real native QK-LUT-LIF architecture can
 train. They do not support near-SOTA, LL-ViT, Spikformer, hardware, latency,
 energy, SRAM, or broad-transfer claims.
+
+Update after P0: the fixed smoke run completed and is recorded in
+`lut_if_paper/native_qklut_lif_attention_smoke_result_20260701.md`. The smoke
+result proves execution feasibility only; all accuracy and architecture claims
+remain pending on the fixed pilot/full gates.
