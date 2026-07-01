@@ -1,5 +1,5 @@
 experiment: native_qklut_lif_spikformer_qk_contract_c10_t4_seed42
-status: planned
+status: smoke_pass
 date: 2026-07-01
 claim:
   hypothesis: >

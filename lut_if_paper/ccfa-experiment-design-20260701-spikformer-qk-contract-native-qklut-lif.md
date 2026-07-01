@@ -60,7 +60,9 @@ Disallowed:
 
 ## Execution Priority
 
-Run only smoke while the two QKFormer native pilots are still active. Do not
-launch a Spikformer pilot before interpreting the QKFormer attention/MLP pilot
-results unless a new decision memo explains why the cross-backbone result is
-needed immediately.
+Smoke completed and passed at commit `ad8f4ad`; see
+`lut_if_paper/native_qklut_lif_spikformer_qk_contract_smoke_result_20260701.md`.
+
+Do not launch a Spikformer pilot before interpreting the QKFormer
+attention/MLP pilot results unless a new decision memo explains why the
+cross-backbone result is needed immediately.

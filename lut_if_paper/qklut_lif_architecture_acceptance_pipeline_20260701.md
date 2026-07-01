@@ -19,6 +19,7 @@ near-SOTA result. It currently has:
 - three completed `NO-GO` frozen/post-hoc architecture probes;
 - attention-scope native QK-LUT-LIF smoke pass;
 - LL-ViT-inspired MLP-scope native QK-LUT-LIF smoke pass;
+- QK-contract Spikformer native QK-LUT-LIF smoke pass;
 - two fixed 30-epoch pilots running on server-lbz.
 
 The target identity under test is:
@@ -36,6 +37,7 @@ least one native pilot passes its registered gate.
 |---|---|---|---|
 | Attention-scope native QK-LUT-LIF | `run_specs/native_qklut_lif_attention_c100_t4_seed42_20260701.yaml` | pilot running | native best Acc@1 no worse than 1.00 pp below matched QKFormer baseline |
 | LL-ViT-inspired MLP-scope native QK-LUT-LIF | `run_specs/native_qklut_lif_mlp_c100_t4_seed42_20260701.yaml` | pilot running | native best Acc@1 no worse than 1.00 pp below matched QKFormer baseline |
+| QK-contract Spikformer native QK-LUT-LIF | `run_specs/native_qklut_lif_spikformer_qk_contract_c10_t4_seed42_20260701.yaml` | smoke pass | native smoke executes attention LIF targets; pilot waits for QKFormer pilot interpretation |
 
 If both pilots fail, the architecture route remains unsupported and must move
 to a failure-analysis or new-design gate, not to a full run.
@@ -56,7 +58,7 @@ both full routes unless a new run spec justifies the cost and claim.
 | QK-LUT principles motivate insertion site. | Target names, table footprint, and a mechanistic link to attention Q/K or MLP channel mixer. | partially prepared |
 | Architecture improves or preserves QKFormer-level accuracy. | Full run at registered budget; native best Acc@1 at least matched baseline. | missing |
 | Near-SOTA spiking Transformer result. | Full comparison against current strong baselines on accepted datasets, preferably repeated or justified. | missing |
-| Cross-architecture transfer to Spikformer/SpikeFormer/LL-ViT-like settings. | Separate preregistered runs and matched baselines. | missing |
+| Cross-architecture transfer to Spikformer/SpikeFormer/LL-ViT-like settings. | Separate preregistered runs and matched baselines. | Spikformer smoke passed; pilot missing |
 
 ## Experiment Queue
 
@@ -67,8 +69,8 @@ both full routes unless a new run spec justifies the cost and claim.
 4. If a pilot passes, launch only the winning route's full 400-epoch run.
 5. If no pilot passes, write a failure analysis and design a new module rather
    than sweeping learning rate, seed, bit width, or checkpoint.
-6. After a full positive QKFormer result, design a cross-backbone route:
-   Spikformer/SpikeFormer support first if runnable in this repo; LL-ViT is a
+6. If a QKFormer pilot/full result is positive or borderline, promote the
+   smoke-passed QK-contract Spikformer route to a fixed pilot. LL-ViT remains a
    literature/insertion-site baseline unless an official implementation is
    located and licensed for use.
 

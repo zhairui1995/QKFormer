@@ -71,6 +71,10 @@ with a small trainable correction.
 7. Native attention-scoped QK-LUT-LIF training from initialization on QKFormer
    CIFAR-100 `T=4`, seed 42. `SMOKE-PASS`; pilot running. See
    `lut_if_paper/native_qklut_lif_attention_smoke_result_20260701.md`.
+8. QK-contract Spikformer native QK-LUT-LIF smoke on CIFAR-10 `T=4`, seed 42.
+   `SMOKE-PASS`; pilot not launched until the QKFormer native pilots are
+   interpreted. See
+   `lut_if_paper/native_qklut_lif_spikformer_qk_contract_smoke_result_20260701.md`.
 
 ## Claim Boundary
 
@@ -135,3 +139,9 @@ pilot option, but it does not validate accuracy, LL-ViT reproduction, or
 cross-architecture transfer. The P1 pilot is currently running at remote result
 directory
 `/home/lbz/mac_agent/sdr-lutattn-qkformer-lut/results/native_qklut_lif_mlp_c100_t4_seed42_pilot_20260701_143002`.
+
+A QK-contract Spikformer smoke route has also passed at commit `ad8f4ad`. It
+patches Spikformer attention into a QKFormer-like `gate(Q) * K` contract and
+then replaces 20 attention LIF targets with native QK-LUT-LIF modules. This
+shows that the module can execute in a non-QKFormer spiking Transformer
+substrate, but it is not yet a transfer or accuracy result.
