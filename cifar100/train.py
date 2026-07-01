@@ -310,6 +310,22 @@ parser.add_argument('--torchscript', dest='torchscript', action='store_true',
                     help='convert model torchscript for inference')
 parser.add_argument('--log-wandb', action='store_true', default=False,
                     help='log training and validation metrics to wandb')
+parser.add_argument('--qklut-lif-native', action='store_true', default=False,
+                    help='replace selected native LIF nodes with trainable QK-LUT-LIF nodes before training')
+parser.add_argument('--qklut-lif-target-scope', default='attention', choices=('attention', 'qk', 'all'),
+                    help='which LIF nodes to replace for native QK-LUT-LIF training')
+parser.add_argument('--qklut-lif-name-regex', default='',
+                    help='optional regex filter applied after the target scope')
+parser.add_argument('--qklut-lif-state-bits', type=int, default=6,
+                    help='state-address bits for native QK-LUT-LIF nodes')
+parser.add_argument('--qklut-lif-input-bits', type=int, default=8,
+                    help='input-address bits for native QK-LUT-LIF nodes')
+parser.add_argument('--qklut-lif-x-range', type=float, nargs=2, default=(-8.0, 8.0),
+                    metavar=('LO', 'HI'), help='static current range for native QK-LUT-LIF nodes')
+parser.add_argument('--qklut-lif-v-range', type=float, nargs=2, default=(0.0, 2.0),
+                    metavar=('LO', 'HI'), help='static state range for native QK-LUT-LIF nodes')
+parser.add_argument('--qklut-lif-surrogate-slope', type=float, default=2.0,
+                    help='surrogate-gradient slope for native QK-LUT-LIF nodes')
 
 
 def _parse_args():
@@ -394,6 +410,26 @@ def main():
 
 
     print("Creating model")
+    native_qklut_lif_modules = {}
+    if args.qklut_lif_native:
+        from lut_if.native import NativeQKLUTLIFConfig, apply_native_qklut_lif, native_qklut_lif_summary
+
+        native_qklut_lif_modules = apply_native_qklut_lif(
+            model,
+            NativeQKLUTLIFConfig(
+                target_scope=args.qklut_lif_target_scope,
+                name_regex=args.qklut_lif_name_regex,
+                state_bits=args.qklut_lif_state_bits,
+                input_bits=args.qklut_lif_input_bits,
+                x_range=tuple(args.qklut_lif_x_range),
+                v_range=tuple(args.qklut_lif_v_range),
+                surrogate_slope=args.qklut_lif_surrogate_slope,
+                learn_threshold=True,
+            ),
+        )
+        if not native_qklut_lif_modules:
+            raise RuntimeError("QK-LUT-LIF native mode selected no LIF targets")
+        print(f"QK-LUT-LIF native summary: {native_qklut_lif_summary(native_qklut_lif_modules)}")
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"number of params: {n_parameters}")
 
