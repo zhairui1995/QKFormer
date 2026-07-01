@@ -81,3 +81,10 @@ Update after P0: the fixed smoke run completed and is recorded in
 `lut_if_paper/native_qklut_lif_attention_smoke_result_20260701.md`. The smoke
 result proves execution feasibility only; all accuracy and architecture claims
 remain pending on the fixed pilot/full gates.
+
+Update after P1 launch: the fixed 30-epoch pilot is running on server-lbz from
+public branch commit `2ab72e8`. Remote result directory:
+`/home/lbz/mac_agent/sdr-lutattn-qkformer-lut/results/native_qklut_lif_attention_c100_t4_seed42_pilot_20260701_142009`.
+No `comparison.json` had been produced at launch-time documentation; do not
+promote any accuracy claim until the pilot finishes and the result memo is
+written.

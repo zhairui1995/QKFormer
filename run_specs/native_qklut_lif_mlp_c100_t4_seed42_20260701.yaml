@@ -1,5 +1,5 @@
 experiment: native_qklut_lif_mlp_c100_t4_seed42
-status: smoke_pass
+status: pilot_running
 date: 2026-07-01
 claim:
   hypothesis: >

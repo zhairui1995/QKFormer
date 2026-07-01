@@ -84,3 +84,9 @@ Smoke completed and passed on server-lbz at commit `9a38444`. See
 The attention-scope native QK-LUT-LIF pilot remains the active A-line
 experiment; this MLP-scope route should not trigger a full run before its own
 pilot gate passes.
+
+P1 pilot launch update: the fixed 30-epoch MLP-scope pilot is now running on
+server-lbz from public branch commit `cdef659`. Remote result directory:
+`/home/lbz/mac_agent/sdr-lutattn-qkformer-lut/results/native_qklut_lif_mlp_c100_t4_seed42_pilot_20260701_143002`.
+This pilot is a bounded insertion-site comparison against the attention-scope
+native route; it is not a hyperparameter, seed, or bit-width sweep.

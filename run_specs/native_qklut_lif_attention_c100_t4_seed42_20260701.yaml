@@ -1,5 +1,5 @@
 experiment: native_qklut_lif_attention_c100_t4_seed42
-status: planned
+status: pilot_running
 date: 2026-07-01
 claim:
   hypothesis: >
