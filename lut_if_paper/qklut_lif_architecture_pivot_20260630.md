@@ -64,8 +64,10 @@ with a small trainable correction.
 5. Cross-architecture smoke using existing Spikformer or QK-contract
    Spikformer support only if it is explicitly framed as a failure-boundary
    test or as a new preregistered native-training route.
-6. LL-ViT adaptation only after locating a runnable implementation and mapping
-   its LUT-based channel-mixer interface to this paper's SNN/LUT-LIF setting.
+6. LL-ViT-inspired MLP-scope native QK-LUT-LIF insertion on QKFormer
+   CIFAR-100 `T=4`, seed 42. `SMOKE-PASS`; pilot not launched. This is an
+   insertion-site test, not an LL-ViT reproduction. See
+   `lut_if_paper/native_qklut_lif_mlp_smoke_result_20260701.md`.
 7. Native attention-scoped QK-LUT-LIF training from initialization on QKFormer
    CIFAR-100 `T=4`, seed 42. `SMOKE-PASS`; pilot pending. See
    `lut_if_paper/native_qklut_lif_attention_smoke_result_20260701.md`.
@@ -123,3 +125,9 @@ native QK-LUT-LIF variant. Its registered smoke run passes, meaning the module
 can be inserted into QKFormer and optimized end-to-end. This is only a
 feasibility gate; the 30-epoch matched pilot must pass before the route can be
 treated as an architecture candidate.
+
+An LL-ViT-inspired MLP-scope variant has also passed smoke at commit `9a38444`.
+It replaces eight MLP LIF targets with 131,072 table entries and runs under the
+same CIFAR-100 `T=4`, seed-42 smoke budget. This unlocks a bounded MLP-scope
+pilot option, but it does not validate accuracy, LL-ViT reproduction, or
+cross-architecture transfer.

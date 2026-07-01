@@ -78,6 +78,9 @@ Disallowed without further evidence:
 
 ## Status
 
-Planned. The attention-scope native QK-LUT-LIF pilot remains the active A-line
-experiment; this MLP-scope route should start with smoke only and should not
-trigger a full run before its pilot gate passes.
+Smoke completed and passed on server-lbz at commit `9a38444`. See
+`lut_if_paper/native_qklut_lif_mlp_smoke_result_20260701.md`.
+
+The attention-scope native QK-LUT-LIF pilot remains the active A-line
+experiment; this MLP-scope route should not trigger a full run before its own
+pilot gate passes.
