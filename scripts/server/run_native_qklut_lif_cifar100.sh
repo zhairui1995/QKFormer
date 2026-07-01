@@ -53,6 +53,7 @@ export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
 export QKFORMER_LUT_TIME_STEP=4
 export QKFORMER_TRAIN_SEED="${QKFORMER_TRAIN_SEED:-42}"
 LOG_FILE="$RESULT_DIR/launcher.log"
+CODE_COMMIT="${NATIVE_QKLUT_LIF_CODE_COMMIT:-$(git rev-parse --short HEAD)}"
 
 run_row() {
   local row="$1"
@@ -96,7 +97,7 @@ run_row() {
   echo "[native-qklut-lif-c100] root=$ROOT"
   echo "[native-qklut-lif-c100] result_dir=$RESULT_DIR"
   echo "[native-qklut-lif-c100] mode=$MODE"
-  echo "[native-qklut-lif-c100] commit=$(git rev-parse --short HEAD)"
+  echo "[native-qklut-lif-c100] commit=$CODE_COMMIT"
   echo "[native-qklut-lif-c100] python=$PYTHON_BIN"
   echo "[native-qklut-lif-c100] data_dir=$DATA_DIR"
   echo "[native-qklut-lif-c100] epochs=$EPOCHS train_batches=$MAX_TRAIN_BATCHES eval_batches=$MAX_EVAL_BATCHES"
