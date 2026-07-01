@@ -1,0 +1,125 @@
+schema_version: 1
+run_id: structured_residual_cnl_lut_lif_qkformer_c100_t4_seed42_20260701
+status: planned
+owner: codex
+created_at: 2026-07-01
+
+question:
+  hypothesis: >
+    A low-degree structured residual over a fixed CNL-LUT-LIF transition table
+    can avoid the dense table drift observed in trainable CNL-LUT-LIF while
+    improving over the fixed all-CNL-LUT-LIF control on QKFormer CIFAR-100
+    T=4 seed 42.
+  strongest_alternative_explanation: >
+    The fixed CNL-LUT-LIF row is already the best approximation under this
+    all-LIF replacement protocol; any learned residual overfits the calibration
+    and distillation budget or fails to transfer from differentiable training
+    to hard-address evaluation.
+  claim_id_unlocked: planned_structured_residual_qklut_lif_module_probe
+  route_challenge_allowed: true
+
+environment:
+  host: server-lbz / 192.168.70.60
+  ssh_target: lbz@192.168.70.60
+  repo_root: /home/lbz/mac_agent/sdr-lutattn-qkformer-lut
+  git_commit_or_snapshot: TO_VERIFY_AT_LAUNCH
+  conda_environment: sdr
+  python: /home/lbz/miniconda/envs/sdr/bin/python
+  gpu_ids: [2]
+  gpu_count: 1
+
+protocol:
+  dataset: CIFAR-100
+  data_root: /home/datasets
+  split: train for calibration/training; complete validation for full evidence
+  model: QKFormer CIFAR-100 T=4
+  checkpoint: /home/lbz/pretrained_models/qk_lutformer_retained_20260619/qkformer_cifar100_t4_seed42_model_best.pth.tar
+  method: >
+    Replace all MultiStepLIFNode modules with CNL-LUT-LIF modules whose
+    transition table is initialized from the analytic LIF recurrence and kept
+    fixed except for a trainable additive residual decomposed as state vector
+    plus input vector plus global scalar. The backbone is frozen. The trainable
+    variables are the structured residuals and thresholds; temporal/channel CNL
+    affine parameters are disabled by default.
+  controls:
+    - original frozen LIF teacher
+    - posthoc dense transition LUT
+    - quantized arithmetic LIF
+    - fixed all-CNL-LUT-LIF
+    - structured residual CNL-LUT-LIF initialization
+  seed: 42
+  config_path: run_specs/structured_residual_cnl_lut_lif_qkformer_c100_t4_seed42_20260701.yaml
+  command_or_server_script: scripts/server/run_structured_residual_cnl_lut_lif_probe.sh
+  fixed_budget:
+    smoke:
+      calibration_batches: 1
+      epochs: 1
+      train_batches_per_epoch: 1
+      eval_batches: 1
+    full:
+      calibration_batches: 32
+      epochs: 3
+      train_batches_per_epoch: 128
+      evaluation_samples: 10000
+    wall_time_limit: smoke first, full only after smoke pass
+  search_prohibited:
+    - learning_rate_sweep
+    - residual_rank_sweep
+    - norm_affine_toggle_search
+    - bit_width_sweep
+    - seed_sweep
+    - checkpoint_sweep
+    - architecture_sweep
+    - retry_until_positive
+
+metrics:
+  primary:
+    - full_validation_Acc_at_1
+    - paired_Acc_at_1_drop
+    - paired_logit_MSE_per_sample
+  secondary:
+    - validation_cross_entropy
+    - structured_delta_rms
+    - state_residual_rms
+    - input_residual_rms
+    - trainable_residual_entries
+    - metadata_bytes
+  snn_specific:
+    - time_steps
+    - all_LIF_replacement_execution_coverage
+    - aggregate_clip_rate
+
+gates:
+  success:
+    - smoke must execute all requested replacement modules and complete one backward update
+    - full structured residual CNL-LUT-LIF must beat fixed all-CNL-LUT-LIF on Acc@1 or logit MSE
+    - full structured residual CNL-LUT-LIF paired Acc@1 drop must be < fixed all-CNL-LUT-LIF drop
+    - full paired Acc@1 drop must be <= 1.25 percentage points
+  failure:
+    - non-finite loss or metric
+    - requested LIF target not executed
+    - no improvement over fixed all-CNL-LUT-LIF
+    - paired full-validation drop > 1.25 percentage points
+  stop:
+    - do not launch full if smoke is not SMOKE-PASS
+    - stop after the registered full run; no hidden hyperparameter or architecture search
+
+artifacts:
+  remote_result_dir: results/structured_residual_cnl_lut_lif_cifar100_t4_seed42_<mode>_<timestamp>
+  log_path: launcher.log
+  summary_csv: summary.csv
+  metrics_json: metrics.json
+  report_md: report.md
+  local_evidence_paths: []
+
+integrity:
+  dataset_lock_verified: true
+  matched_controls_verified: planned
+  all_failures_recorded: true
+  no_silent_retry: true
+  no_external_upload: true
+  notes: >
+    This is a causal follow-up to the RL selector NO-GO and dense trainable
+    CNL-LUT-LIF NO-GO. It tests a constrained module design, not a sweep over
+    bit-widths, seeds, checkpoints, LL-ViT/QKFormer-family architectures, or
+    learning rates.
