@@ -85,6 +85,8 @@ run_row() {
       --workers "$WORKERS" \
       --max-train-batches "$MAX_TRAIN_BATCHES" \
       --max-eval-batches "$MAX_EVAL_BATCHES" \
+      --cooldown-epochs 0 \
+      --checkpoint-hist 1 \
       "${extra_args[@]}"
   )
   echo "[native-qklut-lif-c100] row=$row done=$(date -Is)"

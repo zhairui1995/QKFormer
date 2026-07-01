@@ -36,6 +36,8 @@ Initial target scope:
 - 6-bit state and 8-bit input addressing;
 - static current range `[-8, 8]`, static state range `[0, 2]`;
 - entire network trains from initialization.
+- cooldown epochs are fixed to `0` so the registered epoch budget is the
+  actual training epoch count.
 
 ## Gates
 

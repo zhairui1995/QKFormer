@@ -38,18 +38,21 @@ protocol:
     max_eval_batches: 4
     batch_size: 16
     val_batch_size: 16
+    cooldown_epochs: 0
   pilot:
     epochs: 30
     max_train_batches: 0
     max_eval_batches: 0
     batch_size: 64
     val_batch_size: 64
+    cooldown_epochs: 0
   full:
     epochs: 400
     max_train_batches: 0
     max_eval_batches: 0
     batch_size: 64
     val_batch_size: 64
+    cooldown_epochs: 0
 baselines:
   - original QKFormer trained with the same runner, seed, dataset, T, and budget
   - native QK-LUT-LIF attention variant
